@@ -1,0 +1,12 @@
+name: Technical task
+description: Setup, cải tiến kỹ thuật hoặc nghiên cứu trong sprint.
+title: "[Task] "
+body:
+  - type: textarea
+    id: scope
+    attributes: { label: Mục tiêu và phạm vi }
+    validations: { required: true }
+  - type: textarea
+    id: done
+    attributes: { label: Điều kiện hoàn thành }
+    validations: { required: true }

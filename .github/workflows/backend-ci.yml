@@ -1,0 +1,141 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+  push:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  format:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify code formatting
+        run: |
+          dotnet restore TOEICMaster.slnx --locked-mode
+          dotnet format TOEICMaster.slnx --verify-no-changes --no-restore
+
+  gitleaks:
+    name: Secret Scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Run Gitleaks
+        run: >-
+          docker run --rm
+          -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/repo
+          -v "$GITHUB_WORKSPACE:/repo"
+          ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --redact --no-banner --log-opts="--all"
+
+  build:
+    name: Build Solution
+    needs: format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json', '**/*.csproj', 'Directory.Build.props', 'global.json', 'TOEICMaster.slnx') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore dependencies
+        run: dotnet restore TOEICMaster.slnx --locked-mode
+
+      - name: Build solution
+        run: dotnet build TOEICMaster.slnx -c Release --no-restore /nr:false
+
+  test:
+    name: Run Tests
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json', '**/*.csproj', 'Directory.Build.props', 'global.json', 'TOEICMaster.slnx') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore dependencies
+        run: dotnet restore TOEICMaster.slnx --locked-mode
+
+      - name: Build for testing
+        run: dotnet build TOEICMaster.slnx -c Release --no-restore /nr:false
+
+      - name: Execute tests (Architecture + Unit Tests)
+        run: dotnet test TOEICMaster.slnx -c Release --no-build --logger "trx;LogFileName=results.trx"
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: backend-test-results
+          path: "**/TestResults/*.trx"
+
+  docker-verify:
+    name: Docker Build Verification
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Validate local Compose
+        run: docker compose --env-file .env.example config --quiet
+
+      - name: Build API Docker image
+        run: docker build -f Dockerfile .

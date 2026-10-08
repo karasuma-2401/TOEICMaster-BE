@@ -1,0 +1,19 @@
+name: Bug report
+description: Lỗi có thể tái hiện.
+title: "[Bug] "
+body:
+  - type: textarea
+    id: steps
+    attributes: { label: Các bước tái hiện }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: Kết quả mong đợi }
+    validations: { required: true }
+  - type: textarea
+    id: actual
+    attributes: { label: Kết quả thực tế và bằng chứng }
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes: { label: Môi trường và commit }

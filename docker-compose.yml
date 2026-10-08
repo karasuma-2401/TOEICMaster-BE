@@ -1,0 +1,64 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: toeicmaster-api:local
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - MEDIATR_LICENSE_KEY=${MEDIATR_LICENSE_KEY:-}
+      - AUTOMAPPER_LICENSE_KEY=${AUTOMAPPER_LICENSE_KEY:-}
+      - ConnectionStrings__Postgres=${DATABASE_CONNECTION_STRING:?Set the Neon Npgsql connection string in .env}
+      - Cors__AllowedOrigins__0=http://localhost:3000
+      - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD:-local-redis-only},abortConnect=false,connectTimeout=3000,syncTimeout=3000
+      - Minio__Endpoint=minio:9000
+      - Minio__AccessKey=${MINIO_ROOT_USER:-toeicmaster-local}
+      - Minio__SecretKey=${MINIO_ROOT_PASSWORD:-local-minio-only}
+      - Minio__UseSsl=false
+      - Smtp__Host=mailpit
+      - Smtp__Port=1025
+      - Smtp__Security=None
+    ports:
+      - "127.0.0.1:5287:8080"
+    depends_on:
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+      mailpit:
+        condition: service_started
+
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+
+  minio:
+    image: cgr.dev/chainguard/minio:latest@sha256:59667194421209c2c1eacbe761e24787e047985c5dfa96b15da9b59fe9b55cd0
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-toeicmaster-local}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-local-minio-only}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio_data:/data
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-local-redis-only}
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  minio_data:
+  redis_data:

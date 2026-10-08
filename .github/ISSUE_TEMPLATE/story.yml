@@ -1,0 +1,27 @@
+name: User story
+description: Công việc có giá trị cho người dùng, có thể hoàn thành trong một sprint.
+title: "[Story] "
+body:
+  - type: textarea
+    id: story
+    attributes:
+      label: User story
+      description: "Là [người dùng], tôi muốn [khả năng], để [giá trị]."
+    validations: { required: true }
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance criteria
+      description: "Điều kiện có thể kiểm chứng, bao gồm trạng thái lỗi khi phù hợp."
+      placeholder: "- [ ] Given … When … Then …"
+    validations: { required: true }
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Phụ thuộc và tài liệu
+      description: "Link Issue/PR của repo kia, API contract, thiết kế."
+  - type: input
+    id: estimate
+    attributes:
+      label: Story points
+      description: "Nhóm ước lượng trong refinement/planning; có thể để trống trước đó."

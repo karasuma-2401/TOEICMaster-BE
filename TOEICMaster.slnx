@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TOEICMaster.Api/TOEICMaster.Api.csproj" />
+    <Project Path="src/TOEICMaster.Application/TOEICMaster.Application.csproj" />
+    <Project Path="src/TOEICMaster.Domain/TOEICMaster.Domain.csproj" />
+    <Project Path="src/TOEICMaster.Infrastructure/TOEICMaster.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TOEICMaster.Tests/TOEICMaster.Tests.csproj" />
+  </Folder>
+</Solution>

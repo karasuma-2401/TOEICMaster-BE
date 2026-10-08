@@ -1,0 +1,10 @@
+services:
+  backend:
+    networks:
+      default:
+      toeicmaster:
+        aliases: [backend]
+networks:
+  toeicmaster:
+    external: true
+    name: toeicmaster-local

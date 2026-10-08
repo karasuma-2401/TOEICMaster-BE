@@ -1,0 +1,104 @@
+# Clean Architecture
+
+Backend là một ứng dụng ASP.NET Core, triển khai như một khối thống nhất. CQRS tách command (ghi/thực hiện hành động) và query (đọc) trong cùng ứng dụng; hiện vẫn dùng một database Neon. MediatR điều phối request trong process, không phải message broker.
+
+## Chiều dependency
+
+```mermaid
+flowchart TD
+    API[Api] --> APP[Application]
+    API --> INF[Infrastructure - đăng ký DI]
+    INF --> APP
+    APP --> DOMAIN[Domain]
+    INF --> PG[Neon PostgreSQL / EF Core]
+    INF --> REDIS[Redis]
+    INF --> MINIO[MinIO]
+    INF --> SMTP[Mailpit SMTP]
+```
+
+Mũi tên giữa project biểu diễn dependency khi biên dịch. Domain không tham chiếu project khác hoặc NuGet package. Application chỉ tham chiếu Domain; Infrastructure triển khai interface do Application định nghĩa. API tham chiếu Infrastructure để đăng ký DI trong `Program.cs`; controller gọi Application qua `ISender`.
+
+| Project        | Đặt code ở đây                                                               | Ranh giới                                                       |
+| -------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Domain         | Entity, value object, quy tắc nghiệp vụ                                      | Độc lập với ASP.NET, EF Core và các adapter                     |
+| Application    | Command/query, handler, validator, DTO, interface                            | Không dùng DbContext, HTTP context hoặc client Redis/MinIO/SMTP |
+| Infrastructure | DbContext, EF configurations/migrations, adapter dữ liệu/cache/storage/email | Triển khai interface Application                                |
+| Api            | Controller, HTTP request/response, mapping HTTP, exception handler, DI       | Không xử lý nghiệp vụ hoặc truy cập DbContext trong controller  |
+
+## Luồng request
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Api as Controller
+    participant Mediator as MediatR
+    participant Validation as ValidationBehavior
+    participant Handler
+    participant Adapter as Infrastructure
+    Client->>Api: HTTP request
+    Api->>Mediator: ISender.Send(request, cancellationToken)
+    Mediator->>Validation: ValidateAsync
+    alt Dữ liệu không hợp lệ
+        Validation-->>Api: ValidationException
+        Api-->>Client: 400 ValidationProblemDetails
+    else Dữ liệu hợp lệ
+        Validation->>Handler: Handle
+        opt Use case cần dịch vụ bên ngoài
+            Handler->>Adapter: Gọi interface Application
+            Adapter-->>Handler: Kết quả
+        end
+        Handler-->>Api: DTO / kết quả
+        Api-->>Client: HTTP response
+    end
+```
+
+`ValidationBehavior` chạy validator bất đồng bộ và tuần tự trước handler. Cách này hỗ trợ `MustAsync` và tránh chạy đồng thời nhiều validator dùng chung scoped DbContext. Request và validator phải truyền tiếp cancellation token. Lỗi được gom theo property vào `errors`; ProblemDetails có `traceId` để tra log.
+
+## Tổ chức use case
+
+```text
+Application/
+  Common/Behaviors/ValidationBehavior.cs
+  DependencyInjection.cs
+  Email/
+    IMailSender.cs
+    Commands/SendEmail/
+      SendEmailCommand.cs
+      SendEmailCommandValidator.cs
+  System/Queries/GetSystemStatus/
+    GetSystemStatusQuery.cs
+Api/
+  Controllers/
+  Mapping/SystemProfile.cs
+  ExceptionHandling/ValidationExceptionHandler.cs
+```
+
+Khi thêm tính năng, tạo thư mục theo nghiệp vụ, ví dụ `Exams/Commands/SubmitExam` hoặc `Exams/Queries/GetExam`. Mỗi use case chứa request, handler, DTO và validator cần thiết; có thể tách ra các file riêng khi code dài hơn.
+
+1. Đặt quy tắc nghiệp vụ và entity trong Domain.
+2. Tạo command/query dùng `IRequest<TResponse>` và handler dùng `IRequestHandler<TRequest, TResponse>` trong Application.
+3. Với dữ liệu đầu vào, tạo `AbstractValidator<TRequest>`. DI tự phát hiện handler, validator và mapping profile trong Application.
+4. Nếu cần database hoặc dịch vụ bên ngoài, định nghĩa interface theo use case trong Application và triển khai trong Infrastructure. Đăng ký implementation tại `AddInfrastructure`.
+5. Controller chuyển HTTP request thành command/query, gọi `ISender.Send` và trả HTTP response.
+6. Bổ sung test cho quy tắc nghiệp vụ, dữ liệu sai và các side effect cần kiểm soát.
+
+Mẫu đọc hiện có: `GET /api/v1/system/ping` → `GetSystemStatusQueryHandler` → `SystemStatusDto` → `SystemProfile` → `PingResponse`. Contract FE vẫn là `{ "service": "TOEICMaster", "status": "ok" }`.
+
+Mẫu command hiện có: `SendEmailCommand` → `SendEmailCommandValidator` → `SendEmailCommandHandler` → `IMailSender` → `SmtpMailSender`. Command này phục vụ use case nội bộ và tests; chưa có HTTP endpoint gửi mail. Giới hạn hiện tại là recipient 254 ký tự, subject 200 ký tự và text body 100.000 ký tự.
+
+## Thư viện và quy ước
+
+- **MediatR:** dùng `ISender` trong controller để gửi command/query. CQRS là pattern, không có package riêng bắt buộc.
+- **FluentValidation:** dùng core package và DI extensions; validation nằm trong MediatR pipeline. Không dùng `FluentValidation.AspNetCore` auto-validation vì pipeline MVC không hỗ trợ async và package đó đã ngừng được duy trì. [Hướng dẫn chính thức](https://docs.fluentvalidation.net/en/latest/aspnet.html).
+- **AutoMapper:** profile Domain → Application DTO đặt trong Application; profile Application DTO → HTTP response đặt trong Api. DI scan cả hai assembly. Map vào entity có quy tắc nghiệp vụ phải đi qua constructor/method của entity để bảo vệ trạng thái; không map input tùy ý vào entity.
+- **EF Core:** DbContext, configuration và migration nằm trong Infrastructure. Query chỉ đọc nên dùng `AsNoTracking`, phân trang và chỉ lấy trường cần thiết. Tạo interface truy cập dữ liệu theo nghiệp vụ khi có use case; không thêm generic repository hoặc transaction behavior toàn cục khi chưa xác định ranh giới transaction.
+
+AutoMapper đã tích hợp `AddAutoMapper`; MediatR đã tích hợp `AddMediatR`. Không cài thêm các package `*.Extensions.Microsoft.DependencyInjection` cũ. [AutoMapper DI](https://docs.automapper.io/en/stable/Dependency-injection.html), [MediatR DI](https://github.com/LuckyPennySoftware/MediatR#registering-with-iservicecollection).
+
+## Kiểm thử và cấu hình
+
+Tests kiểm tra project references, dependency của Domain/Application, dispatch và validation qua MediatR, cancellation, HTTP ProblemDetails, mapping configuration, contract ping, CORS và SMTP adapter. Tests dùng mail adapter giả hoặc SMTP server local; không cần credential Neon thật.
+
+Credential Neon và license key nằm trong user secrets hoặc environment. Xem README để setup. DI không đưa license key vào HTTP response hoặc log và không tắt cảnh báo license của thư viện.
+
+Hiện chưa có entity, migration hoặc authentication. Thêm xác thực và phân quyền trong story triển khai API nghiệp vụ; không mở công khai các endpoint làm thay đổi dữ liệu khi chưa bảo vệ quyền truy cập.

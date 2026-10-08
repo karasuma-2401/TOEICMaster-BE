@@ -1,0 +1,13 @@
+@baseUrl = http://localhost:5287
+
+GET {{baseUrl}}/api/v1/system/ping
+Accept: application/json
+
+### Process liveness
+GET {{baseUrl}}/health/live
+
+### Neon PostgreSQL, Redis, MinIO, SMTP readiness
+GET {{baseUrl}}/health/ready
+
+### Development OpenAPI
+GET {{baseUrl}}/openapi/v1.json
