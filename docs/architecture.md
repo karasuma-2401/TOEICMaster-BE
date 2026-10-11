@@ -102,6 +102,11 @@ Tests kiểm tra project references, dependency của Domain/Application, dispat
 Credential Neon và license key nằm trong user secrets hoặc environment. Xem README để setup. DI không đưa license key vào HTTP response hoặc log và không tắt cảnh báo license của thư viện.
 
 Luồng đăng ký tài khoản đặt `RegisterCommand` trong Application, `User` trong Domain và adapter EF/BCrypt trong
-Infrastructure. API chỉ chuyển request vào MediatR và ánh xạ exception sang ProblemDetails. Đăng nhập và phân quyền
-được bổ sung trong các story tiếp theo; không mở công khai endpoint nghiệp vụ làm thay đổi dữ liệu trước khi bảo vệ
-quyền truy cập.
+Infrastructure. Đăng nhập dùng `LoginCommand`; JWT và random refresh token được cấp bởi adapter Infrastructure. Domain
+quản lý `UserSession`, còn PostgreSQL chỉ lưu hash của refresh token. Refresh thực hiện rotation trong transaction với
+conditional update để một token không thể được dùng thành công hai lần đồng thời. API cấu hình Bearer authentication và
+chỉ chuyển request vào MediatR, ánh xạ lỗi sang ProblemDetails.
+
+JWT hiện chỉ chứa identity claim, chưa chứa role. Mô hình role và permission cần được xác định theo nghiệp vụ trước khi
+thêm authorization policy; không gán role mặc định tùy ý trong token. Access token ngắn hạn không có cơ chế blacklist;
+logout thu hồi refresh session và access token cũ tự hết hạn sau tối đa 15 phút.

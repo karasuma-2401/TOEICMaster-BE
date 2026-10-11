@@ -27,6 +27,8 @@ public sealed class FakeUserRegistrationRepository : IUserRegistrationRepository
 public sealed class FakePasswordHasher : IPasswordHasher
 {
     public string? Password { get; private set; }
+    public string? VerificationPassword { get; private set; }
+    public string? VerificationHash { get; private set; }
 
     public string Hash(string password)
     {
@@ -34,6 +36,10 @@ public sealed class FakePasswordHasher : IPasswordHasher
         return "hashed-for-test";
     }
 
-    public bool Verify(string password, string passwordHash) =>
-        passwordHash == "hashed-for-test" && password == Password;
+    public bool Verify(string password, string? passwordHash)
+    {
+        VerificationPassword = password;
+        VerificationHash = passwordHash;
+        return passwordHash == "hashed-for-test" && password == Password;
+    }
 }

@@ -45,10 +45,12 @@ docker compose version
     cp .env.example .env
     ```
 
-    Mở `.env`, thay `DATABASE_CONNECTION_STRING` bằng connection string Neon của nhóm, giữ dấu ngoặc kép:
+    Mở `.env`, thay `DATABASE_CONNECTION_STRING` bằng connection string Neon của nhóm, giữ dấu ngoặc kép. Đồng thời
+    thay `JWT_SIGNING_KEY` bằng chuỗi ngẫu nhiên riêng của môi trường, tối thiểu 32 ký tự:
 
     ```dotenv
     DATABASE_CONNECTION_STRING="Host=<NEON_HOST>;Database=<DATABASE>;Username=<USER>;Password=<PASSWORD>;SSL Mode=VerifyFull;Channel Binding=Require;"
+    JWT_SIGNING_KEY=<RANDOM_SECRET_WITH_AT_LEAST_32_CHARACTERS>
     ```
 
     Đây là định dạng Npgsql, không phải URL `postgresql://...`. File `.env` được Git bỏ qua.
@@ -63,6 +65,7 @@ docker compose version
 
     ```sh
     dotnet user-secrets set "ConnectionStrings:Postgres" "<NEON_CONNECTION_STRING>" --project src/TOEICMaster.Api
+    dotnet user-secrets set "Jwt:SigningKey" "<JWT_SIGNING_KEY>" --project src/TOEICMaster.Api
     ```
 
     Thay `<NEON_CONNECTION_STRING>` bằng toàn bộ chuỗi nhận từ nhóm. User secrets lưu ngoài repo trên máy từng thành viên. Docker Compose đọc `.env`; `dotnet run` đọc user secrets.
@@ -142,8 +145,8 @@ tests/
 docs/                         Kiến trúc
 ```
 
-[Chi tiết kiến trúc](docs/architecture.md) và [API contract](docs/api-contract.md). API đăng ký tài khoản local đã có;
-đăng nhập, Google OAuth2 và nghiệp vụ TOEIC được bổ sung theo backlog.
+[Chi tiết kiến trúc](docs/architecture.md) và [API contract](docs/api-contract.md). API đăng ký, đăng nhập local, refresh
+và logout đã có; Google OAuth2 và nghiệp vụ TOEIC được bổ sung theo backlog.
 
 Controller gọi `ISender.Send` của MediatR; Application xử lý use case và chỉ tham chiếu Domain. Infrastructure triển khai interface Application để truy cập dữ liệu, cache, storage và email. Domain độc lập với framework/database.
 
@@ -180,7 +183,8 @@ Tests không cần credential Neon thật. Khi thay đổi package, chạy `dotn
 
 ## EF Core migrations
 
-Migration `InitialUsers` tạo bảng tài khoản cho luồng đăng ký. Khi thay đổi schema tiếp theo:
+Migration `InitialUsers` tạo bảng tài khoản; `AddUserSessions` tạo bảng phiên và refresh token hash. Khi thay đổi schema
+tiếp theo:
 
 ```sh
 dotnet ef migrations add <MigrationName> --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api --output-dir Persistence/Migrations

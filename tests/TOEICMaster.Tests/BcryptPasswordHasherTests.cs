@@ -5,6 +5,14 @@ namespace TOEICMaster.Tests;
 public sealed class BcryptPasswordHasherTests
 {
     [Fact]
+    public void Missing_hash_performs_safe_dummy_verification()
+    {
+        var hasher = new BcryptPasswordHasher();
+
+        Assert.False(hasher.Verify("attempted-password", null));
+    }
+
+    [Fact]
     public void Hash_is_salted_and_verifiable_without_storing_plaintext()
     {
         const string password = "a-long-password-that-is-not-stored";
