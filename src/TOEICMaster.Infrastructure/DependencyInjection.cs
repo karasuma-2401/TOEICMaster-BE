@@ -42,6 +42,11 @@ public static class DependencyInjection
                 "Configure both SMTP username and password, or neither.")
             .ValidateOnStart();
         services.AddTransient<IMailSender, SmtpMailSender>();
+        // Authentication services
+        services.AddSingleton<TOEICMaster.Application.Common.Security.IPasswordHasher, TOEICMaster.Infrastructure.Security.Pbkdf2PasswordHasher>();
+        services.AddScoped<TOEICMaster.Application.Common.Interfaces.IUserRepository, TOEICMaster.Infrastructure.Repositories.EfUserRepository>();
+        services.Configure<TOEICMaster.Infrastructure.Security.JwtOptions>(configuration.GetSection(TOEICMaster.Infrastructure.Security.JwtOptions.SectionName));
+        services.AddSingleton<TOEICMaster.Application.Common.Security.ITokenService, TOEICMaster.Infrastructure.Security.JwtTokenService>();
         services.AddHealthChecks()
             .AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"], timeout: TimeSpan.FromSeconds(10))
             .AddCheck<RedisHealthCheck>("redis", tags: ["ready"], timeout: TimeSpan.FromSeconds(10))
