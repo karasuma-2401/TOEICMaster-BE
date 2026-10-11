@@ -9,21 +9,30 @@ public sealed class AuthenticationExceptionHandler(IProblemDetailsService proble
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception,
         CancellationToken cancellationToken)
     {
-        var title = exception switch
+        var (status, title, type) = exception switch
         {
-            InvalidCredentialsException => "Email hoặc mật khẩu không chính xác.",
-            InvalidSessionException => "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.",
-            _ => null
+            InvalidCredentialsException => (StatusCodes.Status401Unauthorized,
+                "Email hoặc mật khẩu không chính xác.", "https://tools.ietf.org/html/rfc9110#section-15.5.2"),
+            InvalidSessionException => (StatusCodes.Status401Unauthorized,
+                "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.",
+                "https://tools.ietf.org/html/rfc9110#section-15.5.2"),
+            InvalidGoogleCredentialException => (StatusCodes.Status401Unauthorized,
+                "Google credential không hợp lệ hoặc đã hết hạn.",
+                "https://tools.ietf.org/html/rfc9110#section-15.5.2"),
+            ExternalAccountLinkRequiredException => (StatusCodes.Status409Conflict,
+                "Email này đã thuộc một tài khoản khác. Hãy đăng nhập bằng mật khẩu để liên kết Google.",
+                "https://tools.ietf.org/html/rfc9110#section-15.5.10"),
+            _ => (0, null, null)
         };
         if (title is null)
             return false;
 
-        httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        httpContext.Response.StatusCode = status;
         var problem = new ProblemDetails
         {
-            Status = StatusCodes.Status401Unauthorized,
+            Status = status,
             Title = title,
-            Type = "https://tools.ietf.org/html/rfc9110#section-15.5.2"
+            Type = type
         };
         if (!await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
         {

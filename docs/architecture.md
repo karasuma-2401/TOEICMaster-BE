@@ -82,7 +82,7 @@ Khi thêm tính năng, tạo thư mục theo nghiệp vụ, ví dụ `Exams/Comm
 5. Controller chuyển HTTP request thành command/query, gọi `ISender.Send` và trả HTTP response.
 6. Bổ sung test cho quy tắc nghiệp vụ, dữ liệu sai và các side effect cần kiểm soát.
 
-Mẫu đọc hiện có: `GET /api/v1/system/ping` → `GetSystemStatusQueryHandler` → `SystemStatusDto` → `SystemProfile` → `PingResponse`. Contract FE vẫn là `{ "service": "TOEICMaster", "status": "ok" }`.
+Mẫu đọc hiện có: `GET /api/system/ping` → `GetSystemStatusQueryHandler` → `SystemStatusDto` → `SystemProfile` → `PingResponse`. Contract FE vẫn là `{ "service": "TOEICMaster", "status": "ok" }`.
 
 Mẫu command hiện có: `SendEmailCommand` → `SendEmailCommandValidator` → `SendEmailCommandHandler` → `IMailSender` → `SmtpMailSender`. Command này phục vụ use case nội bộ và tests; chưa có HTTP endpoint gửi mail. Giới hạn hiện tại là recipient 254 ký tự, subject 200 ký tự và text body 100.000 ký tự.
 
@@ -110,3 +110,12 @@ chỉ chuyển request vào MediatR, ánh xạ lỗi sang ProblemDetails.
 JWT hiện chỉ chứa identity claim, chưa chứa role. Mô hình role và permission cần được xác định theo nghiệp vụ trước khi
 thêm authorization policy; không gán role mặc định tùy ý trong token. Access token ngắn hạn không có cơ chế blacklist;
 logout thu hồi refresh session và access token cũ tự hết hạn sau tối đa 15 phút.
+
+Đăng nhập Google nhận ID token đã ký, adapter `GoogleIdentityVerifier` kiểm tra token bằng Web Client ID cấu hình cho môi
+trường. `external_identities` lưu khóa ổn định `(provider, subject)` và tham chiếu `users`; email chỉ dùng để tạo hoặc cân
+nhắc liên kết tài khoản, không phải định danh Google. Tài khoản Google-only có `PasswordHash = null` và không thể đăng
+nhập local cho đến khi có use case đặt mật khẩu riêng.
+
+Việc liên kết tự động với user có sẵn chỉ được phép cho Gmail hoặc Google Workspace. Email bên thứ ba cần một luồng liên
+kết đã xác thực phiên local để tránh takeover. Repository xử lý unique constraint của email và `(provider, subject)` để
+hai lần đăng nhập Google đầu tiên chạy đồng thời vẫn hội tụ về một user.

@@ -79,3 +79,33 @@ public sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
 {
     public override DateTimeOffset GetUtcNow() => utcNow;
 }
+
+public sealed class FakeGoogleIdentityVerifier : IGoogleIdentityVerifier
+{
+    public VerifiedGoogleAccount Account { get; set; } =
+        new("google-subject", "learner@gmail.com", "Google Learner", true);
+
+    public Exception? Exception { get; set; }
+    public string? Credential { get; private set; }
+
+    public Task<VerifiedGoogleAccount> VerifyAsync(string idToken, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Credential = idToken;
+        return Exception is null ? Task.FromResult(Account) : Task.FromException<VerifiedGoogleAccount>(Exception);
+    }
+}
+
+public sealed class FakeExternalLoginRepository : IExternalLoginRepository
+{
+    public ExternalLoginResolution Resolution { get; set; } = ExternalLoginResolution.LinkRequired();
+    public VerifiedGoogleAccount? Account { get; private set; }
+
+    public Task<ExternalLoginResolution> ResolveGoogleAccountAsync(VerifiedGoogleAccount account,
+        DateTimeOffset createdAtUtc, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Account = account;
+        return Task.FromResult(Resolution);
+    }
+}

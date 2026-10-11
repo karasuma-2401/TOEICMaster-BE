@@ -1,6 +1,6 @@
 @baseUrl = http://localhost:5287
 
-GET {{baseUrl}}/api/v1/system/ping
+GET {{baseUrl}}/api/system/ping
 Accept: application/json
 
 ### Process liveness

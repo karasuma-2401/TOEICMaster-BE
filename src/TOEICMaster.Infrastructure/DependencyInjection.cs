@@ -56,6 +56,8 @@ public static class DependencyInjection
             .Validate(options => options.RememberMeRefreshTokenDays >= options.RefreshTokenDays,
                 "Remember-me session lifetime must not be shorter than the standard session lifetime.")
             .ValidateOnStart();
+        services.AddOptions<GoogleIdentityOptions>().Bind(configuration.GetSection(GoogleIdentityOptions.SectionName))
+            .ValidateDataAnnotations().ValidateOnStart();
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .Configure<IOptions<JwtOptions>>((bearerOptions, jwtOptions) =>
@@ -80,8 +82,10 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IAuthenticationTokenService, JwtAuthenticationTokenService>();
+        services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
         services.AddScoped<IUserRegistrationRepository, EfUserRegistrationRepository>();
         services.AddScoped<IAuthenticationRepository, EfAuthenticationRepository>();
+        services.AddScoped<IExternalLoginRepository, EfExternalLoginRepository>();
         services.AddHealthChecks()
             .AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"], timeout: TimeSpan.FromSeconds(10))
             .AddCheck<RedisHealthCheck>("redis", tags: ["ready"], timeout: TimeSpan.FromSeconds(10))

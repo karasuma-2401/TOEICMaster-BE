@@ -29,24 +29,28 @@ public sealed class EfAuthenticationRepository(ToeicDbContext dbContext) : IAuth
     public async Task<bool> TryRotateSessionAsync(Guid currentSessionId, UserSession replacement,
         DateTimeOffset revokedAtUtc, CancellationToken cancellationToken)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-        dbContext.UserSessions.Add(replacement);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        var updated = await dbContext.UserSessions
-            .Where(session => session.Id == currentSessionId && session.RevokedAtUtc == null &&
-                              session.ExpiresAtUtc > revokedAtUtc)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(session => session.RevokedAtUtc, revokedAtUtc)
-                .SetProperty(session => session.ReplacedBySessionId, replacement.Id), cancellationToken);
-        if (updated == 0)
+        var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+        return await executionStrategy.ExecuteAsync(async () =>
         {
-            await transaction.RollbackAsync(cancellationToken);
-            return false;
-        }
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+            dbContext.UserSessions.Add(replacement);
+            await dbContext.SaveChangesAsync(cancellationToken);
 
-        await transaction.CommitAsync(cancellationToken);
-        return true;
+            var updated = await dbContext.UserSessions
+                .Where(session => session.Id == currentSessionId && session.RevokedAtUtc == null &&
+                                  session.ExpiresAtUtc > revokedAtUtc)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(session => session.RevokedAtUtc, revokedAtUtc)
+                    .SetProperty(session => session.ReplacedBySessionId, replacement.Id), cancellationToken);
+            if (updated == 0)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return true;
+        });
     }
 
     public async Task RevokeSessionAsync(string refreshTokenHash, DateTimeOffset revokedAtUtc,

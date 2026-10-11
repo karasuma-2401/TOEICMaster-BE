@@ -102,3 +102,40 @@ nhận `401`.
 
 Logout trả `204 No Content` và có tính idempotent. Refresh token không tồn tại hoặc đã bị thu hồi vẫn trả `204`.
 Access token đã cấp không bị thu hồi tức thời và tự hết hạn sau tối đa 15 phút.
+
+## Đăng nhập Google
+
+`POST /api/auth/google`
+
+Frontend dùng Google Identity Services với cùng Web Client ID đã cấu hình cho backend, nhận trường `credential` từ
+Google rồi chuyển nguyên ID token đó qua Next.js BFF:
+
+```json
+{
+  "credential": "<google-signed-id-token>",
+  "rememberMe": true
+}
+```
+
+Backend dùng thư viện Google chính thức để kiểm tra chữ ký, `aud`, `iss`, `exp` và yêu cầu email đã được xác minh. Tài
+khoản Google được nhận diện bằng claim `sub`; không dùng email hoặc dữ liệu profile do browser tự gửi làm định danh.
+Response `200` dùng cùng cấu trúc token/session với đăng nhập local.
+
+Khi đăng nhập lần đầu:
+
+- Nếu chưa có email trong hệ thống, backend tạo user không có local password và liên kết `(google, sub)`.
+- Nếu email trùng tài khoản có sẵn và là Gmail hoặc Google Workspace, backend có thể liên kết tự động vì Google có
+  thẩm quyền xác minh email đó.
+- Nếu email trùng nhưng là email bên thứ ba không thuộc Gmail/Workspace, backend trả `409`; người dùng cần đăng nhập
+  local và thực hiện luồng liên kết tài khoản riêng trước. Luồng liên kết từ trang tài khoản chưa thuộc task này.
+
+| Status | Nội dung |
+| --- | --- |
+| `200 OK` | Token pair và thông tin người dùng. |
+| `400 Bad Request` | Thiếu hoặc sai giới hạn `Credential`. |
+| `401 Unauthorized` | Google ID token sai, hết hạn, sai audience hoặc email chưa xác minh. |
+| `409 Conflict` | Không an toàn để tự động liên kết tài khoản đang có cùng email. |
+
+Nếu FE dùng popup/callback rồi gọi Next.js BFF thì BFF gửi JSON như trên. Nếu sau này chuyển sang redirect mode trực tiếp
+từ Google, endpoint callback phải bổ sung kiểm tra CSRF double-submit token theo hướng dẫn Google; không dùng endpoint JSON
+này làm callback redirect trực tiếp.

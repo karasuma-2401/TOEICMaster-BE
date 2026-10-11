@@ -6,7 +6,7 @@ public sealed class User
     {
     }
 
-    private User(Guid id, string displayName, string email, string normalizedEmail, string passwordHash,
+    private User(Guid id, string displayName, string email, string normalizedEmail, string? passwordHash,
         DateTimeOffset createdAtUtc)
     {
         Id = id;
@@ -28,4 +28,8 @@ public sealed class User
     public static User CreateLocal(string displayName, string email, string normalizedEmail, string passwordHash,
         DateTimeOffset createdAtUtc) =>
         new(Guid.NewGuid(), displayName, email, normalizedEmail, passwordHash, createdAtUtc);
+
+    public static User CreateExternal(string displayName, string email, string normalizedEmail,
+        DateTimeOffset createdAtUtc) =>
+        new(Guid.NewGuid(), displayName, email, normalizedEmail, null, createdAtUtc);
 }

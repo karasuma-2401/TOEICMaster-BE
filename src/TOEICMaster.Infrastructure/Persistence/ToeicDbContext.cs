@@ -7,6 +7,7 @@ public sealed class ToeicDbContext(DbContextOptions<ToeicDbContext> options) : D
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
+    public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

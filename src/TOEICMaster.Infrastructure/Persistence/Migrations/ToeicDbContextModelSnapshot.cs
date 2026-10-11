@@ -22,6 +22,38 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExternalIdentity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Provider", "Subject")
+                        .IsUnique();
+
+                    b.ToTable("external_identities", (string)null);
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -99,6 +131,15 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "ExpiresAtUtc");
 
                     b.ToTable("user_sessions", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExternalIdentity", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.UserSession", b =>

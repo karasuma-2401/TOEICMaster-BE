@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using TOEICMaster.Api.Contracts;
 using TOEICMaster.Application.Authentication.Commands.Login;
+using TOEICMaster.Application.Authentication.Commands.LoginWithGoogle;
 using TOEICMaster.Application.Authentication.Commands.Logout;
 using TOEICMaster.Application.Authentication.Commands.RefreshSession;
 using TOEICMaster.Application.Authentication.Commands.Register;
@@ -27,6 +28,19 @@ public sealed class AuthController(ISender sender) : ControllerBase
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<AuthenticationResponse>> Login(LoginCommand command,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(command, cancellationToken);
+        PreventTokenCaching();
+        return Ok(AuthenticationResponse.From(result));
+    }
+
+    [HttpPost("google")]
+    [ProducesResponseType<AuthenticationResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<AuthenticationResponse>> Google(LoginWithGoogleCommand command,
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(command, cancellationToken);

@@ -11,6 +11,7 @@ services:
       - MEDIATR_LICENSE_KEY=${MEDIATR_LICENSE_KEY:-}
       - AUTOMAPPER_LICENSE_KEY=${AUTOMAPPER_LICENSE_KEY:-}
       - Jwt__SigningKey=${JWT_SIGNING_KEY:?Set a random JWT signing key with at least 32 characters in .env}
+      - Google__ClientId=${GOOGLE_CLIENT_ID:?Set the Google Web client ID in .env}
       - ConnectionStrings__Postgres=${DATABASE_CONNECTION_STRING:?Set the Neon Npgsql connection string in .env}
       - Cors__AllowedOrigins__0=http://localhost:3000
       - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD:-local-redis-only},abortConnect=false,connectTimeout=3000,syncTimeout=3000
