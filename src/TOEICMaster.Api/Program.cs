@@ -12,6 +12,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
     context.ProblemDetails.Extensions["traceId"] = Activity.Current?.Id ?? context.HttpContext.TraceIdentifier);
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+builder.Services.AddExceptionHandler<DuplicateEmailExceptionHandler>();
 builder.Services.AddExceptionHandler(options => options.StatusCodeSelector = _ => StatusCodes.Status500InternalServerError);
 builder.Services.AddApplication(builder.Configuration["MediatR:LicenseKey"],
     builder.Configuration["AutoMapper:LicenseKey"], typeof(Program).Assembly);

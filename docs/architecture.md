@@ -101,4 +101,7 @@ Tests kiểm tra project references, dependency của Domain/Application, dispat
 
 Credential Neon và license key nằm trong user secrets hoặc environment. Xem README để setup. DI không đưa license key vào HTTP response hoặc log và không tắt cảnh báo license của thư viện.
 
-Hiện chưa có entity, migration hoặc authentication. Thêm xác thực và phân quyền trong story triển khai API nghiệp vụ; không mở công khai các endpoint làm thay đổi dữ liệu khi chưa bảo vệ quyền truy cập.
+Luồng đăng ký tài khoản đặt `RegisterCommand` trong Application, `User` trong Domain và adapter EF/BCrypt trong
+Infrastructure. API chỉ chuyển request vào MediatR và ánh xạ exception sang ProblemDetails. Đăng nhập và phân quyền
+được bổ sung trong các story tiếp theo; không mở công khai endpoint nghiệp vụ làm thay đổi dữ liệu trước khi bảo vệ
+quyền truy cập.

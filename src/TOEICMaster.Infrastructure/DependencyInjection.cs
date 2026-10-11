@@ -4,10 +4,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Minio;
+using TOEICMaster.Application.Common.Interfaces;
+using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Infrastructure.Email;
 using TOEICMaster.Infrastructure.Health;
 using TOEICMaster.Infrastructure.Persistence;
+using TOEICMaster.Infrastructure.Repositories;
+using TOEICMaster.Infrastructure.Security;
 using TOEICMaster.Infrastructure.Storage;
 
 namespace TOEICMaster.Infrastructure;
@@ -42,6 +46,8 @@ public static class DependencyInjection
                 "Configure both SMTP username and password, or neither.")
             .ValidateOnStart();
         services.AddTransient<IMailSender, SmtpMailSender>();
+        services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
+        services.AddScoped<IUserRegistrationRepository, EfUserRegistrationRepository>();
         services.AddHealthChecks()
             .AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"], timeout: TimeSpan.FromSeconds(10))
             .AddCheck<RedisHealthCheck>("redis", tags: ["ready"], timeout: TimeSpan.FromSeconds(10))

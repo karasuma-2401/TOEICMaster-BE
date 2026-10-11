@@ -142,7 +142,8 @@ tests/
 docs/                         Kiến trúc
 ```
 
-[Chi tiết kiến trúc](docs/architecture.md). Authentication, nghiệp vụ TOEIC và schema dữ liệu sẽ được bổ sung theo backlog.
+[Chi tiết kiến trúc](docs/architecture.md) và [API contract](docs/api-contract.md). API đăng ký tài khoản local đã có;
+đăng nhập, Google OAuth2 và nghiệp vụ TOEIC được bổ sung theo backlog.
 
 Controller gọi `ISender.Send` của MediatR; Application xử lý use case và chỉ tham chiếu Domain. Infrastructure triển khai interface Application để truy cập dữ liệu, cache, storage và email. Domain độc lập với framework/database.
 
@@ -179,10 +180,10 @@ Tests không cần credential Neon thật. Khi thay đổi package, chạy `dotn
 
 ## EF Core migrations
 
-Hiện chưa có entity hoặc migration. Khi thêm entity và EF configuration:
+Migration `InitialUsers` tạo bảng tài khoản cho luồng đăng ký. Khi thay đổi schema tiếp theo:
 
 ```sh
-dotnet ef migrations add InitialCreate --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api --output-dir Persistence/Migrations
+dotnet ef migrations add <MigrationName> --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api --output-dir Persistence/Migrations
 ```
 
 Trước khi cập nhật schema, dùng direct connection string của branch Neon cần cập nhật, thay cho hostname có `-pooler`. Cấu hình nó bằng biến môi trường `ConnectionStrings__Postgres` trong shell tạm, rồi chạy:
@@ -208,7 +209,7 @@ Workflow được điều chỉnh từ [UGTM](https://github.com/karasuma-2401/U
 
 Feature/fix branch mở PR vào `dev`; release qua PR từ `dev` vào `main`. Khi tạo repo GitHub, push workflow vào default branch `main` và cho phép Actions publish package bằng `GITHUB_TOKEN`. Deploy Azure sẽ cấu hình khi VPS sẵn sàng.
 
-GitHub Actions được ghim commit SHA và dùng Node 24 cho các JavaScript actions. NuGet cache tính cả lock files; restore dùng `--locked-mode`, audit dependency gồm cả package gián tiếp. Trước khi mở API nghiệp vụ cho người dùng, bổ sung authentication, phân quyền, schema và kiểm thử theo các story tương ứng.
+GitHub Actions được ghim commit SHA và dùng Node 24 cho các JavaScript actions. NuGet cache tính cả lock files; restore dùng `--locked-mode`, audit dependency gồm cả package gián tiếp. Trước khi mở API nghiệp vụ cho người dùng, hoàn thiện đăng nhập, phân quyền và kiểm thử theo các story tương ứng.
 
 <details>
 <summary>Giấy phép cấu hình tham khảo UGTM (MIT)</summary>

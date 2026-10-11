@@ -36,6 +36,11 @@
           "Microsoft.IdentityModel.JsonWebTokens": "8.14.0"
         }
       },
+      "BCrypt.Net-Next": {
+        "type": "Transitive",
+        "resolved": "4.2.0",
+        "contentHash": "gwLD2KfCuwQesP17aVh4h6lpiMPEVt5Lbpndo0ej903hNUUTtyxt3ARdDjmuydBRTAUICc7OVKVbaOvc6SQYXA=="
+      },
       "BouncyCastle.Cryptography": {
         "type": "Transitive",
         "resolved": "2.7.0",
@@ -374,6 +379,7 @@
       "toeicmaster.infrastructure": {
         "type": "Project",
         "dependencies": {
+          "BCrypt.Net-Next": "[4.2.0, )",
           "MailKit": "[4.18.1, )",
           "Microsoft.EntityFrameworkCore": "[10.0.12, )",
           "Microsoft.Extensions.Caching.StackExchangeRedis": "[10.0.12, )",
