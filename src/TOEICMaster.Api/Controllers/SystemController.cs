@@ -6,7 +6,7 @@ using TOEICMaster.Application.System.Queries.GetSystemStatus;
 namespace TOEICMaster.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/system")]
+[Route("api/system")]
 public sealed class SystemController(ISender sender, IMapper mapper) : ControllerBase
 {
     [HttpGet("ping")]

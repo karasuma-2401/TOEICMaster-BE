@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using TOEICMaster.Api.Controllers;
 
 namespace TOEICMaster.Tests;
@@ -12,6 +13,7 @@ public class ApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        builder.ConfigureLogging(logging => logging.ClearProviders());
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
             new Dictionary<string, string?>
             {
@@ -22,7 +24,14 @@ public class ApiFactory : WebApplicationFactory<Program>
                 ["Minio:SecretKey"] = "test-secret",
                 ["Cors:AllowedOrigins:0"] = "http://localhost:3000",
                 ["Smtp:Host"] = "127.0.0.1",
-                ["Smtp:Port"] = "1"
+                ["Smtp:Port"] = "1",
+                ["Jwt:Issuer"] = "TOEICMaster.Tests",
+                ["Jwt:Audience"] = "TOEICMaster.Tests.Client",
+                ["Jwt:SigningKey"] = "test-only-signing-key-with-32-characters",
+                ["Jwt:AccessTokenMinutes"] = "15",
+                ["Jwt:RefreshTokenDays"] = "1",
+                ["Jwt:RememberMeRefreshTokenDays"] = "30",
+                ["Google:ClientId"] = "test-client.apps.googleusercontent.com"
             }));
     }
 }
@@ -41,7 +50,7 @@ public sealed class ApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
     public async Task Ping_has_the_frontend_contract()
     {
         using var client = factory.CreateClient();
-        var response = await client.GetFromJsonAsync<PingResponse>("/api/v1/system/ping");
+        var response = await client.GetFromJsonAsync<PingResponse>("/api/system/ping");
         Assert.Equal(new PingResponse("TOEICMaster", "ok"), response);
     }
 
@@ -51,7 +60,7 @@ public sealed class ApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
     public async Task Cors_allows_only_configured_origins(string origin, bool allowed)
     {
         using var client = factory.CreateClient();
-        using var request = new HttpRequestMessage(HttpMethod.Options, "/api/v1/system/ping");
+        using var request = new HttpRequestMessage(HttpMethod.Options, "/api/system/ping");
         request.Headers.Add("Origin", origin);
         request.Headers.Add("Access-Control-Request-Method", "GET");
         using var response = await client.SendAsync(request);

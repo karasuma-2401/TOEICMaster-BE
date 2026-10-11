@@ -45,10 +45,13 @@ docker compose version
     cp .env.example .env
     ```
 
-    Mở `.env`, thay `DATABASE_CONNECTION_STRING` bằng connection string Neon của nhóm, giữ dấu ngoặc kép:
+    Mở `.env`, thay `DATABASE_CONNECTION_STRING` bằng connection string Neon của nhóm, giữ dấu ngoặc kép. Đồng thời
+    thay `JWT_SIGNING_KEY` bằng chuỗi ngẫu nhiên riêng của môi trường, tối thiểu 32 ký tự:
 
     ```dotenv
     DATABASE_CONNECTION_STRING="Host=<NEON_HOST>;Database=<DATABASE>;Username=<USER>;Password=<PASSWORD>;SSL Mode=VerifyFull;Channel Binding=Require;"
+    JWT_SIGNING_KEY=<RANDOM_SECRET_WITH_AT_LEAST_32_CHARACTERS>
+    GOOGLE_CLIENT_ID=<GOOGLE_WEB_CLIENT_ID>.apps.googleusercontent.com
     ```
 
     Đây là định dạng Npgsql, không phải URL `postgresql://...`. File `.env` được Git bỏ qua.
@@ -63,6 +66,8 @@ docker compose version
 
     ```sh
     dotnet user-secrets set "ConnectionStrings:Postgres" "<NEON_CONNECTION_STRING>" --project src/TOEICMaster.Api
+    dotnet user-secrets set "Jwt:SigningKey" "<JWT_SIGNING_KEY>" --project src/TOEICMaster.Api
+    dotnet user-secrets set "Google:ClientId" "<GOOGLE_WEB_CLIENT_ID>.apps.googleusercontent.com" --project src/TOEICMaster.Api
     ```
 
     Thay `<NEON_CONNECTION_STRING>` bằng toàn bộ chuỗi nhận từ nhóm. User secrets lưu ngoài repo trên máy từng thành viên. Docker Compose đọc `.env`; `dotnet run` đọc user secrets.
@@ -77,7 +82,7 @@ docker compose version
 
 6. Kiểm tra trên trình duyệt:
 
-    - `http://localhost:5287/api/v1/system/ping`: API trả JSON.
+    - `http://localhost:5287/api/system/ping`: API trả JSON.
     - `http://localhost:5287/health/ready`: trả `Healthy` khi Neon, Redis, MinIO và SMTP kết nối được.
     - `http://localhost:5287/openapi/v1.json`: đặc tả API trong môi trường Development.
 
@@ -142,7 +147,8 @@ tests/
 docs/                         Kiến trúc
 ```
 
-[Chi tiết kiến trúc](docs/architecture.md). Authentication, nghiệp vụ TOEIC và schema dữ liệu sẽ được bổ sung theo backlog.
+[Chi tiết kiến trúc](docs/architecture.md) và [API contract](docs/api-contract.md). API đăng ký, đăng nhập local/Google,
+refresh và logout đã có; nghiệp vụ TOEIC được bổ sung theo backlog.
 
 Controller gọi `ISender.Send` của MediatR; Application xử lý use case và chỉ tham chiếu Domain. Infrastructure triển khai interface Application để truy cập dữ liệu, cache, storage và email. Domain độc lập với framework/database.
 
@@ -179,10 +185,11 @@ Tests không cần credential Neon thật. Khi thay đổi package, chạy `dotn
 
 ## EF Core migrations
 
-Hiện chưa có entity hoặc migration. Khi thêm entity và EF configuration:
+Migration `InitialUsers` tạo bảng tài khoản; `AddUserSessions` tạo bảng phiên và refresh token hash;
+`AddExternalIdentities` lưu định danh từ Google. Khi thay đổi schema tiếp theo:
 
 ```sh
-dotnet ef migrations add InitialCreate --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api --output-dir Persistence/Migrations
+dotnet ef migrations add <MigrationName> --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api --output-dir Persistence/Migrations
 ```
 
 Trước khi cập nhật schema, dùng direct connection string của branch Neon cần cập nhật, thay cho hostname có `-pooler`. Cấu hình nó bằng biến môi trường `ConnectionStrings__Postgres` trong shell tạm, rồi chạy:
@@ -208,7 +215,7 @@ Workflow được điều chỉnh từ [UGTM](https://github.com/karasuma-2401/U
 
 Feature/fix branch mở PR vào `dev`; release qua PR từ `dev` vào `main`. Khi tạo repo GitHub, push workflow vào default branch `main` và cho phép Actions publish package bằng `GITHUB_TOKEN`. Deploy Azure sẽ cấu hình khi VPS sẵn sàng.
 
-GitHub Actions được ghim commit SHA và dùng Node 24 cho các JavaScript actions. NuGet cache tính cả lock files; restore dùng `--locked-mode`, audit dependency gồm cả package gián tiếp. Trước khi mở API nghiệp vụ cho người dùng, bổ sung authentication, phân quyền, schema và kiểm thử theo các story tương ứng.
+GitHub Actions được ghim commit SHA và dùng Node 24 cho các JavaScript actions. NuGet cache tính cả lock files; restore dùng `--locked-mode`, audit dependency gồm cả package gián tiếp. Trước khi mở API nghiệp vụ cho người dùng, hoàn thiện đăng nhập, phân quyền và kiểm thử theo các story tương ứng.
 
 <details>
 <summary>Giấy phép cấu hình tham khảo UGTM (MIT)</summary>

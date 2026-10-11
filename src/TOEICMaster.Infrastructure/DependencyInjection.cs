@@ -1,13 +1,22 @@
+using System.Security.Claims;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
 using Minio;
+using TOEICMaster.Application.Common.Interfaces;
+using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Infrastructure.Email;
 using TOEICMaster.Infrastructure.Health;
 using TOEICMaster.Infrastructure.Persistence;
+using TOEICMaster.Infrastructure.Repositories;
+using TOEICMaster.Infrastructure.Security;
 using TOEICMaster.Infrastructure.Storage;
 
 namespace TOEICMaster.Infrastructure;
@@ -42,6 +51,41 @@ public static class DependencyInjection
                 "Configure both SMTP username and password, or neither.")
             .ValidateOnStart();
         services.AddTransient<IMailSender, SmtpMailSender>();
+        services.AddOptions<JwtOptions>().Bind(configuration.GetSection(JwtOptions.SectionName))
+            .ValidateDataAnnotations()
+            .Validate(options => options.RememberMeRefreshTokenDays >= options.RefreshTokenDays,
+                "Remember-me session lifetime must not be shorter than the standard session lifetime.")
+            .ValidateOnStart();
+        services.AddOptions<GoogleIdentityOptions>().Bind(configuration.GetSection(GoogleIdentityOptions.SectionName))
+            .ValidateDataAnnotations().ValidateOnStart();
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+        services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .Configure<IOptions<JwtOptions>>((bearerOptions, jwtOptions) =>
+            {
+                var jwt = jwtOptions.Value;
+                bearerOptions.MapInboundClaims = false;
+                bearerOptions.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
+                    ValidateIssuer = true,
+                    ValidIssuer = jwt.Issuer,
+                    ValidateAudience = true,
+                    ValidAudience = jwt.Audience,
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromSeconds(30),
+                    NameClaimType = JwtRegisteredClaimNames.Name,
+                    RoleClaimType = ClaimTypes.Role
+                };
+            });
+        services.AddAuthorization();
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
+        services.AddSingleton<IAuthenticationTokenService, JwtAuthenticationTokenService>();
+        services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
+        services.AddScoped<IUserRegistrationRepository, EfUserRegistrationRepository>();
+        services.AddScoped<IAuthenticationRepository, EfAuthenticationRepository>();
+        services.AddScoped<IExternalLoginRepository, EfExternalLoginRepository>();
         services.AddHealthChecks()
             .AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"], timeout: TimeSpan.FromSeconds(10))
             .AddCheck<RedisHealthCheck>("redis", tags: ["ready"], timeout: TimeSpan.FromSeconds(10))

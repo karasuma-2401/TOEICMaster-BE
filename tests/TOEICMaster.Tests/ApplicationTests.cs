@@ -2,6 +2,8 @@ using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using TOEICMaster.Application;
+using TOEICMaster.Application.Common.Interfaces;
+using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Email.Commands.SendEmail;
 using TOEICMaster.Application.System.Queries.GetSystemStatus;
@@ -31,6 +33,13 @@ public sealed class ApplicationTests
         services.AddApplication();
         services.AddSingleton<RecordingMailSender>();
         services.AddSingleton<IMailSender>(provider => provider.GetRequiredService<RecordingMailSender>());
+        services.AddSingleton<IUserRegistrationRepository, FakeUserRegistrationRepository>();
+        services.AddSingleton<IAuthenticationRepository, FakeAuthenticationRepository>();
+        services.AddSingleton<IExternalLoginRepository, FakeExternalLoginRepository>();
+        services.AddSingleton<IPasswordHasher, FakePasswordHasher>();
+        services.AddSingleton<IAuthenticationTokenService, FakeAuthenticationTokenService>();
+        services.AddSingleton<IGoogleIdentityVerifier, FakeGoogleIdentityVerifier>();
+        services.AddSingleton(TimeProvider.System);
         configure?.Invoke(services);
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
     }
