@@ -6,7 +6,7 @@ Triển khai backend `GET /api/v1/accounts` theo Clean Architecture/CQRS. Không
 
 API được tích hợp trên nhánh `feature/CNPMCS-18`, dựa trên `origin/Thien-User/Authentication` tại commit `22634ba`. Dùng lại entity `User`, `Role`, `UserRole`, schema `users`, `roles`, `user_roles`, migration và JWT của nhánh này. Không tạo entity/bảng `Accounts` riêng; schema tạm của lần triển khai đầu được giữ trong backup/stash, không nằm trong nhánh tích hợp.
 
-Phạm vi đồng nhất chỉ áp dụng cho `feature/CNPMCS-18`, theo xác nhận của người thực hiện task; không sửa schema trên `dev`. Đã đối chiếu entity, EF configurations, DbContext, toàn bộ migration, các use case authentication và token service: các phần này giữ nguyên như nhánh Thien. API dùng `FullName`, `CreatedAt`, quan hệ `UserRoles` và cấu hình khóa `Jwt:Key`.
+Phạm vi đồng nhất chỉ áp dụng cho `feature/CNPMCS-18`, theo xác nhận của người thực hiện task; không sửa schema trên `dev`. Entity, EF configurations, DbContext, toàn bộ migration, các use case authentication và token service dùng đúng schema và logic của nhánh Thien; chỉ chỉnh format/import ở một số file để đáp ứng kiểm tra CI. API dùng `FullName`, `CreatedAt`, quan hệ `UserRoles` và cấu hình khóa `Jwt:Key`.
 
 ## Request và quyền truy cập
 
@@ -24,6 +24,8 @@ Accept: application/json
 Policy `AccountAdministration` yêu cầu identity đã xác thực và role claim `Admin`. Chưa xác thực trả `401`, đã xác thực nhưng thiếu role trả `403`. Dữ liệu query không hợp lệ trả `400 ValidationProblemDetails` với `errors` theo trường.
 
 Authentication dùng JWT Bearer từ nhánh của bạn Thien. Token do `JwtTokenService` tạo chứa mảng claim `role`; `Program.cs` dùng `ClaimTypes.Role` tương ứng với claim mapping mặc định của JWT Bearer, để policy nhận đúng role `Admin`. Đăng nhập tại `POST /api/Authentication/login` bằng tài khoản đã được gán role `Admin` trong database. Migration chỉ seed các role `Admin` và `User`, không tạo user Admin. Test host có scheme giả riêng và test JWT thực do token service của nhánh này tạo; scheme/header giả không được đăng ký trong production.
+
+Cấu hình JWT được bind qua `IOptions<JwtOptions>` và kiểm tra bằng `ValidateOnStart`. JWT Bearer nhận options sau khi cấu hình host hoàn tất, hỗ trợ cả cấu hình local và cấu hình test host; vẫn yêu cầu issuer, audience và `Jwt:Key` dài tối thiểu 32 ký tự. Không đọc cấu hình JWT quá sớm tại top-level `Program.cs`.
 
 ## Output minh họa
 
@@ -110,14 +112,16 @@ API không tự áp dụng migration và không tự tạo tài khoản mẫu. T
 
 Tình trạng kiểm chứng trong phiên triển khai:
 
-- Đã viết test trước implementation API, nhưng không xác nhận được bước test đỏ: lệnh test bị chặn trước khi compile do thiếu SDK.
-- Đã thử `dotnet test`, `dotnet build` và `dotnet format`; tất cả bị chặn do môi trường chỉ có SDK `9.0.317`, trong khi `global.json` yêu cầu `10.0.303` hoặc phiên bản được roll-forward chấp nhận. Chưa có kết quả build/test pass.
-- Migration hiện tại lấy từ nhánh Thien, không phải migration `CreateAccounts` viết thủ công trước đó; test kiểm tra snapshot và SQL đã được bổ sung nhưng chưa chạy được.
+- Môi trường hiện đã có .NET SDK `10.0.401`; `dotnet restore TOEICMaster.slnx --locked-mode` đã thành công.
+- `dotnet test TOEICMaster.slnx -c Release --no-restore`: build thành công và **46/46 tests pass**, không có test bị skip.
+- Test đầu tiên khi SDK đã khả dụng tái hiện lỗi cấu hình JWT được đọc trước khi test host áp dụng cấu hình. Đã sửa bằng Options và kiểm tra lại toàn bộ suite thành công.
+- Migration hiện tại lấy từ nhánh Thien; các test kiểm tra snapshot khớp model, SQL phân trang và projection không lấy password hash đã pass. Không tạo migration mới.
 - Test HTTP dùng adapter tài khoản giả; có cả authentication scheme test và JWT Bearer thật. Chưa kiểm chứng phân trang trên PostgreSQL thật.
 - Đã kiểm tra diff về whitespace bằng `git diff --check`; không có lỗi.
 - Test PowerShell cho `.env` đã pass: dấu nháy, comment/export, ánh xạ database/Redis/MinIO/JWT, ưu tiên biến có sẵn, dọn biến môi trường, input sai và lỗi tiến trình.
 - `scripts/run-local.ps1 -ValidateOnly` đã pass với `.env` local; không in credential và không mở kết nối database.
-- Docker Engine chưa chạy; không xác nhận được runtime API bằng Docker. Máy chỉ có .NET SDK 9 nên chưa xác nhận build/test .NET pass.
+- `dotnet format TOEICMaster.slnx --verify-no-changes --no-restore` đã pass sau khi sửa format/import; không đổi schema hoặc nội dung thao tác migration.
+- Docker Engine chưa chạy; chưa xác nhận runtime API bằng Docker hoặc truy vấn trên Neon thật. HTTP contract và JWT Bearer đã được kiểm chứng bằng test host.
 
 ## Cấu hình local và bảo toàn công việc
 

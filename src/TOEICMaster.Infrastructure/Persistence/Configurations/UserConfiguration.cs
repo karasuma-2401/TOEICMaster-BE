@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using TOEICMaster.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Infrastructure.Persistence.Configurations;
 

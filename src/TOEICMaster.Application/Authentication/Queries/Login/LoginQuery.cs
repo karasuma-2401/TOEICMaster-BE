@@ -1,6 +1,6 @@
 using MediatR;
-using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Common.Interfaces;
+using TOEICMaster.Application.Common.Security;
 
 namespace TOEICMaster.Application.Authentication.Queries.Login;
 

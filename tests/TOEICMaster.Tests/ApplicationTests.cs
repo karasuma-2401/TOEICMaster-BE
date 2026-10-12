@@ -39,7 +39,8 @@ public sealed class ApplicationTests
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ITokenService>(new JwtTokenService(Microsoft.Extensions.Options.Options.Create(new JwtOptions
         {
-            Issuer = "TOEICMaster.Tests", Audience = "TOEICMaster.Tests.Client",
+            Issuer = "TOEICMaster.Tests",
+            Audience = "TOEICMaster.Tests.Client",
             Key = "test-only-signing-key-at-least-32-characters"
         })));
         services.AddSingleton<RecordingMailSender>();

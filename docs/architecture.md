@@ -104,3 +104,5 @@ Credential Neon và license key nằm trong user secrets hoặc environment. Xem
 Đã tích hợp schema `User`, `Role`, `UserRole`, các migration database/auth và JWT từ nhánh `Thien-User/Authentication`. [API danh sách tài khoản có phân trang](account-list-api.md) gọi `GetAccountsQuery` qua MediatR; `AccountReader` trong Infrastructure đọc bảng `users` và các role qua `user_roles`. Không tạo schema `Accounts` riêng. Policy `AccountAdministration` yêu cầu role `Admin`.
 
 Authentication dùng JWT Bearer của nhánh database/auth. Role claim được ánh xạ về `ClaimTypes.Role` để policy ASP.NET nhận đúng role trong token. File `.env` được đọc qua `scripts/run-local.ps1` khi chạy host local hoặc Docker Compose khi chạy container; credential không đưa vào source.
+
+Cấu hình JWT dùng `IOptions<JwtOptions>` với `ValidateOnStart` và được truyền vào JWT Bearer sau khi host hoàn tất cấu hình. Cách này giữ contract `Jwt:Key` của nhánh Thien và hỗ trợ test host ghi đè cấu hình mà không bị lỗi do đọc JWT quá sớm.

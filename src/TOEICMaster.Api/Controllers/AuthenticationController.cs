@@ -1,7 +1,7 @@
 using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MediatR;
 using TOEICMaster.Application.Authentication.Commands.Register;
 using TOEICMaster.Application.Authentication.Queries.Login;
 

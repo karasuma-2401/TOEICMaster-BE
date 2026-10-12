@@ -1,9 +1,9 @@
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using TOEICMaster.Application.Common.Exceptions;
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Domain.Entities;
 using TOEICMaster.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
-using TOEICMaster.Application.Common.Exceptions;
-using Npgsql;
 
 namespace TOEICMaster.Infrastructure.Repositories;
 

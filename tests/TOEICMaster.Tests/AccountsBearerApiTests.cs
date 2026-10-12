@@ -23,7 +23,8 @@ public sealed class AccountsBearerApiTests
             services => services.AddSingleton<IAccountReader, SampleAccountReader>()));
         var tokens = new JwtTokenService(Options.Create(new JwtOptions
         {
-            Issuer = "TOEICMaster.Tests", Audience = "TOEICMaster.Tests.Client",
+            Issuer = "TOEICMaster.Tests",
+            Audience = "TOEICMaster.Tests.Client",
             Key = "test-only-signing-key-at-least-32-characters"
         }));
         using var client = factory.CreateClient();
