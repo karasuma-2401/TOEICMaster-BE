@@ -14,6 +14,8 @@ public sealed class AccountsBearerApiTests
     [InlineData("Admin", HttpStatusCode.OK)]
     [InlineData("User", HttpStatusCode.Forbidden)]
     [InlineData("Operator", HttpStatusCode.Forbidden)]
+    [InlineData("User,Admin", HttpStatusCode.OK)]
+    [InlineData("Admin,User,Admin", HttpStatusCode.OK)]
     public async Task Teammate_generated_tokens_authorize_the_account_list_by_role(string role, HttpStatusCode expected)
     {
         using var baseFactory = new ApiFactory();
@@ -26,7 +28,7 @@ public sealed class AccountsBearerApiTests
         }));
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
-            tokens.GenerateToken(Guid.NewGuid(), "test@example.com", new[] { role }));
+            tokens.GenerateToken(Guid.NewGuid(), "test@example.com", role.Split(',')));
         using var response = await client.GetAsync("/api/v1/accounts");
         Assert.Equal(expected, response.StatusCode);
     }

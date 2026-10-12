@@ -6,6 +6,8 @@ Triển khai backend `GET /api/v1/accounts` theo Clean Architecture/CQRS. Không
 
 API được tích hợp trên nhánh `feature/CNPMCS-18`, dựa trên `origin/Thien-User/Authentication` tại commit `22634ba`. Dùng lại entity `User`, `Role`, `UserRole`, schema `users`, `roles`, `user_roles`, migration và JWT của nhánh này. Không tạo entity/bảng `Accounts` riêng; schema tạm của lần triển khai đầu được giữ trong backup/stash, không nằm trong nhánh tích hợp.
 
+Phạm vi đồng nhất chỉ áp dụng cho `feature/CNPMCS-18`, theo xác nhận của người thực hiện task; không sửa schema trên `dev`. Đã đối chiếu entity, EF configurations, DbContext, toàn bộ migration, các use case authentication và token service: các phần này giữ nguyên như nhánh Thien. API dùng `FullName`, `CreatedAt`, quan hệ `UserRoles` và cấu hình khóa `Jwt:Key`.
+
 ## Request và quyền truy cập
 
 ```http
@@ -74,7 +76,7 @@ Ví dụ contract `200 OK` khi database có 1 tài khoản và request được 
 | Api `TOEICMaster.Api.http` | Request mẫu danh sách và query sai |
 | Tests `AccountsApiTests.cs` | Contract, phân trang, trang rỗng, giới hạn 100, offset overflow, lỗi input, 401/403 và cancellation |
 | Tests `AccountsPersistenceTests.cs` | Model/migration khớp nhau, SQL phân trang users, lấy role và không lấy password hash |
-| Tests `AccountsBearerApiTests.cs` | JWT do token service của nhánh Thien tạo: Admin được phép, User/Operator bị từ chối |
+| Tests `AccountsBearerApiTests.cs` | JWT do token service của nhánh Thien tạo: Admin được phép, User/Operator bị từ chối; token nhiều role vẫn được phép khi có Admin, kể cả role đầu tiên là User hoặc danh sách có role trùng |
 | Tests `ApiTests.cs`, `ApplicationTests.cs`, `UnusedTestUserRepository.cs` | Cấu hình JWT giả và dependencies authentication để test hiện có vẫn khởi tạo được |
 | `scripts/run-local.ps1`, `tests/LocalEnvironment.Tests.ps1` | Đọc `.env`, ánh xạ cấu hình database/Redis/MinIO/JWT, giữ ưu tiên biến môi trường, dọn credential sau khi chạy; kiểm thử PowerShell độc lập SDK |
 | `.env.example`, `appsettings.json`, `docker-compose.yml` | Template JWT key, issuer/audience không nhạy cảm và ánh xạ JWT khi chạy Docker |
