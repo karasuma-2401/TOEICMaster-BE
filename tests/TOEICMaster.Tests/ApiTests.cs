@@ -22,7 +22,10 @@ public class ApiFactory : WebApplicationFactory<Program>
                 ["Minio:SecretKey"] = "test-secret",
                 ["Cors:AllowedOrigins:0"] = "http://localhost:3000",
                 ["Smtp:Host"] = "127.0.0.1",
-                ["Smtp:Port"] = "1"
+                ["Smtp:Port"] = "1",
+                ["Jwt:Issuer"] = "TOEICMaster.Tests",
+                ["Jwt:Audience"] = "TOEICMaster.Tests.Client",
+                ["Jwt:Key"] = "test-only-signing-key-at-least-32-characters"
             }));
     }
 }

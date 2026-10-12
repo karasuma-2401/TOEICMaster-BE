@@ -59,21 +59,37 @@ docker compose version
     docker compose up -d redis minio mailpit
     ```
 
-4. Lưu cùng connection string Neon vào .NET user secrets:
+4. Trên Windows, dùng script chạy local để đọc trực tiếp `.env`:
+
+    ```powershell
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-local.ps1 -ValidateOnly
+    ```
+
+    Script kiểm tra định dạng và ánh xạ `DATABASE_CONNECTION_STRING` sang `ConnectionStrings__Postgres`, mật khẩu Redis và credential MinIO sang cấu hình ASP.NET. Script không in credential; `-ValidateOnly` không kết nối database hoặc khởi động API. Biến môi trường có sẵn được ưu tiên hơn `.env`; các biến được script thêm vào chỉ tồn tại trong lúc chạy và được dọn lại sau đó. Giá trị `.env` được đọc nguyên văn, không thực thi lệnh hoặc nội suy biến.
+
+    Nếu không dùng script (ví dụ trên macOS/Linux), tiếp tục cấu hình bằng .NET user secrets:
 
     ```sh
     dotnet user-secrets set "ConnectionStrings:Postgres" "<NEON_CONNECTION_STRING>" --project src/TOEICMaster.Api
     ```
 
-    Thay `<NEON_CONNECTION_STRING>` bằng toàn bộ chuỗi nhận từ nhóm. User secrets lưu ngoài repo trên máy từng thành viên. Docker Compose đọc `.env`; `dotnet run` đọc user secrets.
+    Thay `<NEON_CONNECTION_STRING>` bằng toàn bộ chuỗi nhận từ nhóm. User secrets lưu ngoài repo trên máy từng thành viên. Docker Compose và script đọc `.env`; lệnh `dotnet run` trực tiếp vẫn cần user secrets hoặc biến môi trường.
 
 5. Khôi phục dependency và chạy API:
 
     ```sh
-    dotnet tool restore
+    dotnet tool restore --tool-manifest dotnet-tools.json
     dotnet restore TOEICMaster.slnx --locked-mode
     dotnet run --project src/TOEICMaster.Api
     ```
+
+    Nếu dùng `.env` trên Windows, thay lệnh `dotnet run` bằng:
+
+    ```powershell
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-local.ps1
+    ```
+
+    `-ExecutionPolicy Bypass` chỉ áp dụng cho tiến trình PowerShell này, không đổi policy hệ thống. Script chọn môi trường `Development` khi chưa có `ASPNETCORE_ENVIRONMENT`.
 
 6. Kiểm tra trên trình duyệt:
 
@@ -81,7 +97,15 @@ docker compose version
     - `http://localhost:5287/health/ready`: trả `Healthy` khi Neon, Redis, MinIO và SMTP kết nối được.
     - `http://localhost:5287/openapi/v1.json`: đặc tả API trong môi trường Development.
 
-Giữ credential Redis/MinIO mặc định trong `.env.example` khi setup lần đầu. Nếu đổi chúng, cập nhật cấu hình tương ứng bằng user secrets để API chạy trên host dùng cùng credential với Docker.
+Nếu đổi credential Redis/MinIO trong `.env`, script tự truyền giá trị tương ứng cho API chạy trên host. Nếu chạy `dotnet run` trực tiếp, cập nhật bằng user secrets hoặc biến môi trường.
+
+Kiểm thử script mà không cần SDK .NET hoặc credential thật:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/LocalEnvironment.Tests.ps1
+```
+
+Script cũng ánh xạ `JWT_KEY`, `JWT_ISSUER`, `JWT_AUDIENCE` sang `Jwt__Key`, `Jwt__Issuer`, `Jwt__Audience` để dùng với module authentication trên nhánh `Thien-User/Authentication`. Cấu hình `.env` cần có khóa JWT ngẫu nhiên dài tối thiểu 32 ký tự. File `.env` không được commit.
 
 ## Chạy toàn bộ backend bằng Docker
 
@@ -142,7 +166,7 @@ tests/
 docs/                         Kiến trúc
 ```
 
-[Chi tiết kiến trúc](docs/architecture.md). Authentication, nghiệp vụ TOEIC và schema dữ liệu sẽ được bổ sung theo backlog.
+[Chi tiết kiến trúc](docs/architecture.md). [API danh sách tài khoản có phân trang](docs/account-list-api.md) dùng schema `users`, `roles`, `user_roles` và authentication/JWT từ nhánh `Thien-User/Authentication`. API tài khoản yêu cầu token hợp lệ với role `Admin`; chưa xác thực trả `401`, thiếu quyền trả `403`. Không tạo bảng `Accounts` riêng.
 
 Controller gọi `ISender.Send` của MediatR; Application xử lý use case và chỉ tham chiếu Domain. Infrastructure triển khai interface Application để truy cập dữ liệu, cache, storage và email. Domain độc lập với framework/database.
 
@@ -179,10 +203,10 @@ Tests không cần credential Neon thật. Khi thay đổi package, chạy `dotn
 
 ## EF Core migrations
 
-Hiện chưa có entity hoặc migration. Khi thêm entity và EF configuration:
+Đã có các entity `User`, `Role`, `UserRole` và migration `20261011134141_InitialAuth`, `20261011141312_SeedInitialRoles` từ nhánh database/auth. Khi thêm entity hoặc thay đổi EF configuration tiếp theo:
 
 ```sh
-dotnet ef migrations add InitialCreate --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api --output-dir Persistence/Migrations
+dotnet ef migrations add <MigrationName> --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api --output-dir Persistence/Migrations
 ```
 
 Trước khi cập nhật schema, dùng direct connection string của branch Neon cần cập nhật, thay cho hostname có `-pooler`. Cấu hình nó bằng biến môi trường `ConnectionStrings__Postgres` trong shell tạm, rồi chạy:

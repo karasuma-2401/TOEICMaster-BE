@@ -101,4 +101,6 @@ Tests kiểm tra project references, dependency của Domain/Application, dispat
 
 Credential Neon và license key nằm trong user secrets hoặc environment. Xem README để setup. DI không đưa license key vào HTTP response hoặc log và không tắt cảnh báo license của thư viện.
 
-Hiện chưa có entity, migration hoặc authentication. Thêm xác thực và phân quyền trong story triển khai API nghiệp vụ; không mở công khai các endpoint làm thay đổi dữ liệu khi chưa bảo vệ quyền truy cập.
+Đã tích hợp schema `User`, `Role`, `UserRole`, các migration database/auth và JWT từ nhánh `Thien-User/Authentication`. [API danh sách tài khoản có phân trang](account-list-api.md) gọi `GetAccountsQuery` qua MediatR; `AccountReader` trong Infrastructure đọc bảng `users` và các role qua `user_roles`. Không tạo schema `Accounts` riêng. Policy `AccountAdministration` yêu cầu role `Admin`.
+
+Authentication dùng JWT Bearer của nhánh database/auth. Role claim được ánh xạ về `ClaimTypes.Role` để policy ASP.NET nhận đúng role trong token. File `.env` được đọc qua `scripts/run-local.ps1` khi chạy host local hoặc Docker Compose khi chạy container; credential không đưa vào source.

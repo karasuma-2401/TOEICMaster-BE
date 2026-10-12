@@ -4,10 +4,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Minio;
+using TOEICMaster.Application.Accounts;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Infrastructure.Email;
 using TOEICMaster.Infrastructure.Health;
 using TOEICMaster.Infrastructure.Persistence;
+using TOEICMaster.Infrastructure.Persistence.Accounts;
 using TOEICMaster.Infrastructure.Storage;
 
 namespace TOEICMaster.Infrastructure;
@@ -21,6 +23,7 @@ public static class DependencyInjection
         services.AddDbContext<ToeicDbContext>((provider, options) => options.UseNpgsql(
             provider.GetRequiredService<IOptions<ConnectionStringsOptions>>().Value.Postgres,
             provider => provider.EnableRetryOnFailure(3)));
+        services.AddScoped<IAccountReader, AccountReader>();
         services.AddStackExchangeRedisCache(options =>
         {
             options.InstanceName = "toeicmaster:";

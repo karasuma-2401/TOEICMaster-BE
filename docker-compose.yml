@@ -11,6 +11,9 @@ services:
       - MEDIATR_LICENSE_KEY=${MEDIATR_LICENSE_KEY:-}
       - AUTOMAPPER_LICENSE_KEY=${AUTOMAPPER_LICENSE_KEY:-}
       - ConnectionStrings__Postgres=${DATABASE_CONNECTION_STRING:?Set the Neon Npgsql connection string in .env}
+      - Jwt__Key=${JWT_KEY:?Set a random JWT signing key in .env}
+      - Jwt__Issuer=${JWT_ISSUER:-TOEICMaster}
+      - Jwt__Audience=${JWT_AUDIENCE:-TOEICMaster.Client}
       - Cors__AllowedOrigins__0=http://localhost:3000
       - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD:-local-redis-only},abortConnect=false,connectTimeout=3000,syncTimeout=3000
       - Minio__Endpoint=minio:9000

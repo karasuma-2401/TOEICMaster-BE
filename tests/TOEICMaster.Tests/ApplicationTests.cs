@@ -2,9 +2,14 @@ using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using TOEICMaster.Application;
+using TOEICMaster.Application.Accounts;
+using TOEICMaster.Application.Common.Interfaces;
+using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Email.Commands.SendEmail;
 using TOEICMaster.Application.System.Queries.GetSystemStatus;
+using TOEICMaster.Domain.Entities;
+using TOEICMaster.Infrastructure.Security;
 
 namespace TOEICMaster.Tests;
 
@@ -29,6 +34,14 @@ public sealed class ApplicationTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddApplication();
+        services.AddSingleton<IAccountReader, SampleAccountReader>();
+        services.AddSingleton<IUserRepository, UnusedTestUserRepository>();
+        services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
+        services.AddSingleton<ITokenService>(new JwtTokenService(Microsoft.Extensions.Options.Options.Create(new JwtOptions
+        {
+            Issuer = "TOEICMaster.Tests", Audience = "TOEICMaster.Tests.Client",
+            Key = "test-only-signing-key-at-least-32-characters"
+        })));
         services.AddSingleton<RecordingMailSender>();
         services.AddSingleton<IMailSender>(provider => provider.GetRequiredService<RecordingMailSender>());
         configure?.Invoke(services);

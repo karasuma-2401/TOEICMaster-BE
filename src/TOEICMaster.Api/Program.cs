@@ -1,7 +1,8 @@
 using System.Diagnostics;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using TOEICMaster.Api.ExceptionHandling;
 using TOEICMaster.Application;
@@ -46,10 +47,11 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(signingKey),
         ValidateLifetime = true,
         ClockSkew = TimeSpan.FromMinutes(1),
-        RoleClaimType = "role"
+        RoleClaimType = ClaimTypes.Role
     };
 });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options => options.AddPolicy("AccountAdministration",
+    policy => policy.RequireAuthenticatedUser().RequireRole("Admin")));
 builder.Services.AddCors(options => options.AddPolicy("Frontend", policy =>
 {
     var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];

@@ -11,3 +11,14 @@ GET {{baseUrl}}/health/ready
 
 ### Development OpenAPI
 GET {{baseUrl}}/openapi/v1.json
+
+### Account list (requires a valid token with the Admin role)
+@adminAccessToken = replace-with-admin-access-token
+GET {{baseUrl}}/api/v1/accounts?pageNumber=1&pageSize=20
+Authorization: Bearer {{adminAccessToken}}
+Accept: application/json
+
+### Invalid pagination (400 for an authenticated Admin)
+GET {{baseUrl}}/api/v1/accounts?pageNumber=0&pageSize=101
+Authorization: Bearer {{adminAccessToken}}
+Accept: application/json
