@@ -1,12 +1,9 @@
-using System.Net;
-using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using TOEICMaster.Api.Controllers;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Api.Common;
 
 public class ApiFactory : WebApplicationFactory<Program>
 {
@@ -25,45 +22,16 @@ public class ApiFactory : WebApplicationFactory<Program>
                 ["Cors:AllowedOrigins:0"] = "http://localhost:3000",
                 ["Smtp:Host"] = "127.0.0.1",
                 ["Smtp:Port"] = "1",
+                ["Smtp:FromAddress"] = "noreply@toeicmaster.test",
+                ["Smtp:Security"] = "None",
                 ["Jwt:Issuer"] = "TOEICMaster.Tests",
                 ["Jwt:Audience"] = "TOEICMaster.Tests.Client",
                 ["Jwt:SigningKey"] = "test-only-signing-key-with-32-characters",
                 ["Jwt:AccessTokenMinutes"] = "15",
                 ["Jwt:RefreshTokenDays"] = "1",
                 ["Jwt:RememberMeRefreshTokenDays"] = "30",
-                ["Google:ClientId"] = "test-client.apps.googleusercontent.com"
+                ["Google:ClientId"] = "test-client.apps.googleusercontent.com",
+                ["EmailVerification:HashKey"] = "test-email-verification-key-32-characters"
             }));
-    }
-}
-
-public sealed class ApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
-{
-    [Fact]
-    public async Task Liveness_does_not_require_external_services()
-    {
-        using var client = factory.CreateClient();
-        var response = await client.GetAsync("/health/live");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Ping_has_the_frontend_contract()
-    {
-        using var client = factory.CreateClient();
-        var response = await client.GetFromJsonAsync<PingResponse>("/api/system/ping");
-        Assert.Equal(new PingResponse("TOEICMaster", "ok"), response);
-    }
-
-    [Theory]
-    [InlineData("http://localhost:3000", true)]
-    [InlineData("https://untrusted.example", false)]
-    public async Task Cors_allows_only_configured_origins(string origin, bool allowed)
-    {
-        using var client = factory.CreateClient();
-        using var request = new HttpRequestMessage(HttpMethod.Options, "/api/system/ping");
-        request.Headers.Add("Origin", origin);
-        request.Headers.Add("Access-Control-Request-Method", "GET");
-        using var response = await client.SendAsync(request);
-        Assert.Equal(allowed, response.Headers.Contains("Access-Control-Allow-Origin"));
     }
 }

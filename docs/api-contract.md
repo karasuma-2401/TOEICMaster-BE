@@ -1,11 +1,26 @@
 # Backend API contract
 
-Các endpoint trong tài liệu này dùng prefix `/api`. Frontend gọi backend qua Next.js route handler và cấu hình
+Các endpoint trong tài liệu này dùng prefix `/api/v1`. Frontend gọi backend qua Next.js route handler và cấu hình
 server-side `API_BASE_URL`; không đưa URL backend hoặc credential vào browser bundle.
+
+## Giới hạn request xác thực
+
+Các endpoint xác thực có fixed-window rate limit theo địa chỉ IP trong từng API instance:
+
+| Nhóm | Endpoint | Giới hạn local |
+| --- | --- | --- |
+| Gửi email | `register`, `resend-verification` | 5 request/phút/IP |
+| Credential | `verify-email`, `login`, `google` | 10 request/phút/IP |
+| Phiên | `refresh`, `logout` | 30 request/phút/IP |
+
+Khi vượt giới hạn, API trả `429 Too Many Requests`, header `Retry-After` và `ProblemDetails` có `traceId`. Rate limit
+này bổ sung cho cooldown resend và giới hạn nhập sai OTP theo account; không thay thế hai cơ chế đó. Bản local lưu bộ
+đếm trong memory của process. Khi triển khai nhiều API instance, chuyển lớp giới hạn chung sang gateway hoặc distributed
+store và cấu hình trusted proxy trước khi dùng forwarded client IP.
 
 ## Đăng ký tài khoản local
 
-`POST /api/auth/register`
+`POST /api/v1/auth/register`
 
 Request:
 
@@ -24,19 +39,35 @@ Request:
 
 | Status | Nội dung |
 | --- | --- |
-| `202 Accepted` | Đăng ký được chấp nhận, response không có body. |
+| `202 Accepted` | Tạo tài khoản chưa kích hoạt và gửi OTP, response không có body. |
 | `400 Bad Request` | `ValidationProblemDetails`, lỗi theo các field `DisplayName`, `Email`, `Password`. |
-| `409 Conflict` | `ProblemDetails` với title `Email này đã được sử dụng.` |
+| `409 Conflict` | Email thuộc tài khoản đã kích hoạt. |
 
-Mọi ProblemDetails có `traceId`. Unique index trên `NormalizedEmail` là lớp bảo vệ cuối cùng khi hai request đăng ký
-cùng email chạy đồng thời.
+Tài khoản local mới không thể đăng nhập trước khi xác minh. OTP gồm 6 chữ số, hết hạn sau 10 phút, chỉ lưu HMAC trong
+PostgreSQL và cho phép tối đa 5 lần nhập sai. Đăng ký lại một email đang chờ xác minh không thay đổi tên hoặc mật khẩu
+đã lưu; backend chỉ gửi mã mới nếu đã qua cooldown 60 giây. Trong cooldown vẫn trả `202` để tránh tạo cơ chế spam.
 
-Endpoint xác minh email chưa được định nghĩa. Frontend hiện chỉ mô phỏng màn hình nhập mã sau response `202`; không
-được hiểu response này là email xác minh đã được gửi.
+`POST /api/v1/auth/verify-email`
+
+```json
+{ "email": "learner@example.com", "code": "123456" }
+```
+
+Trả `204 No Content` khi xác minh thành công. Mã sai, hết hạn hoặc đã đủ 5 lần sai trả `400 ProblemDetails` với thông báo
+chung. Sau khi nhận `204`, frontend chuyển người dùng về trang đăng nhập.
+
+`POST /api/v1/auth/resend-verification`
+
+```json
+{ "email": "learner@example.com" }
+```
+
+Luôn trả `202 Accepted` cho request hợp lệ, kể cả email không tồn tại, đã kích hoạt hoặc còn trong cooldown. Chỉ tài
+khoản chưa kích hoạt đã qua cooldown mới được cấp và gửi mã mới; việc này tránh dò email và spam SMTP.
 
 ## Đăng nhập local
 
-`POST /api/auth/login`
+`POST /api/v1/auth/login`
 
 Request:
 
@@ -49,8 +80,8 @@ Request:
 ```
 
 Backend trim và chuẩn hóa email không phân biệt hoa thường; password được kiểm tra nguyên trạng. Tài khoản không tồn
-tại, không có mật khẩu local, bị vô hiệu hóa hoặc sai mật khẩu đều nhận cùng response `401` để không tiết lộ trạng thái
-tài khoản.
+tại, chưa xác minh email, không có mật khẩu local, bị vô hiệu hóa hoặc sai mật khẩu đều nhận cùng response `401` để
+không tiết lộ trạng thái tài khoản.
 
 Response `200 OK`:
 
@@ -84,7 +115,7 @@ Response `200 OK`:
 
 ## Làm mới và thu hồi phiên
 
-`POST /api/auth/refresh`
+`POST /api/v1/auth/refresh`
 
 ```json
 { "refreshToken": "<opaque-random-token>" }
@@ -94,7 +125,7 @@ Response `200` có cùng cấu trúc với login. Mỗi lần refresh, token cũ
 hạn tuyệt đối ban đầu. Hai request dùng đồng thời cùng một refresh token thì chỉ một request thành công; request còn lại
 nhận `401`.
 
-`POST /api/auth/logout`
+`POST /api/v1/auth/logout`
 
 ```json
 { "refreshToken": "<opaque-random-token>" }
@@ -105,7 +136,7 @@ Access token đã cấp không bị thu hồi tức thời và tự hết hạn 
 
 ## Đăng nhập Google
 
-`POST /api/auth/google`
+`POST /api/v1/auth/google`
 
 Frontend dùng Google Identity Services với cùng Web Client ID đã cấu hình cho backend, nhận trường `credential` từ
 Google rồi chuyển nguyên ID token đó qua Next.js BFF:
@@ -126,6 +157,9 @@ Khi đăng nhập lần đầu:
 - Nếu chưa có email trong hệ thống, backend tạo user không có local password và liên kết `(google, sub)`.
 - Nếu email trùng tài khoản có sẵn và là Gmail hoặc Google Workspace, backend có thể liên kết tự động vì Google có
   thẩm quyền xác minh email đó.
+- Nếu email Gmail/Workspace trùng một đăng ký local chưa xác minh, backend bỏ local password chưa được xác minh, xóa
+  OTP cũ, kích hoạt tài khoản bằng danh tính Google và liên kết `(google, sub)`. Cách này không để người đã khởi tạo
+  đăng ký pending tiếp tục dùng mật khẩu họ biết.
 - Nếu email trùng nhưng là email bên thứ ba không thuộc Gmail/Workspace, backend trả `409`; người dùng cần đăng nhập
   local và thực hiện luồng liên kết tài khoản riêng trước. Luồng liên kết từ trang tài khoản chưa thuộc task này.
 

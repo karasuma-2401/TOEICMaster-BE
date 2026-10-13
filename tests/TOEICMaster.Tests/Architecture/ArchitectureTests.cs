@@ -1,6 +1,6 @@
 using System.Xml.Linq;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Architecture;
 
 public sealed class ArchitectureTests
 {

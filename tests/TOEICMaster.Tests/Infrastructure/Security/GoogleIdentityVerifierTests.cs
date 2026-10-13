@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 using TOEICMaster.Application.Common.Exceptions;
 using TOEICMaster.Infrastructure.Security;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Infrastructure.Security;
 
 public sealed class GoogleIdentityVerifierTests
 {

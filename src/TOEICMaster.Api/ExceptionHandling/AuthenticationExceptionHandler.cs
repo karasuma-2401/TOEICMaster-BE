@@ -20,8 +20,11 @@ public sealed class AuthenticationExceptionHandler(IProblemDetailsService proble
                 "Google credential không hợp lệ hoặc đã hết hạn.",
                 "https://tools.ietf.org/html/rfc9110#section-15.5.2"),
             ExternalAccountLinkRequiredException => (StatusCodes.Status409Conflict,
-                "Email này đã thuộc một tài khoản khác. Hãy đăng nhập bằng mật khẩu để liên kết Google.",
+                "Email này đã thuộc một tài khoản khác. Hãy xác minh email, đăng nhập bằng mật khẩu rồi liên kết Google.",
                 "https://tools.ietf.org/html/rfc9110#section-15.5.10"),
+            InvalidEmailVerificationException => (StatusCodes.Status400BadRequest,
+                "Mã xác minh không chính xác, đã hết hạn hoặc đã vượt quá số lần thử.",
+                "https://tools.ietf.org/html/rfc9110#section-15.5.1"),
             _ => (0, null, null)
         };
         if (title is null)

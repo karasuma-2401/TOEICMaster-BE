@@ -4,8 +4,9 @@ using TOEICMaster.Application.Authentication.Commands.RefreshSession;
 using TOEICMaster.Application.Common.Exceptions;
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Domain.Entities;
+using TOEICMaster.Tests.TestDoubles;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Application.Authentication;
 
 public sealed class LoginApplicationTests
 {
@@ -17,6 +18,7 @@ public sealed class LoginApplicationTests
         var passwordHasher = new FakePasswordHasher();
         var hash = passwordHasher.Hash("correct-password");
         var user = User.CreateLocal("Learner", "Learner@example.com", "LEARNER@EXAMPLE.COM", hash, Now);
+        user.VerifyEmail(Now);
         var repository = new FakeAuthenticationRepository { User = user };
         var tokenService = new FakeAuthenticationTokenService();
         var handler = new LoginCommandHandler(repository, passwordHasher, tokenService, new FixedTimeProvider(Now));
@@ -53,6 +55,7 @@ public sealed class LoginApplicationTests
         var passwordHasher = new FakePasswordHasher();
         var user = User.CreateLocal("Learner", "learner@example.com", "LEARNER@EXAMPLE.COM",
             passwordHasher.Hash("correct-password"), Now);
+        user.VerifyEmail(Now);
         var repository = new FakeAuthenticationRepository { User = user };
         var handler = new LoginCommandHandler(repository, passwordHasher, new FakeAuthenticationTokenService(),
             new FixedTimeProvider(Now));
@@ -64,9 +67,26 @@ public sealed class LoginApplicationTests
     }
 
     [Fact]
+    public async Task Unverified_local_account_cannot_log_in()
+    {
+        var passwordHasher = new FakePasswordHasher();
+        var user = User.CreateLocal("Learner", "learner@example.com", "LEARNER@EXAMPLE.COM",
+            passwordHasher.Hash("correct-password"), Now);
+        var repository = new FakeAuthenticationRepository { User = user };
+        var handler = new LoginCommandHandler(repository, passwordHasher, new FakeAuthenticationTokenService(),
+            new FixedTimeProvider(Now));
+
+        await Assert.ThrowsAsync<InvalidCredentialsException>(() => handler.Handle(
+            new LoginCommand(user.Email, "correct-password"), CancellationToken.None));
+
+        Assert.Null(repository.AddedSession);
+    }
+
+    [Fact]
     public async Task Refresh_rotates_the_session_without_extending_its_absolute_expiry()
     {
         var user = User.CreateLocal("Learner", "learner@example.com", "LEARNER@EXAMPLE.COM", "hash", Now);
+        user.VerifyEmail(Now);
         var original = UserSession.Create(user.Id, "old-hash", Now, Now.AddDays(30));
         var repository = new FakeAuthenticationRepository
         {
@@ -86,6 +106,7 @@ public sealed class LoginApplicationTests
     public async Task Concurrent_refresh_of_the_same_session_is_rejected()
     {
         var user = User.CreateLocal("Learner", "learner@example.com", "LEARNER@EXAMPLE.COM", "hash", Now);
+        user.VerifyEmail(Now);
         var original = UserSession.Create(user.Id, "old-hash", Now, Now.AddDays(1));
         var repository = new FakeAuthenticationRepository
         {

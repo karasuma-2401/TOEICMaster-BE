@@ -9,8 +9,9 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Email.Commands.SendEmail;
+using TOEICMaster.Tests.TestDoubles;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Api.Common;
 
 public sealed class ValidationApiFactory : ApiFactory
 {

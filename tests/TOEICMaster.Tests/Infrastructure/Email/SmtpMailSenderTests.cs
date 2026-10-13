@@ -6,9 +6,9 @@ using MimeKit;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Infrastructure.Email;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Infrastructure.Email;
 
-public sealed class MailSenderTests
+public sealed class SmtpMailSenderTests
 {
     [Fact]
     public async Task Sender_delivers_a_message_over_smtp()
@@ -23,7 +23,9 @@ public sealed class MailSenderTests
             var sender = new SmtpMailSender(Options.Create(new SmtpOptions
             {
                 Host = "127.0.0.1",
-                Port = port
+                Port = port,
+                FromAddress = "noreply@toeicmaster.test",
+                Security = MailKit.Security.SecureSocketOptions.None
             }));
             await sender.SendAsync(new MailMessage("student@toeicmaster.test", "Practice reminder", "Time to practice."),
                 timeout.Token);

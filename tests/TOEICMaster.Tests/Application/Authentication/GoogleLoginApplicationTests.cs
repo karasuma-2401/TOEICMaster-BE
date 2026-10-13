@@ -2,8 +2,9 @@ using TOEICMaster.Application.Authentication.Commands.LoginWithGoogle;
 using TOEICMaster.Application.Common.Exceptions;
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Domain.Entities;
+using TOEICMaster.Tests.TestDoubles;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Application.Authentication;
 
 public sealed class GoogleLoginApplicationTests
 {

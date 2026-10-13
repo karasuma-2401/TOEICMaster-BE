@@ -8,8 +8,10 @@ using TOEICMaster.Application.Common.Exceptions;
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Domain.Entities;
+using TOEICMaster.Tests.Api.Common;
+using TOEICMaster.Tests.TestDoubles;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Api.Authentication;
 
 public sealed class GoogleLoginApiFactory : ApiFactory
 {
@@ -54,7 +56,7 @@ public sealed class GoogleLoginApiTests
         using var factory = new GoogleLoginApiFactory();
         using var client = factory.CreateClient();
 
-        using var response = await client.PostAsJsonAsync("/api/auth/google", new
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/google", new
         {
             credential = "signed-google-id-token",
             rememberMe = true
@@ -75,7 +77,7 @@ public sealed class GoogleLoginApiTests
         factory.Verifier.Exception = new InvalidGoogleCredentialException();
         using var client = factory.CreateClient();
 
-        using var response = await client.PostAsJsonAsync("/api/auth/google",
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/google",
             new { credential = "invalid-token" });
         var problem = await response.Content.ReadFromJsonAsync<GoogleAuthenticationProblem>();
 
@@ -91,7 +93,7 @@ public sealed class GoogleLoginApiTests
         factory.ExternalRepository.Resolution = ExternalLoginResolution.LinkRequired();
         using var client = factory.CreateClient();
 
-        using var response = await client.PostAsJsonAsync("/api/auth/google",
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/google",
             new { credential = "signed-google-id-token" });
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
@@ -103,7 +105,7 @@ public sealed class GoogleLoginApiTests
         using var factory = new GoogleLoginApiFactory();
         using var client = factory.CreateClient();
 
-        using var response = await client.PostAsJsonAsync("/api/auth/google", new { credential = "" });
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/google", new { credential = "" });
         var problem = await response.Content.ReadFromJsonAsync<GoogleAuthenticationProblem>();
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);

@@ -23,9 +23,7 @@ public sealed class EfExternalLoginRepository(ToeicDbContext dbContext) : IExter
         var normalizedEmail = account.Email.ToUpperInvariant();
         var existingEmail = await FindByEmailAsync(normalizedEmail, cancellationToken);
         if (existingEmail is not null)
-            return account.CanLinkExistingAccountByEmail
-                ? await LinkAsync(existingEmail, account.Subject, createdAtUtc, cancellationToken)
-                : ExternalLoginResolution.LinkRequired();
+            return await ResolveExistingEmailAsync(existingEmail, account, createdAtUtc, cancellationToken);
 
         var user = User.CreateExternal(account.DisplayName, account.Email, normalizedEmail, createdAtUtc);
         dbContext.Users.Add(user);
@@ -46,15 +44,32 @@ public sealed class EfExternalLoginRepository(ToeicDbContext dbContext) : IExter
             existingEmail = await FindByEmailAsync(normalizedEmail, cancellationToken);
             if (existingEmail is null)
                 throw;
-            return account.CanLinkExistingAccountByEmail
-                ? await LinkAsync(existingEmail, account.Subject, createdAtUtc, cancellationToken)
-                : ExternalLoginResolution.LinkRequired();
+            return await ResolveExistingEmailAsync(existingEmail, account, createdAtUtc, cancellationToken);
         }
+    }
+
+    private async Task<ExternalLoginResolution> ResolveExistingEmailAsync(User user, VerifiedGoogleAccount account,
+        DateTimeOffset createdAtUtc, CancellationToken cancellationToken)
+    {
+        if (!user.IsActive && user.EmailVerifiedAtUtc is not null)
+            return ExternalLoginResolution.Resolved(user);
+        return account.CanLinkExistingAccountByEmail
+            ? await LinkAsync(user, account.Subject, createdAtUtc, cancellationToken)
+            : ExternalLoginResolution.LinkRequired();
     }
 
     private async Task<ExternalLoginResolution> LinkAsync(User user, string subject, DateTimeOffset createdAtUtc,
         CancellationToken cancellationToken)
     {
+        if (user.EmailVerifiedAtUtc is null)
+        {
+            dbContext.Users.Attach(user);
+            user.AcceptVerifiedExternalIdentity(createdAtUtc);
+            var challenge = await dbContext.EmailVerificationChallenges
+                .SingleOrDefaultAsync(item => item.UserId == user.Id, cancellationToken);
+            if (challenge is not null)
+                dbContext.EmailVerificationChallenges.Remove(challenge);
+        }
         dbContext.ExternalIdentities.Add(ExternalIdentity.Create(user.Id, GoogleProvider, subject, createdAtUtc));
         try
         {

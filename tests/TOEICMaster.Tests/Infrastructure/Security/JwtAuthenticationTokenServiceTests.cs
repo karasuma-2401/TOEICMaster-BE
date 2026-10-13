@@ -5,7 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using TOEICMaster.Domain.Entities;
 using TOEICMaster.Infrastructure.Security;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Infrastructure.Security;
 
 public sealed class JwtAuthenticationTokenServiceTests
 {

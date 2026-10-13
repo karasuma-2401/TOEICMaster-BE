@@ -28,6 +28,12 @@
           "Newtonsoft.Json": "13.0.4"
         }
       },
+      "Scalar.AspNetCore": {
+        "type": "Direct",
+        "requested": "[2.18.0, )",
+        "resolved": "2.18.0",
+        "contentHash": "wwI3khcYNM7oL6axr4a41G29fJYOS3ckusgYZ4NiIccL8Amh2LOeu4HSK1SrQWiMJNrgoFqyWfDkOkunQCiRDw=="
+      },
       "AutoMapper": {
         "type": "Transitive",
         "resolved": "16.2.0",
