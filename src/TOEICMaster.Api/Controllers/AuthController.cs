@@ -6,11 +6,13 @@ using TOEICMaster.Application.Authentication.Commands.LoginWithGoogle;
 using TOEICMaster.Application.Authentication.Commands.Logout;
 using TOEICMaster.Application.Authentication.Commands.RefreshSession;
 using TOEICMaster.Application.Authentication.Commands.Register;
+using TOEICMaster.Application.Authentication.Commands.ResendEmailVerification;
+using TOEICMaster.Application.Authentication.Commands.VerifyEmail;
 
 namespace TOEICMaster.Api.Controllers;
 
 [ApiController]
-[Route("api/auth")]
+[Route("api/v1/auth")]
 public sealed class AuthController(ISender sender) : ControllerBase
 {
     [HttpPost("register")]
@@ -18,6 +20,25 @@ public sealed class AuthController(ISender sender) : ControllerBase
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Register(RegisterCommand command, CancellationToken cancellationToken)
+    {
+        await sender.Send(command, cancellationToken);
+        return Accepted();
+    }
+
+    [HttpPost("verify-email")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> VerifyEmail(VerifyEmailCommand command, CancellationToken cancellationToken)
+    {
+        await sender.Send(command, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("resend-verification")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResendVerification(ResendEmailVerificationCommand command,
+        CancellationToken cancellationToken)
     {
         await sender.Send(command, cancellationToken);
         return Accepted();

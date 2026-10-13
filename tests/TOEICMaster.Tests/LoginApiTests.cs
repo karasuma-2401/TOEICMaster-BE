@@ -24,6 +24,7 @@ public sealed class LoginApiFactory : ApiFactory
     {
         User = User.CreateLocal("Learner", "learner@example.com", "LEARNER@EXAMPLE.COM",
             PasswordHasher.Hash("correct-password"), Now);
+        User.VerifyEmail(Now);
         Repository.User = User;
     }
 
@@ -52,7 +53,7 @@ public sealed class LoginApiTests
         using var factory = new LoginApiFactory();
         using var client = factory.CreateClient();
 
-        using var response = await client.PostAsJsonAsync("/api/auth/login", new
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/login", new
         {
             email = " learner@example.com ",
             password = "correct-password",
@@ -82,7 +83,7 @@ public sealed class LoginApiTests
             factory.Repository.User = null;
         using var client = factory.CreateClient();
 
-        using var response = await client.PostAsJsonAsync("/api/auth/login", new
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/login", new
         {
             email = "learner@example.com",
             password
@@ -101,7 +102,7 @@ public sealed class LoginApiTests
         using var factory = new LoginApiFactory();
         using var client = factory.CreateClient();
 
-        using var response = await client.PostAsJsonAsync("/api/auth/login", new
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/login", new
         {
             email = "invalid",
             password = ""
@@ -123,10 +124,10 @@ public sealed class LoginApiTests
         factory.Repository.ActiveSession = new AuthenticationSession(currentSession, factory.User);
         using var client = factory.CreateClient();
 
-        using var refreshResponse = await client.PostAsJsonAsync("/api/auth/refresh",
+        using var refreshResponse = await client.PostAsJsonAsync("/api/v1/auth/refresh",
             new { refreshToken = "old-token" });
         var refreshed = await refreshResponse.Content.ReadFromJsonAsync<AuthenticationResponse>();
-        using var logoutResponse = await client.PostAsJsonAsync("/api/auth/logout",
+        using var logoutResponse = await client.PostAsJsonAsync("/api/v1/auth/logout",
             new { refreshToken = refreshed?.RefreshToken });
 
         Assert.Equal(HttpStatusCode.OK, refreshResponse.StatusCode);

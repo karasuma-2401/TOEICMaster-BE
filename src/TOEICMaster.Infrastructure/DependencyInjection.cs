@@ -58,6 +58,9 @@ public static class DependencyInjection
             .ValidateOnStart();
         services.AddOptions<GoogleIdentityOptions>().Bind(configuration.GetSection(GoogleIdentityOptions.SectionName))
             .ValidateDataAnnotations().ValidateOnStart();
+        services.AddOptions<EmailVerificationOptions>()
+            .Bind(configuration.GetSection(EmailVerificationOptions.SectionName))
+            .ValidateDataAnnotations().ValidateOnStart();
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .Configure<IOptions<JwtOptions>>((bearerOptions, jwtOptions) =>
@@ -83,6 +86,7 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IAuthenticationTokenService, JwtAuthenticationTokenService>();
         services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
+        services.AddSingleton<IEmailVerificationCodeService, EmailVerificationCodeService>();
         services.AddScoped<IUserRegistrationRepository, EfUserRegistrationRepository>();
         services.AddScoped<IAuthenticationRepository, EfAuthenticationRepository>();
         services.AddScoped<IExternalLoginRepository, EfExternalLoginRepository>();

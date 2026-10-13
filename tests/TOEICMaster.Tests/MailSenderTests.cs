@@ -23,7 +23,9 @@ public sealed class MailSenderTests
             var sender = new SmtpMailSender(Options.Create(new SmtpOptions
             {
                 Host = "127.0.0.1",
-                Port = port
+                Port = port,
+                FromAddress = "noreply@toeicmaster.test",
+                Security = MailKit.Security.SecureSocketOptions.None
             }));
             await sender.SendAsync(new MailMessage("student@toeicmaster.test", "Practice reminder", "Time to practice."),
                 timeout.Token);

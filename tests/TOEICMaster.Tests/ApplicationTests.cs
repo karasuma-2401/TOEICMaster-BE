@@ -39,6 +39,7 @@ public sealed class ApplicationTests
         services.AddSingleton<IPasswordHasher, FakePasswordHasher>();
         services.AddSingleton<IAuthenticationTokenService, FakeAuthenticationTokenService>();
         services.AddSingleton<IGoogleIdentityVerifier, FakeGoogleIdentityVerifier>();
+        services.AddSingleton<IEmailVerificationCodeService, FakeEmailVerificationCodeService>();
         services.AddSingleton(TimeProvider.System);
         configure?.Invoke(services);
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });

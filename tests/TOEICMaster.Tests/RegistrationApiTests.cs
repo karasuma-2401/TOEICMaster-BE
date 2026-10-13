@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
+using TOEICMaster.Application.Email;
 
 namespace TOEICMaster.Tests;
 
@@ -13,6 +14,8 @@ public sealed class RegistrationApiFactory : ApiFactory
 {
     public FakeUserRegistrationRepository Repository { get; } = new();
     public FakePasswordHasher PasswordHasher { get; } = new();
+    public FakeEmailVerificationCodeService CodeService { get; } = new();
+    public RecordingMailSender MailSender { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -21,8 +24,12 @@ public sealed class RegistrationApiFactory : ApiFactory
         {
             services.RemoveAll<IUserRegistrationRepository>();
             services.RemoveAll<IPasswordHasher>();
+            services.RemoveAll<IEmailVerificationCodeService>();
+            services.RemoveAll<IMailSender>();
             services.AddSingleton<IUserRegistrationRepository>(Repository);
             services.AddSingleton<IPasswordHasher>(PasswordHasher);
+            services.AddSingleton<IEmailVerificationCodeService>(CodeService);
+            services.AddSingleton<IMailSender>(MailSender);
         });
     }
 }
@@ -35,7 +42,7 @@ public sealed class RegistrationApiTests
         using var factory = new RegistrationApiFactory();
         using var client = factory.CreateClient();
 
-        using var response = await client.PostAsJsonAsync("/api/auth/register", new
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/register", new
         {
             displayName = "  Nguyen Van A  ",
             email = "  learner@example.com  ",
@@ -46,6 +53,7 @@ public sealed class RegistrationApiTests
         Assert.Equal(0, response.Content.Headers.ContentLength);
         Assert.Equal("Nguyen Van A", factory.Repository.AddedUser?.DisplayName);
         Assert.Equal(" password ", factory.PasswordHasher.Password);
+        Assert.Single(factory.MailSender.Messages);
     }
 
     [Fact]
@@ -54,7 +62,7 @@ public sealed class RegistrationApiTests
         using var factory = new RegistrationApiFactory();
         using var client = factory.CreateClient();
 
-        using var response = await client.PostAsJsonAsync("/api/auth/register", new
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/register", new
         {
             displayName = "",
             email = "invalid",
@@ -79,7 +87,7 @@ public sealed class RegistrationApiTests
         using var factory = new RegistrationApiFactory();
         using var client = factory.CreateClient();
 
-        using var response = await client.PostAsJsonAsync("/api/auth/register", new
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/register", new
         {
             displayName = $"  {new string('a', 100)}  ",
             email = "  learner@example.com  ",
@@ -97,7 +105,7 @@ public sealed class RegistrationApiTests
         factory.Repository.ExistingEmail = true;
         using var client = factory.CreateClient();
 
-        using var response = await client.PostAsJsonAsync("/api/auth/register", new
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/register", new
         {
             displayName = "Learner",
             email = "learner@example.com",
@@ -109,6 +117,61 @@ public sealed class RegistrationApiTests
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal("Email này đã được sử dụng.", problem?.Title);
         Assert.False(string.IsNullOrWhiteSpace(problem?.TraceId));
+    }
+
+    [Fact]
+    public async Task Verification_activates_the_account_and_returns_no_content()
+    {
+        using var factory = new RegistrationApiFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/verify-email", new
+        {
+            email = " learner@example.com ",
+            code = "123456"
+        });
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal("LEARNER@EXAMPLE.COM", factory.Repository.VerifiedEmail);
+        Assert.Equal("hash:LEARNER@EXAMPLE.COM:123456", factory.Repository.VerifiedCodeHash);
+    }
+
+    [Fact]
+    public async Task Invalid_or_exhausted_verification_code_returns_a_safe_bad_request()
+    {
+        using var factory = new RegistrationApiFactory();
+        factory.Repository.VerificationResult = EmailVerificationAttempt.Invalid;
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync("/api/v1/auth/verify-email", new
+        {
+            email = "learner@example.com",
+            code = "000000"
+        });
+        var problem = await response.Content.ReadFromJsonAsync<RegistrationProblem>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Mã xác minh không chính xác, đã hết hạn hoặc đã vượt quá số lần thử.", problem?.Title);
+    }
+
+    [Fact]
+    public async Task Resend_is_generic_and_sends_only_for_an_eligible_pending_account()
+    {
+        using var pendingFactory = new RegistrationApiFactory();
+        pendingFactory.Repository.ExistingPendingEmail = true;
+        using var pendingClient = pendingFactory.CreateClient();
+        using var pendingResponse = await pendingClient.PostAsJsonAsync("/api/v1/auth/resend-verification",
+            new { email = "learner@example.com" });
+
+        using var missingFactory = new RegistrationApiFactory();
+        using var missingClient = missingFactory.CreateClient();
+        using var missingResponse = await missingClient.PostAsJsonAsync("/api/v1/auth/resend-verification",
+            new { email = "missing@example.com" });
+
+        Assert.Equal(HttpStatusCode.Accepted, pendingResponse.StatusCode);
+        Assert.Single(pendingFactory.MailSender.Messages);
+        Assert.Equal(HttpStatusCode.Accepted, missingResponse.StatusCode);
+        Assert.Empty(missingFactory.MailSender.Messages);
     }
 
     private sealed record RegistrationProblem(string? Title, Dictionary<string, string[]> Errors,

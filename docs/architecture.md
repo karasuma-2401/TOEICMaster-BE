@@ -13,7 +13,7 @@ flowchart TD
     INF --> PG[Neon PostgreSQL / EF Core]
     INF --> REDIS[Redis]
     INF --> MINIO[MinIO]
-    INF --> SMTP[Mailpit SMTP]
+    INF --> SMTP[External SMTP provider]
 ```
 
 Mũi tên giữa project biểu diễn dependency khi biên dịch. Domain không tham chiếu project khác hoặc NuGet package. Application chỉ tham chiếu Domain; Infrastructure triển khai interface do Application định nghĩa. API tham chiếu Infrastructure để đăng ký DI trong `Program.cs`; controller gọi Application qua `ISender`.
@@ -82,7 +82,7 @@ Khi thêm tính năng, tạo thư mục theo nghiệp vụ, ví dụ `Exams/Comm
 5. Controller chuyển HTTP request thành command/query, gọi `ISender.Send` và trả HTTP response.
 6. Bổ sung test cho quy tắc nghiệp vụ, dữ liệu sai và các side effect cần kiểm soát.
 
-Mẫu đọc hiện có: `GET /api/system/ping` → `GetSystemStatusQueryHandler` → `SystemStatusDto` → `SystemProfile` → `PingResponse`. Contract FE vẫn là `{ "service": "TOEICMaster", "status": "ok" }`.
+Mẫu đọc hiện có: `GET /api/v1/system/ping` → `GetSystemStatusQueryHandler` → `SystemStatusDto` → `SystemProfile` → `PingResponse`. Contract FE vẫn là `{ "service": "TOEICMaster", "status": "ok" }`.
 
 Mẫu command hiện có: `SendEmailCommand` → `SendEmailCommandValidator` → `SendEmailCommandHandler` → `IMailSender` → `SmtpMailSender`. Command này phục vụ use case nội bộ và tests; chưa có HTTP endpoint gửi mail. Giới hạn hiện tại là recipient 254 ký tự, subject 200 ký tự và text body 100.000 ký tự.
 
@@ -101,8 +101,10 @@ Tests kiểm tra project references, dependency của Domain/Application, dispat
 
 Credential Neon và license key nằm trong user secrets hoặc environment. Xem README để setup. DI không đưa license key vào HTTP response hoặc log và không tắt cảnh báo license của thư viện.
 
-Luồng đăng ký tài khoản đặt `RegisterCommand` trong Application, `User` trong Domain và adapter EF/BCrypt trong
-Infrastructure. Đăng nhập dùng `LoginCommand`; JWT và random refresh token được cấp bởi adapter Infrastructure. Domain
+Luồng đăng ký tài khoản đặt `RegisterCommand`, `VerifyEmailCommand` và `ResendEmailVerificationCommand` trong
+Application. `User` và `EmailVerificationChallenge` nằm trong Domain; adapter EF/BCrypt/HMAC/SMTP nằm trong
+Infrastructure. Tài khoản local bắt đầu ở trạng thái chưa kích hoạt; PostgreSQL chỉ lưu HMAC của OTP 6 số, số lần sai,
+thời hạn và cooldown gửi lại. Đăng nhập dùng `LoginCommand`; JWT và random refresh token được cấp bởi adapter Infrastructure. Domain
 quản lý `UserSession`, còn PostgreSQL chỉ lưu hash của refresh token. Refresh thực hiện rotation trong transaction với
 conditional update để một token không thể được dùng thành công hai lần đồng thời. API cấu hình Bearer authentication và
 chỉ chuyển request vào MediatR, ánh xạ lỗi sang ProblemDetails.
