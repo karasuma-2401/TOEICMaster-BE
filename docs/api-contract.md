@@ -3,6 +3,21 @@
 Các endpoint trong tài liệu này dùng prefix `/api/v1`. Frontend gọi backend qua Next.js route handler và cấu hình
 server-side `API_BASE_URL`; không đưa URL backend hoặc credential vào browser bundle.
 
+## Giới hạn request xác thực
+
+Các endpoint xác thực có fixed-window rate limit theo địa chỉ IP trong từng API instance:
+
+| Nhóm | Endpoint | Giới hạn local |
+| --- | --- | --- |
+| Gửi email | `register`, `resend-verification` | 5 request/phút/IP |
+| Credential | `verify-email`, `login`, `google` | 10 request/phút/IP |
+| Phiên | `refresh`, `logout` | 30 request/phút/IP |
+
+Khi vượt giới hạn, API trả `429 Too Many Requests`, header `Retry-After` và `ProblemDetails` có `traceId`. Rate limit
+này bổ sung cho cooldown resend và giới hạn nhập sai OTP theo account; không thay thế hai cơ chế đó. Bản local lưu bộ
+đếm trong memory của process. Khi triển khai nhiều API instance, chuyển lớp giới hạn chung sang gateway hoặc distributed
+store và cấu hình trusted proxy trước khi dùng forwarded client IP.
+
 ## Đăng ký tài khoản local
 
 `POST /api/v1/auth/register`

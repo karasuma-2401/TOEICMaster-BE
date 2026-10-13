@@ -7,8 +7,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
+using TOEICMaster.Tests.Api.Common;
+using TOEICMaster.Tests.TestDoubles;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Api.Authentication;
 
 public sealed class RegistrationApiFactory : ApiFactory
 {

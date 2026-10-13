@@ -6,9 +6,9 @@ using MimeKit;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Infrastructure.Email;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Infrastructure.Email;
 
-public sealed class MailSenderTests
+public sealed class SmtpMailSenderTests
 {
     [Fact]
     public async Task Sender_delivers_a_message_over_smtp()

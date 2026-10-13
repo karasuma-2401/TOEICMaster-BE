@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using TOEICMaster.Api.Configuration;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Infrastructure.Configuration;
 
 public sealed class DotEnvConfigurationTests
 {

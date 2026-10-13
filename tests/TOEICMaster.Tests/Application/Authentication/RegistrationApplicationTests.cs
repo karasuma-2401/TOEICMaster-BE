@@ -1,7 +1,8 @@
 using TOEICMaster.Application.Authentication.Commands.Register;
 using TOEICMaster.Application.Common.Exceptions;
+using TOEICMaster.Tests.TestDoubles;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Application.Authentication;
 
 public sealed class RegistrationApplicationTests
 {

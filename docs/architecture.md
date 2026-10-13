@@ -97,7 +97,11 @@ AutoMapper đã tích hợp `AddAutoMapper`; MediatR đã tích hợp `AddMediat
 
 ## Kiểm thử và cấu hình
 
-Tests kiểm tra project references, dependency của Domain/Application, dispatch và validation qua MediatR, cancellation, HTTP ProblemDetails, mapping configuration, contract ping, CORS và SMTP adapter. Tests dùng mail adapter giả hoặc SMTP server local; không cần credential Neon thật.
+Test project được chia thư mục theo cùng ranh giới Clean Architecture: `Architecture`, `Application`,
+`Infrastructure` và `Api`. Fake dùng chung nằm trong `TestDoubles` để test case không phụ thuộc lẫn nhau qua namespace
+gốc. Tests kiểm tra project references, dependency của Domain/Application, dispatch và validation qua MediatR,
+cancellation, HTTP ProblemDetails, mapping configuration, contract ping, CORS và SMTP adapter. Tests dùng mail adapter
+giả hoặc SMTP server local; không cần credential Neon thật.
 
 Credential Neon và license key nằm trong user secrets hoặc environment. Xem README để setup. DI không đưa license key vào HTTP response hoặc log và không tắt cảnh báo license của thư viện.
 

@@ -7,24 +7,11 @@ using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Email.Commands.SendEmail;
 using TOEICMaster.Application.System.Queries.GetSystemStatus;
+using TOEICMaster.Tests.TestDoubles;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Application.Common;
 
-public sealed class RecordingMailSender : IMailSender
-{
-    public List<MailMessage> Messages { get; } = [];
-    public CancellationToken LastCancellationToken { get; private set; }
-
-    public Task SendAsync(MailMessage message, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        Messages.Add(message);
-        LastCancellationToken = cancellationToken;
-        return Task.CompletedTask;
-    }
-}
-
-public sealed class ApplicationTests
+public sealed class MediatorPipelineTests
 {
     private static ServiceProvider CreateServices(Action<IServiceCollection>? configure = null)
     {

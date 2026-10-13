@@ -2,7 +2,7 @@ using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Domain.Entities;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.TestDoubles;
 
 public sealed class FakeUserRegistrationRepository : IUserRegistrationRepository
 {

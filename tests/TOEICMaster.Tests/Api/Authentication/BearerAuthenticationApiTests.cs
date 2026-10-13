@@ -8,8 +8,9 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Domain.Entities;
+using TOEICMaster.Tests.Api.Common;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Api.Authentication;
 
 public sealed class BearerAuthenticationApiFactory : ApiFactory
 {

@@ -158,13 +158,21 @@ src/
   TOEICMaster.Infrastructure/  EF Core, cache, storage và SMTP
   TOEICMaster.Api/             HTTP endpoints, mapping response, xử lý lỗi và DI
 tests/
-  TOEICMaster.Tests/           Architecture, Application, API, mapping và SMTP tests
+  TOEICMaster.Tests/
+    Architecture/              Kiểm tra dependency rule giữa các layer
+    Application/               Unit test cho use case và MediatR pipeline
+    Infrastructure/            Test adapter SMTP, security và configuration
+    Api/                       Integration test cho HTTP contract và middleware
+    TestDoubles/               Fake dùng chung, không chứa test case
 .github/                      CI, publish image và template Issue
 docs/                         Kiến trúc
 ```
 
 [Chi tiết kiến trúc](docs/architecture.md) và [API contract](docs/api-contract.md). API đăng ký, đăng nhập local/Google,
 refresh và logout đã có; nghiệp vụ TOEIC được bổ sung theo backlog.
+
+Các endpoint auth có rate limit theo IP: gửi email 5 request/phút, kiểm tra credential 10 request/phút và thao tác
+session 30 request/phút. Request vượt giới hạn nhận `429` kèm `Retry-After`; xem chi tiết trong API contract.
 
 Controller gọi `ISender.Send` của MediatR; Application xử lý use case và chỉ tham chiếu Domain. Infrastructure triển khai interface Application để truy cập dữ liệu, cache, storage và email. Domain độc lập với framework/database.
 

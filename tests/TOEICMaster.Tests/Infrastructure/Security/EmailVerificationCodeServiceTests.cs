@@ -2,9 +2,9 @@ using Microsoft.Extensions.Options;
 using TOEICMaster.Domain.Entities;
 using TOEICMaster.Infrastructure.Security;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Infrastructure.Security;
 
-public sealed class EmailVerificationTests
+public sealed class EmailVerificationCodeServiceTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 13, 12, 0, 0, TimeSpan.Zero);
 

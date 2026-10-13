@@ -8,8 +8,10 @@ using TOEICMaster.Application.Common.Exceptions;
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Domain.Entities;
+using TOEICMaster.Tests.Api.Common;
+using TOEICMaster.Tests.TestDoubles;
 
-namespace TOEICMaster.Tests;
+namespace TOEICMaster.Tests.Api.Authentication;
 
 public sealed class GoogleLoginApiFactory : ApiFactory
 {
