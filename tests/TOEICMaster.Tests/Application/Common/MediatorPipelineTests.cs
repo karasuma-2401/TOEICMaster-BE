@@ -23,10 +23,12 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<IUserRegistrationRepository, FakeUserRegistrationRepository>();
         services.AddSingleton<IAuthenticationRepository, FakeAuthenticationRepository>();
         services.AddSingleton<IExternalLoginRepository, FakeExternalLoginRepository>();
+        services.AddSingleton<IPasswordResetRepository, FakePasswordResetRepository>();
         services.AddSingleton<IPasswordHasher, FakePasswordHasher>();
         services.AddSingleton<IAuthenticationTokenService, FakeAuthenticationTokenService>();
         services.AddSingleton<IGoogleIdentityVerifier, FakeGoogleIdentityVerifier>();
         services.AddSingleton<IEmailVerificationCodeService, FakeEmailVerificationCodeService>();
+        services.AddSingleton<IPasswordResetTokenService, FakePasswordResetTokenService>();
         services.AddSingleton(TimeProvider.System);
         configure?.Invoke(services);
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });

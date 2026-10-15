@@ -79,6 +79,42 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.ToTable("external_identities", (string)null);
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.PasswordResetChallenge", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FailedAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("ResetTokenExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ResetTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("SentAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("ResetTokenHash")
+                        .IsUnique();
+
+                    b.ToTable("password_reset_challenges", (string)null);
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -175,6 +211,15 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.HasOne("TOEICMaster.Domain.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.PasswordResetChallenge", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.User", null)
+                        .WithOne()
+                        .HasForeignKey("TOEICMaster.Domain.Entities.PasswordResetChallenge", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

@@ -9,8 +9,8 @@ Các endpoint xác thực có fixed-window rate limit theo địa chỉ IP trong
 
 | Nhóm | Endpoint | Giới hạn local |
 | --- | --- | --- |
-| Gửi email | `register`, `resend-verification` | 5 request/phút/IP |
-| Credential | `verify-email`, `login`, `google` | 10 request/phút/IP |
+| Gửi email | `register`, `resend-verification`, `forgot-password` | 5 request/phút/IP |
+| Credential | `verify-email`, `verify-password-reset`, `reset-password`, `login`, `google` | 10 request/phút/IP |
 | Phiên | `refresh`, `logout` | 30 request/phút/IP |
 
 Khi vượt giới hạn, API trả `429 Too Many Requests`, header `Retry-After` và `ProblemDetails` có `traceId`. Rate limit
@@ -64,6 +64,60 @@ chung. Sau khi nhận `204`, frontend chuyển người dùng về trang đăng 
 
 Luôn trả `202 Accepted` cho request hợp lệ, kể cả email không tồn tại, đã kích hoạt hoặc còn trong cooldown. Chỉ tài
 khoản chưa kích hoạt đã qua cooldown mới được cấp và gửi mã mới; việc này tránh dò email và spam SMTP.
+
+## Quên mật khẩu
+
+Luồng đặt lại mật khẩu gồm ba bước. OTP và reset token chỉ được lưu dạng hash, dùng một lần và tách biệt hoàn toàn với
+OTP kích hoạt tài khoản.
+
+### Yêu cầu mã đặt lại mật khẩu
+
+`POST /api/v1/auth/forgot-password`
+
+```json
+{ "email": "learner@example.com" }
+```
+
+Request hợp lệ luôn trả `202 Accepted` và không có body, kể cả email không tồn tại, tài khoản chỉ đăng nhập Google,
+tài khoản chưa kích hoạt hoặc đang trong cooldown 60 giây. Chỉ tài khoản local đã kích hoạt và xác minh email mới nhận
+OTP 6 chữ số. OTP hết hạn sau 10 phút và cho phép tối đa 5 lần nhập sai.
+
+### Xác minh mã đặt lại mật khẩu
+
+`POST /api/v1/auth/verify-password-reset`
+
+```json
+{ "email": "learner@example.com", "code": "123456" }
+```
+
+Response `200 OK`:
+
+```json
+{
+  "resetToken": "<opaque-one-time-token>",
+  "expiresAtUtc": "2026-10-15T12:10:00+00:00"
+}
+```
+
+Response có `Cache-Control: no-store`. Xác minh thành công làm OTP không thể dùng lại; reset token sống 10 phút và chỉ
+dùng được một lần. Mã sai, hết hạn, đã dùng hoặc vượt 5 lần sai trả `400 ProblemDetails` với thông báo chung.
+
+### Đặt mật khẩu mới
+
+`POST /api/v1/auth/reset-password`
+
+```json
+{
+  "resetToken": "<opaque-one-time-token>",
+  "newPassword": "new-password"
+}
+```
+
+- `newPassword`: giữ nguyên khoảng trắng, từ 8–128 ký tự.
+- Thành công trả `204 No Content`, dùng reset token một lần và thu hồi toàn bộ refresh session đang hoạt động của tài
+  khoản. Access token đã cấp trước đó tự hết hạn theo thời gian sống tối đa 15 phút.
+- Token sai, hết hạn hoặc đã dùng trả `400 ProblemDetails` với thông báo chung.
+- Response có `Cache-Control: no-store`.
 
 ## Đăng nhập local
 

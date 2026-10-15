@@ -45,6 +45,26 @@ public sealed class RateLimitingApiTests
         Assert.False(string.IsNullOrWhiteSpace(problem?.TraceId));
     }
 
+    [Fact]
+    public async Task Forgot_password_stops_before_sending_mail_when_email_rate_limit_is_exceeded()
+    {
+        using var factory = new PasswordResetApiFactory();
+        using var client = factory.CreateClient();
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using var allowed = await client.PostAsJsonAsync("/api/v1/auth/forgot-password",
+                new { email = "learner@example.com" });
+            Assert.Equal(HttpStatusCode.Accepted, allowed.StatusCode);
+        }
+
+        using var rejected = await client.PostAsJsonAsync("/api/v1/auth/forgot-password",
+            new { email = "learner@example.com" });
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
+        Assert.Equal(5, factory.MailSender.Messages.Count);
+    }
+
     private static Task<HttpResponseMessage> LoginAsync(HttpClient client) =>
         client.PostAsJsonAsync("/api/v1/auth/login", new
         {

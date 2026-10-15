@@ -25,6 +25,12 @@ public sealed class AuthenticationExceptionHandler(IProblemDetailsService proble
             InvalidEmailVerificationException => (StatusCodes.Status400BadRequest,
                 "Mã xác minh không chính xác, đã hết hạn hoặc đã vượt quá số lần thử.",
                 "https://tools.ietf.org/html/rfc9110#section-15.5.1"),
+            InvalidPasswordResetCodeException => (StatusCodes.Status400BadRequest,
+                "Mã đặt lại mật khẩu không chính xác, đã hết hạn hoặc đã vượt quá số lần thử.",
+                "https://tools.ietf.org/html/rfc9110#section-15.5.1"),
+            InvalidPasswordResetTokenException => (StatusCodes.Status400BadRequest,
+                "Yêu cầu đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.",
+                "https://tools.ietf.org/html/rfc9110#section-15.5.1"),
             _ => (0, null, null)
         };
         if (title is null)

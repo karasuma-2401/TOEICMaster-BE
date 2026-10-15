@@ -707,8 +707,8 @@
       },
       "System.Security.Cryptography.Pkcs": {
         "type": "Transitive",
-        "resolved": "10.0.0",
-        "contentHash": "UPWqLSygJlFerRi9XNIuM0a1VC8gHUIufyP24xQ0sc+XimqUAEcjpOz9DhKpyDjH+5B/wO3RpC0KpkEeDj/ddg=="
+        "resolved": "10.0.13",
+        "contentHash": "a+EovgC1fBnwdlQ6cn3j4JFBfKqiFaFvoAhjisOoSvazLAcIznaBzPQP0oYnvccmeXfqUH1KebVZOxSeH6rMaw=="
       },
       "xunit.abstractions": {
         "type": "Transitive",
@@ -786,6 +786,7 @@
           "Microsoft.Extensions.Options.DataAnnotations": "[10.0.12, )",
           "Minio": "[7.0.0, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
+          "System.Security.Cryptography.Pkcs": "[10.0.13, )",
           "TOEICMaster.Application": "[1.0.0, )"
         }
       }
