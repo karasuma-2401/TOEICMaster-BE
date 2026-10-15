@@ -20,9 +20,8 @@ public sealed class AccountReader(ToeicDbContext context) : IAccountReader
     }
 
     internal static IQueryable<AccountSummaryDto> BuildPageQuery(IQueryable<User> accounts, int offset, int pageSize)
-        => accounts.OrderByDescending(account => account.CreatedAt).ThenBy(account => account.Id)
+        => accounts.OrderByDescending(account => account.CreatedAtUtc).ThenBy(account => account.Id)
             .Skip(offset).Take(pageSize)
-            .Select(account => new AccountSummaryDto(account.Id, account.Email, account.FullName,
-                account.UserRoles.OrderBy(userRole => userRole.Role.Name).Select(userRole => userRole.Role.Name).ToArray(),
-                account.IsActive, account.CreatedAt));
+            .Select(account => new AccountSummaryDto(account.Id, account.Email, account.DisplayName,
+                account.IsActive, account.CreatedAtUtc));
 }

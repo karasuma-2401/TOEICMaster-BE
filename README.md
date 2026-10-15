@@ -1,8 +1,10 @@
 # TOEICMaster Backend
 
+Task CNPMCS-18: [API danh sách tài khoản có phân trang](docs/account-list-api.md), dùng model và authentication của `dev`. Endpoint yêu cầu quyền Admin; token đăng nhập hiện chưa có role nên trả `403` cho đến khi tích hợp module phân quyền.
+
 API của phần mềm hỗ trợ học và luyện thi TOEIC, tổ chức theo Clean Architecture và CQRS trong một ứng dụng.
 
-**Công nghệ:** ASP.NET Core .NET 10, EF Core 10, Neon PostgreSQL, Redis, MinIO và Mailpit. MediatR 14.2.0, FluentValidation 12.1.1 và AutoMapper 16.2.0 được cấu hình sẵn.
+**Công nghệ:** ASP.NET Core .NET 10, EF Core 10, Neon PostgreSQL, Redis, MinIO và SMTP. MediatR 14.2.0, FluentValidation 12.1.1 và AutoMapper 16.2.0 được cấu hình sẵn.
 
 ## Chuẩn bị
 
@@ -45,67 +47,54 @@ docker compose version
     cp .env.example .env
     ```
 
-    Mở `.env`, thay `DATABASE_CONNECTION_STRING` bằng connection string Neon của nhóm, giữ dấu ngoặc kép:
+    Mở `.env`, thay `DATABASE_CONNECTION_STRING` bằng connection string Neon của nhóm, giữ dấu ngoặc kép. Đồng thời
+    thay `JWT_SIGNING_KEY` bằng chuỗi ngẫu nhiên riêng của môi trường, tối thiểu 32 ký tự. Điền thêm thông tin SMTP
+    của nhà cung cấp email; địa chỉ gửi phải được nhà cung cấp xác minh:
 
     ```dotenv
     DATABASE_CONNECTION_STRING="Host=<NEON_HOST>;Database=<DATABASE>;Username=<USER>;Password=<PASSWORD>;SSL Mode=VerifyFull;Channel Binding=Require;"
+    JWT_SIGNING_KEY=<RANDOM_SECRET_WITH_AT_LEAST_32_CHARACTERS>
+    GOOGLE_CLIENT_ID=<GOOGLE_WEB_CLIENT_ID>.apps.googleusercontent.com
+    EMAIL_VERIFICATION_HASH_KEY=<ANOTHER_RANDOM_SECRET_WITH_AT_LEAST_32_CHARACTERS>
+    SMTP_HOST=<EXTERNAL_SMTP_HOST>
+    SMTP_PORT=587
+    SMTP_SECURITY=StartTls
+    SMTP_FROM_ADDRESS=<VERIFIED_SENDER_ADDRESS>
+    SMTP_FROM_NAME=TOEICMaster
+    SMTP_USERNAME=<SMTP_USERNAME>
+    SMTP_PASSWORD=<SMTP_PASSWORD_OR_APP_PASSWORD>
     ```
 
     Đây là định dạng Npgsql, không phải URL `postgresql://...`. File `.env` được Git bỏ qua.
 
-3. Khởi động Redis, MinIO và Mailpit:
+3. Khởi động Redis và MinIO:
 
     ```sh
-    docker compose up -d redis minio mailpit
+    docker compose up -d redis minio
     ```
 
-4. Trên Windows, dùng script chạy local để đọc trực tiếp `.env`:
-
-    ```powershell
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-local.ps1 -ValidateOnly
-    ```
-
-    Script kiểm tra định dạng và ánh xạ `DATABASE_CONNECTION_STRING` sang `ConnectionStrings__Postgres`, mật khẩu Redis và credential MinIO sang cấu hình ASP.NET. Script không in credential; `-ValidateOnly` không kết nối database hoặc khởi động API. Biến môi trường có sẵn được ưu tiên hơn `.env`; các biến được script thêm vào chỉ tồn tại trong lúc chạy và được dọn lại sau đó. Giá trị `.env` được đọc nguyên văn, không thực thi lệnh hoặc nội suy biến.
-
-    Nếu không dùng script (ví dụ trên macOS/Linux), tiếp tục cấu hình bằng .NET user secrets:
+4. Khôi phục dependency và chạy API:
 
     ```sh
-    dotnet user-secrets set "ConnectionStrings:Postgres" "<NEON_CONNECTION_STRING>" --project src/TOEICMaster.Api
-    ```
-
-    Thay `<NEON_CONNECTION_STRING>` bằng toàn bộ chuỗi nhận từ nhóm. User secrets lưu ngoài repo trên máy từng thành viên. Docker Compose và script đọc `.env`; lệnh `dotnet run` trực tiếp vẫn cần user secrets hoặc biến môi trường.
-
-5. Khôi phục dependency và chạy API:
-
-    ```sh
-    dotnet tool restore --tool-manifest dotnet-tools.json
+    dotnet tool restore
     dotnet restore TOEICMaster.slnx --locked-mode
     dotnet run --project src/TOEICMaster.Api
     ```
 
-    Nếu dùng `.env` trên Windows, thay lệnh `dotnet run` bằng:
+5. Kiểm tra trên trình duyệt:
 
-    ```powershell
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-local.ps1
-    ```
+    - `https://localhost:7287/scalar`: Scalar API Reference trong môi trường Development.
+    - `https://localhost:7287/api/v1/system/ping`: API trả JSON.
+    - `https://localhost:7287/health/ready`: trả `Healthy` khi Neon, Redis, MinIO và SMTP kết nối được.
+    - `https://localhost:7287/openapi/v1.json`: đặc tả OpenAPI mà Scalar sử dụng.
 
-    `-ExecutionPolicy Bypass` chỉ áp dụng cho tiến trình PowerShell này, không đổi policy hệ thống. Script chọn môi trường `Development` khi chưa có `ASPNETCORE_ENVIRONMENT`.
+Profile `https` trong `launchSettings.json` mở Scalar tự động. Nếu máy chưa tin cậy HTTPS development certificate,
+chạy `dotnet dev-certs https --trust` một lần rồi khởi động lại API.
 
-6. Kiểm tra trên trình duyệt:
-
-    - `http://localhost:5287/api/v1/system/ping`: API trả JSON.
-    - `http://localhost:5287/health/ready`: trả `Healthy` khi Neon, Redis, MinIO và SMTP kết nối được.
-    - `http://localhost:5287/openapi/v1.json`: đặc tả API trong môi trường Development.
-
-Nếu đổi credential Redis/MinIO trong `.env`, script tự truyền giá trị tương ứng cho API chạy trên host. Nếu chạy `dotnet run` trực tiếp, cập nhật bằng user secrets hoặc biến môi trường.
-
-Kiểm thử script mà không cần SDK .NET hoặc credential thật:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/LocalEnvironment.Tests.ps1
-```
-
-Script cũng ánh xạ `JWT_KEY`, `JWT_ISSUER`, `JWT_AUDIENCE` sang `Jwt__Key`, `Jwt__Issuer`, `Jwt__Audience` để dùng với module authentication trên nhánh `Thien-User/Authentication`. Cấu hình `.env` cần có khóa JWT ngẫu nhiên dài tối thiểu 32 ký tự. File `.env` không được commit.
+API, `dotnet ef` và Package Manager Console tự tìm file `.env` từ thư mục project/solution và ánh xạ các biến sang cấu
+hình .NET. Environment variables thật của môi trường deploy vẫn có độ ưu tiên cao hơn `.env`. Giữ credential
+Redis/MinIO mặc định khi setup lần đầu; không commit `.env`, mật khẩu SMTP hoặc app password. Tài khoản SMTP phải cho
+phép gửi từ `SMTP_FROM_ADDRESS`.
 
 ## Chạy toàn bộ backend bằng Docker
 
@@ -130,15 +119,25 @@ Nếu network đã tồn tại, bỏ qua lệnh tạo. Frontend sẽ gọi API q
 
 | Dịch vụ       | Địa chỉ               | Mục đích                  |
 | ------------- | --------------------- | ------------------------- |
-| API           | http://localhost:5287 | Backend                   |
+| API (HTTPS)   | https://localhost:7287 | Backend và Scalar docs    |
+| API (HTTP)    | http://localhost:5287  | Tương thích frontend local |
 | Redis         | localhost:6379        | Cache                     |
 | MinIO API     | http://localhost:9000 | Object storage            |
 | MinIO console | http://localhost:9001 | Xem object storage        |
-| Mailpit UI    | http://localhost:8025 | Xem email thử nghiệm      |
-| Mailpit SMTP  | localhost:1025        | Nhận email từ ứng dụng    |
 | PostgreSQL    | Neon                  | Database bên ngoài Docker |
 
-Mailpit nhận email để kiểm thử, không chuyển email tới hộp thư Internet.
+Backend kết nối trực tiếp đến nhà cung cấp SMTP bên ngoài đã cấu hình. Vì vậy email do ứng dụng gửi sẽ được chuyển tới
+hộp thư thật; không còn dịch vụ mail giả chạy trong Docker Compose.
+
+Thông tin cần lấy từ nhà cung cấp mail:
+
+- SMTP hostname và port; cấu hình mặc định của dự án là port `587` với `StartTls`.
+- Username và password SMTP (một số nhà cung cấp gọi password này là SMTP key hoặc app password).
+- Địa chỉ sender đã được xác minh; giá trị này phải khớp `SMTP_FROM_ADDRESS`.
+- Nếu nhà cung cấp yêu cầu TLS trực tiếp trên port 465, đặt `SMTP_SECURITY=SslOnConnect` và `SMTP_PORT=465`.
+
+Sau khi điền credential, gọi endpoint đăng ký bằng một email thật. API trả `202`; email nhận được phải chứa OTP 6 số.
+Không đưa SMTP key vào source, log, screenshot hoặc file `.env.example`.
 
 MinIO đang chạy bằng image Docker của Chainguard được ghim digest, cùng nhà cung cấp image với repo UGTM. Phần mềm server bên trong là MinIO Community; [upstream đã ngừng bảo trì](https://github.com/minio/minio). Cấu hình này phục vụ local. Trước khi triển khai production, nhóm cần chọn phương án storage có kế hoạch cập nhật và hỗ trợ phù hợp.
 
@@ -161,12 +160,21 @@ src/
   TOEICMaster.Infrastructure/  EF Core, cache, storage và SMTP
   TOEICMaster.Api/             HTTP endpoints, mapping response, xử lý lỗi và DI
 tests/
-  TOEICMaster.Tests/           Architecture, Application, API, mapping và SMTP tests
+  TOEICMaster.Tests/
+    Architecture/              Kiểm tra dependency rule giữa các layer
+    Application/               Unit test cho use case và MediatR pipeline
+    Infrastructure/            Test adapter SMTP, security và configuration
+    Api/                       Integration test cho HTTP contract và middleware
+    TestDoubles/               Fake dùng chung, không chứa test case
 .github/                      CI, publish image và template Issue
 docs/                         Kiến trúc
 ```
 
-[Chi tiết kiến trúc](docs/architecture.md). [API danh sách tài khoản có phân trang](docs/account-list-api.md) dùng schema `users`, `roles`, `user_roles` và authentication/JWT từ nhánh `Thien-User/Authentication`. API tài khoản yêu cầu token hợp lệ với role `Admin`; chưa xác thực trả `401`, thiếu quyền trả `403`. Không tạo bảng `Accounts` riêng.
+[Chi tiết kiến trúc](docs/architecture.md) và [API contract](docs/api-contract.md). API đăng ký, đăng nhập local/Google,
+refresh và logout đã có; nghiệp vụ TOEIC được bổ sung theo backlog.
+
+Các endpoint auth có rate limit theo IP: gửi email 5 request/phút, kiểm tra credential 10 request/phút và thao tác
+session 30 request/phút. Request vượt giới hạn nhận `429` kèm `Retry-After`; xem chi tiết trong API contract.
 
 Controller gọi `ISender.Send` của MediatR; Application xử lý use case và chỉ tham chiếu Domain. Infrastructure triển khai interface Application để truy cập dữ liệu, cache, storage và email. Domain độc lập với framework/database.
 
@@ -181,14 +189,9 @@ CQRS là cách tách command (ghi/thực hiện hành động) và query (đọc
 
 Bản hiện tại dùng cơ chế license của Lucky Penny Software. Theo [FAQ chính thức](https://luckypennysoftware.com/faq), môi trường development, CI/CD, staging và kiểm thử không cần license key; đồ án môn học đủ điều kiện đăng ký Community License miễn phí. Teammate có thể setup và chạy local mà chưa có key. Khi triển khai cho người dùng, đăng ký key qua [MediatR](https://mediatr.io/) hoặc [AutoMapper](https://automapper.io/) và kiểm tra điều kiện sử dụng khi phạm vi dự án thay đổi.
 
-Nếu đã có key, lưu ngoài repo bằng user secrets:
-
-```sh
-dotnet user-secrets set "MediatR:LicenseKey" "<MEDIATR_LICENSE_KEY>" --project src/TOEICMaster.Api
-dotnet user-secrets set "AutoMapper:LicenseKey" "<AUTOMAPPER_LICENSE_KEY>" --project src/TOEICMaster.Api
-```
-
-Với Docker, đặt `MEDIATR_LICENSE_KEY` và `AUTOMAPPER_LICENSE_KEY` trong file `.env` local; Compose truyền các biến vào API. Bundle key có thể dùng cho cả hai biến nếu license bao gồm cả hai sản phẩm. Thư viện có thể ghi cảnh báo thiếu key; cấu hình không tắt cảnh báo này. Không commit key vào repo.
+Nếu đã có key, đặt `MEDIATR_LICENSE_KEY` và `AUTOMAPPER_LICENSE_KEY` trong file `.env` local. Bundle key có thể dùng
+cho cả hai biến nếu license bao gồm cả hai sản phẩm. Thư viện có thể ghi cảnh báo thiếu key; cấu hình không tắt cảnh
+báo này. Không commit key vào repo.
 
 ## Kiểm tra code
 
@@ -203,24 +206,30 @@ Tests không cần credential Neon thật. Khi thay đổi package, chạy `dotn
 
 ## EF Core migrations
 
-Đã có các entity `User`, `Role`, `UserRole` và migration `20261011134141_InitialAuth`, `20261011141312_SeedInitialRoles` từ nhánh database/auth. Khi thêm entity hoặc thay đổi EF configuration tiếp theo:
+Migration `InitialUsers` tạo bảng tài khoản; `AddUserSessions` tạo bảng phiên và refresh token hash;
+`AddExternalIdentities` lưu định danh từ Google; `AddEmailVerification` thêm trạng thái xác minh và challenge OTP.
+Khi thay đổi schema tiếp theo:
 
 ```sh
 dotnet ef migrations add <MigrationName> --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api --output-dir Persistence/Migrations
 ```
 
-Trước khi cập nhật schema, dùng direct connection string của branch Neon cần cập nhật, thay cho hostname có `-pooler`. Cấu hình nó bằng biến môi trường `ConnectionStrings__Postgres` trong shell tạm, rồi chạy:
+Trước khi cập nhật schema, đặt direct connection string của đúng branch Neon vào `DATABASE_CONNECTION_STRING` trong
+`.env`; hostname migration không nên chứa `-pooler`. Sau đó chạy từ solution root:
 
 ```sh
 dotnet ef database update --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api
 ```
 
-Đóng shell sau khi chạy. Commit migration cùng entity/configuration. API không tự apply migration lúc khởi động.
+Trong Package Manager Console, chọn `TOEICMaster.Infrastructure` làm Default project, giữ `TOEICMaster.Api` làm
+Startup project rồi chạy `Update-Database`; startup cũng đọc cùng file `.env`. Commit migration cùng
+entity/configuration. API không tự apply migration lúc khởi động.
 
 ## Xử lý lỗi thường gặp
 
 - **Docker không kết nối được:** mở Docker Desktop, chờ Engine sẵn sàng và kiểm tra `docker info`.
-- **Thiếu Postgres configuration:** kiểm tra đã đặt user secret; nếu chạy container, kiểm tra `.env`.
+- **Thiếu/sai Postgres configuration:** kiểm tra `DATABASE_CONNECTION_STRING` trong `.env` và chạy lệnh từ bên trong
+  cây thư mục solution để startup tìm thấy file.
 - **Readiness trả 503:** kiểm tra dịch vụ bằng `docker compose ps`, log API và kết nối Neon.
 - **Cổng bị chiếm:** dừng ứng dụng đang dùng cổng trước khi chạy Compose.
 - **Lỗi restore SDK:** cài .NET SDK 10 phù hợp với `global.json`.
@@ -232,7 +241,7 @@ Workflow được điều chỉnh từ [UGTM](https://github.com/karasuma-2401/U
 
 Feature/fix branch mở PR vào `dev`; release qua PR từ `dev` vào `main`. Khi tạo repo GitHub, push workflow vào default branch `main` và cho phép Actions publish package bằng `GITHUB_TOKEN`. Deploy Azure sẽ cấu hình khi VPS sẵn sàng.
 
-GitHub Actions được ghim commit SHA và dùng Node 24 cho các JavaScript actions. NuGet cache tính cả lock files; restore dùng `--locked-mode`, audit dependency gồm cả package gián tiếp. Trước khi mở API nghiệp vụ cho người dùng, bổ sung authentication, phân quyền, schema và kiểm thử theo các story tương ứng.
+GitHub Actions được ghim commit SHA và dùng Node 24 cho các JavaScript actions. NuGet cache tính cả lock files; restore dùng `--locked-mode`, audit dependency gồm cả package gián tiếp. Trước khi mở API nghiệp vụ cho người dùng, hoàn thiện đăng nhập, phân quyền và kiểm thử theo các story tương ứng.
 
 <details>
 <summary>Giấy phép cấu hình tham khảo UGTM (MIT)</summary>

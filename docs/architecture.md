@@ -13,7 +13,7 @@ flowchart TD
     INF --> PG[Neon PostgreSQL / EF Core]
     INF --> REDIS[Redis]
     INF --> MINIO[MinIO]
-    INF --> SMTP[Mailpit SMTP]
+    INF --> SMTP[External SMTP provider]
 ```
 
 Mũi tên giữa project biểu diễn dependency khi biên dịch. Domain không tham chiếu project khác hoặc NuGet package. Application chỉ tham chiếu Domain; Infrastructure triển khai interface do Application định nghĩa. API tham chiếu Infrastructure để đăng ký DI trong `Program.cs`; controller gọi Application qua `ISender`.
@@ -97,12 +97,36 @@ AutoMapper đã tích hợp `AddAutoMapper`; MediatR đã tích hợp `AddMediat
 
 ## Kiểm thử và cấu hình
 
-Tests kiểm tra project references, dependency của Domain/Application, dispatch và validation qua MediatR, cancellation, HTTP ProblemDetails, mapping configuration, contract ping, CORS và SMTP adapter. Tests dùng mail adapter giả hoặc SMTP server local; không cần credential Neon thật.
+Test project được chia thư mục theo cùng ranh giới Clean Architecture: `Architecture`, `Application`,
+`Infrastructure` và `Api`. Fake dùng chung nằm trong `TestDoubles` để test case không phụ thuộc lẫn nhau qua namespace
+gốc. Tests kiểm tra project references, dependency của Domain/Application, dispatch và validation qua MediatR,
+cancellation, HTTP ProblemDetails, mapping configuration, contract ping, CORS và SMTP adapter. Tests dùng mail adapter
+giả hoặc SMTP server local; không cần credential Neon thật.
 
 Credential Neon và license key nằm trong user secrets hoặc environment. Xem README để setup. DI không đưa license key vào HTTP response hoặc log và không tắt cảnh báo license của thư viện.
 
-Đã tích hợp schema `User`, `Role`, `UserRole`, các migration database/auth và JWT từ nhánh `Thien-User/Authentication`. [API danh sách tài khoản có phân trang](account-list-api.md) gọi `GetAccountsQuery` qua MediatR; `AccountReader` trong Infrastructure đọc bảng `users` và các role qua `user_roles`. Không tạo schema `Accounts` riêng. Policy `AccountAdministration` yêu cầu role `Admin`.
+Luồng đăng ký tài khoản đặt `RegisterCommand`, `VerifyEmailCommand` và `ResendEmailVerificationCommand` trong
+Application. `User` và `EmailVerificationChallenge` nằm trong Domain; adapter EF/BCrypt/HMAC/SMTP nằm trong
+Infrastructure. Tài khoản local bắt đầu ở trạng thái chưa kích hoạt; PostgreSQL chỉ lưu HMAC của OTP 6 số, số lần sai,
+thời hạn và cooldown gửi lại. Đăng nhập dùng `LoginCommand`; JWT và random refresh token được cấp bởi adapter Infrastructure. Domain
+quản lý `UserSession`, còn PostgreSQL chỉ lưu hash của refresh token. Refresh thực hiện rotation trong transaction với
+conditional update để một token không thể được dùng thành công hai lần đồng thời. API cấu hình Bearer authentication và
+chỉ chuyển request vào MediatR, ánh xạ lỗi sang ProblemDetails.
 
-Authentication dùng JWT Bearer của nhánh database/auth. Role claim được ánh xạ về `ClaimTypes.Role` để policy ASP.NET nhận đúng role trong token. File `.env` được đọc qua `scripts/run-local.ps1` khi chạy host local hoặc Docker Compose khi chạy container; credential không đưa vào source.
+JWT hiện chỉ chứa identity claim, chưa chứa role. Mô hình role và permission cần được xác định theo nghiệp vụ;
+không gán role mặc định tùy ý trong token. API danh sách tài khoản áp dụng policy `AccountAdministration` yêu cầu Admin,
+nên token đăng nhập thông thường nhận `403` cho đến khi module phân quyền cấp role phù hợp.
+Access token ngắn hạn không có cơ chế blacklist;
+logout thu hồi refresh session và access token cũ tự hết hạn sau tối đa 15 phút.
 
-Cấu hình JWT dùng `IOptions<JwtOptions>` với `ValidateOnStart` và được truyền vào JWT Bearer sau khi host hoàn tất cấu hình. Cách này giữ contract `Jwt:Key` của nhánh Thien và hỗ trợ test host ghi đè cấu hình mà không bị lỗi do đọc JWT quá sớm.
+Đăng nhập Google nhận ID token đã ký, adapter `GoogleIdentityVerifier` kiểm tra token bằng Web Client ID cấu hình cho môi
+trường. `external_identities` lưu khóa ổn định `(provider, subject)` và tham chiếu `users`; email chỉ dùng để tạo hoặc cân
+nhắc liên kết tài khoản, không phải định danh Google. Tài khoản Google-only có `PasswordHash = null` và không thể đăng
+nhập local cho đến khi có use case đặt mật khẩu riêng.
+
+Việc liên kết tự động với user có sẵn chỉ được phép cho Gmail hoặc Google Workspace. Email bên thứ ba cần một luồng liên
+kết đã xác thực phiên local để tránh takeover. Repository xử lý unique constraint của email và `(provider, subject)` để
+hai lần đăng nhập Google đầu tiên chạy đồng thời vẫn hội tụ về một user.
+
+[API danh sách tài khoản](account-list-api.md) gọi `GetAccountsQuery` qua MediatR và đọc `users` qua `IAccountReader`.
+Projection trả `DisplayName`, `CreatedAtUtc` cùng thông tin cơ bản; không đọc password hash hoặc truy cập bảng role.

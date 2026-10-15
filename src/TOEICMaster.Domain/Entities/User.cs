@@ -1,26 +1,50 @@
-using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace TOEICMaster.Domain.Entities;
 
-public class User
+public sealed class User
 {
-    public Guid Id { get; set; }
+    private User()
+    {
+    }
 
-    public string Email { get; set; } = string.Empty;
+    private User(Guid id, string displayName, string email, string normalizedEmail, string? passwordHash,
+        bool isActive, DateTimeOffset? emailVerifiedAtUtc, DateTimeOffset createdAtUtc)
+    {
+        Id = id;
+        DisplayName = displayName;
+        Email = email;
+        NormalizedEmail = normalizedEmail;
+        PasswordHash = passwordHash;
+        IsActive = isActive;
+        EmailVerifiedAtUtc = emailVerifiedAtUtc;
+        CreatedAtUtc = createdAtUtc;
+    }
 
-    public string PasswordHash { get; set; } = string.Empty;
+    public Guid Id { get; private set; }
+    public string DisplayName { get; private set; } = string.Empty;
+    public string Email { get; private set; } = string.Empty;
+    public string NormalizedEmail { get; private set; } = string.Empty;
+    public string? PasswordHash { get; private set; }
+    public bool IsActive { get; private set; }
+    public DateTimeOffset? EmailVerifiedAtUtc { get; private set; }
+    public DateTimeOffset CreatedAtUtc { get; private set; }
 
-    public string FullName { get; set; } = string.Empty;
+    public static User CreateLocal(string displayName, string email, string normalizedEmail, string passwordHash,
+        DateTimeOffset createdAtUtc) =>
+        new(Guid.NewGuid(), displayName, email, normalizedEmail, passwordHash, false, null, createdAtUtc);
 
-    public bool IsActive { get; set; } = true;
+    public static User CreateExternal(string displayName, string email, string normalizedEmail,
+        DateTimeOffset createdAtUtc) =>
+        new(Guid.NewGuid(), displayName, email, normalizedEmail, null, true, createdAtUtc, createdAtUtc);
 
-    public DateTimeOffset CreatedAt { get; set; } =
-        DateTimeOffset.UtcNow;
+    public void VerifyEmail(DateTimeOffset verifiedAtUtc)
+    {
+        EmailVerifiedAtUtc ??= verifiedAtUtc;
+        IsActive = true;
+    }
 
-    public DateTimeOffset? UpdatedAt { get; set; }
-
-    public ICollection<UserRole> UserRoles { get; set; }
-        = new List<UserRole>();
+    public void AcceptVerifiedExternalIdentity(DateTimeOffset verifiedAtUtc)
+    {
+        PasswordHash = null;
+        VerifyEmail(verifiedAtUtc);
+    }
 }

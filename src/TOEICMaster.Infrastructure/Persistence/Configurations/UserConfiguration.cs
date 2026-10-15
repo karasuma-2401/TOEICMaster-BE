@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TOEICMaster.Domain.Entities;
@@ -12,28 +9,14 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
     public void Configure(EntityTypeBuilder<User> builder)
     {
         builder.ToTable("users");
-
-        builder.HasKey(x => x.Id);
-
-        builder.Property(x => x.Email)
-            .HasMaxLength(256)
-            .IsRequired();
-
-        builder.HasIndex(x => x.Email)
-            .IsUnique();
-
-        builder.Property(x => x.PasswordHash)
-            .HasMaxLength(512)
-            .IsRequired();
-
-        builder.Property(x => x.FullName)
-            .HasMaxLength(150)
-            .IsRequired();
-
-        builder.Property(x => x.IsActive)
-            .IsRequired();
-
-        builder.Property(x => x.CreatedAt)
-            .IsRequired();
+        builder.HasKey(user => user.Id);
+        builder.Property(user => user.DisplayName).HasMaxLength(100).IsRequired();
+        builder.Property(user => user.Email).HasMaxLength(254).IsRequired();
+        builder.Property(user => user.NormalizedEmail).HasMaxLength(254).IsRequired();
+        builder.Property(user => user.PasswordHash).HasMaxLength(100);
+        builder.Property(user => user.IsActive).IsRequired();
+        builder.Property(user => user.EmailVerifiedAtUtc);
+        builder.Property(user => user.CreatedAtUtc).IsRequired();
+        builder.HasIndex(user => user.NormalizedEmail).IsUnique();
     }
 }

@@ -10,19 +10,23 @@ services:
       - ASPNETCORE_HTTP_PORTS=8080
       - MEDIATR_LICENSE_KEY=${MEDIATR_LICENSE_KEY:-}
       - AUTOMAPPER_LICENSE_KEY=${AUTOMAPPER_LICENSE_KEY:-}
+      - Jwt__SigningKey=${JWT_SIGNING_KEY:?Set a random JWT signing key with at least 32 characters in .env}
+      - Google__ClientId=${GOOGLE_CLIENT_ID:?Set the Google Web client ID in .env}
+      - EmailVerification__HashKey=${EMAIL_VERIFICATION_HASH_KEY:?Set a random email verification hash key with at least 32 characters in .env}
       - ConnectionStrings__Postgres=${DATABASE_CONNECTION_STRING:?Set the Neon Npgsql connection string in .env}
-      - Jwt__Key=${JWT_KEY:?Set a random JWT signing key in .env}
-      - Jwt__Issuer=${JWT_ISSUER:-TOEICMaster}
-      - Jwt__Audience=${JWT_AUDIENCE:-TOEICMaster.Client}
       - Cors__AllowedOrigins__0=http://localhost:3000
       - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD:-local-redis-only},abortConnect=false,connectTimeout=3000,syncTimeout=3000
       - Minio__Endpoint=minio:9000
       - Minio__AccessKey=${MINIO_ROOT_USER:-toeicmaster-local}
       - Minio__SecretKey=${MINIO_ROOT_PASSWORD:-local-minio-only}
       - Minio__UseSsl=false
-      - Smtp__Host=mailpit
-      - Smtp__Port=1025
-      - Smtp__Security=None
+      - Smtp__Host=${SMTP_HOST:?Set the external SMTP host in .env}
+      - Smtp__Port=${SMTP_PORT:-587}
+      - Smtp__Security=${SMTP_SECURITY:-StartTls}
+      - Smtp__FromAddress=${SMTP_FROM_ADDRESS:?Set a verified sender address in .env}
+      - Smtp__FromName=${SMTP_FROM_NAME:-TOEICMaster}
+      - Smtp__Username=${SMTP_USERNAME:?Set the external SMTP username in .env}
+      - Smtp__Password=${SMTP_PASSWORD:?Set the external SMTP password in .env}
     ports:
       - "127.0.0.1:5287:8080"
     depends_on:
@@ -30,15 +34,6 @@ services:
         condition: service_started
       minio:
         condition: service_started
-      mailpit:
-        condition: service_started
-
-  mailpit:
-    image: axllent/mailpit:v1.31.4
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:8025:8025"
-      - "127.0.0.1:1025:1025"
 
   minio:
     image: cgr.dev/chainguard/minio:latest@sha256:59667194421209c2c1eacbe761e24787e047985c5dfa96b15da9b59fe9b55cd0
