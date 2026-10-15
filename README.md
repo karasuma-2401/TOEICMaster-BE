@@ -205,7 +205,8 @@ Tests không cần credential Neon thật. Khi thay đổi package, chạy `dotn
 ## EF Core migrations
 
 Migration `InitialUsers` tạo bảng tài khoản; `AddUserSessions` tạo bảng phiên và refresh token hash;
-`AddExternalIdentities` lưu định danh từ Google; `AddEmailVerification` thêm trạng thái xác minh và challenge OTP.
+`AddExternalIdentities` lưu định danh từ Google; `AddEmailVerification` thêm trạng thái xác minh và challenge OTP;
+`AddPasswordReset` thêm challenge OTP và reset token dùng một lần cho luồng quên mật khẩu.
 Khi thay đổi schema tiếp theo:
 
 ```sh

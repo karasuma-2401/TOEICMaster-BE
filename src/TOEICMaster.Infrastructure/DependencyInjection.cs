@@ -61,6 +61,9 @@ public static class DependencyInjection
         services.AddOptions<EmailVerificationOptions>()
             .Bind(configuration.GetSection(EmailVerificationOptions.SectionName))
             .ValidateDataAnnotations().ValidateOnStart();
+        services.AddOptions<PasswordResetOptions>()
+            .Bind(configuration.GetSection(PasswordResetOptions.SectionName))
+            .ValidateDataAnnotations().ValidateOnStart();
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .Configure<IOptions<JwtOptions>>((bearerOptions, jwtOptions) =>
@@ -87,9 +90,11 @@ public static class DependencyInjection
         services.AddSingleton<IAuthenticationTokenService, JwtAuthenticationTokenService>();
         services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
         services.AddSingleton<IEmailVerificationCodeService, EmailVerificationCodeService>();
+        services.AddSingleton<IPasswordResetTokenService, PasswordResetTokenService>();
         services.AddScoped<IUserRegistrationRepository, EfUserRegistrationRepository>();
         services.AddScoped<IAuthenticationRepository, EfAuthenticationRepository>();
         services.AddScoped<IExternalLoginRepository, EfExternalLoginRepository>();
+        services.AddScoped<IPasswordResetRepository, EfPasswordResetRepository>();
         services.AddHealthChecks()
             .AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"], timeout: TimeSpan.FromSeconds(10))
             .AddCheck<RedisHealthCheck>("redis", tags: ["ready"], timeout: TimeSpan.FromSeconds(10))

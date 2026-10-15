@@ -9,6 +9,7 @@ public sealed class ToeicDbContext(DbContextOptions<ToeicDbContext> options) : D
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();
     public DbSet<EmailVerificationChallenge> EmailVerificationChallenges => Set<EmailVerificationChallenge>();
+    public DbSet<PasswordResetChallenge> PasswordResetChallenges => Set<PasswordResetChallenge>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

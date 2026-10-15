@@ -8,8 +8,11 @@ using TOEICMaster.Application.Authentication.Commands.LoginWithGoogle;
 using TOEICMaster.Application.Authentication.Commands.Logout;
 using TOEICMaster.Application.Authentication.Commands.RefreshSession;
 using TOEICMaster.Application.Authentication.Commands.Register;
+using TOEICMaster.Application.Authentication.Commands.RequestPasswordReset;
 using TOEICMaster.Application.Authentication.Commands.ResendEmailVerification;
+using TOEICMaster.Application.Authentication.Commands.ResetPassword;
 using TOEICMaster.Application.Authentication.Commands.VerifyEmail;
+using TOEICMaster.Application.Authentication.Commands.VerifyPasswordReset;
 
 namespace TOEICMaster.Api.Controllers;
 
@@ -50,6 +53,44 @@ public sealed class AuthController(ISender sender) : ControllerBase
     {
         await sender.Send(command, cancellationToken);
         return Accepted();
+    }
+
+    [HttpPost("forgot-password")]
+    [EnableRateLimiting(AuthRateLimitPolicies.EmailDelivery)]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ForgotPassword(RequestPasswordResetCommand command,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(command, cancellationToken);
+        return Accepted();
+    }
+
+    [HttpPost("verify-password-reset")]
+    [EnableRateLimiting(AuthRateLimitPolicies.Credentials)]
+    [ProducesResponseType<PasswordResetVerificationResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PasswordResetVerificationResponse>> VerifyPasswordReset(
+        VerifyPasswordResetCommand command, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(command, cancellationToken);
+        PreventTokenCaching();
+        return Ok(PasswordResetVerificationResponse.From(result));
+    }
+
+    [HttpPost("reset-password")]
+    [EnableRateLimiting(AuthRateLimitPolicies.Credentials)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ResetPassword(ResetPasswordCommand command,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(command, cancellationToken);
+        PreventTokenCaching();
+        return NoContent();
     }
 
     [HttpPost("login")]
