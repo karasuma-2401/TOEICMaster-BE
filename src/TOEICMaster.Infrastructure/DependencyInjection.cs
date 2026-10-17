@@ -9,12 +9,14 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Minio;
+using TOEICMaster.Application.Accounts;
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Infrastructure.Email;
 using TOEICMaster.Infrastructure.Health;
 using TOEICMaster.Infrastructure.Persistence;
+using TOEICMaster.Infrastructure.Persistence.Accounts;
 using TOEICMaster.Infrastructure.Repositories;
 using TOEICMaster.Infrastructure.Security;
 using TOEICMaster.Infrastructure.Storage;
@@ -30,6 +32,7 @@ public static class DependencyInjection
         services.AddDbContext<ToeicDbContext>((provider, options) => options.UseNpgsql(
             provider.GetRequiredService<IOptions<ConnectionStringsOptions>>().Value.Postgres,
             provider => provider.EnableRetryOnFailure(3)));
+        services.AddScoped<IAccountReader, AccountReader>();
         services.AddStackExchangeRedisCache(options =>
         {
             options.InstanceName = "toeicmaster:";

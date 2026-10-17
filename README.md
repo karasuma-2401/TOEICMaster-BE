@@ -1,5 +1,7 @@
 # TOEICMaster Backend
 
+Task CNPMCS-18: [API danh sách tài khoản có phân trang](docs/account-list-api.md), dùng model và authentication của `dev`. Endpoint yêu cầu quyền Admin; token đăng nhập hiện chưa có role nên trả `403` cho đến khi tích hợp module phân quyền.
+
 API của phần mềm hỗ trợ học và luyện thi TOEIC, tổ chức theo Clean Architecture và CQRS trong một ứng dụng.
 
 **Công nghệ:** ASP.NET Core .NET 10, EF Core 10, Neon PostgreSQL, Redis, MinIO và SMTP. MediatR 14.2.0, FluentValidation 12.1.1 và AutoMapper 16.2.0 được cấu hình sẵn.

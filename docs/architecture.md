@@ -113,8 +113,10 @@ quản lý `UserSession`, còn PostgreSQL chỉ lưu hash của refresh token. R
 conditional update để một token không thể được dùng thành công hai lần đồng thời. API cấu hình Bearer authentication và
 chỉ chuyển request vào MediatR, ánh xạ lỗi sang ProblemDetails.
 
-JWT hiện chỉ chứa identity claim, chưa chứa role. Mô hình role và permission cần được xác định theo nghiệp vụ trước khi
-thêm authorization policy; không gán role mặc định tùy ý trong token. Access token ngắn hạn không có cơ chế blacklist;
+JWT hiện chỉ chứa identity claim, chưa chứa role. Mô hình role và permission cần được xác định theo nghiệp vụ;
+không gán role mặc định tùy ý trong token. API danh sách tài khoản áp dụng policy `AccountAdministration` yêu cầu Admin,
+nên token đăng nhập thông thường nhận `403` cho đến khi module phân quyền cấp role phù hợp.
+Access token ngắn hạn không có cơ chế blacklist;
 logout thu hồi refresh session và access token cũ tự hết hạn sau tối đa 15 phút.
 
 Đăng nhập Google nhận ID token đã ký, adapter `GoogleIdentityVerifier` kiểm tra token bằng Web Client ID cấu hình cho môi
@@ -125,3 +127,6 @@ nhập local cho đến khi có use case đặt mật khẩu riêng.
 Việc liên kết tự động với user có sẵn chỉ được phép cho Gmail hoặc Google Workspace. Email bên thứ ba cần một luồng liên
 kết đã xác thực phiên local để tránh takeover. Repository xử lý unique constraint của email và `(provider, subject)` để
 hai lần đăng nhập Google đầu tiên chạy đồng thời vẫn hội tụ về một user.
+
+[API danh sách tài khoản](account-list-api.md) gọi `GetAccountsQuery` qua MediatR và đọc `users` qua `IAccountReader`.
+Projection trả `DisplayName`, `CreatedAtUtc` cùng thông tin cơ bản; không đọc password hash hoặc truy cập bảng role.

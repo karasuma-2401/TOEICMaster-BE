@@ -29,6 +29,8 @@ builder.Services.AddExceptionHandler(options => options.StatusCodeSelector = _ =
 builder.Services.AddApplication(builder.Configuration["MediatR:LicenseKey"],
     builder.Configuration["AutoMapper:LicenseKey"], typeof(Program).Assembly);
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddAuthorization(options => options.AddPolicy("AccountAdministration",
+    policy => policy.RequireAuthenticatedUser().RequireRole("Admin")));
 builder.Services.AddCors(options => options.AddPolicy("Frontend", policy =>
 {
     var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
