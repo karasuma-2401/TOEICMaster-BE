@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using TOEICMaster.Application.Common.Exceptions;
+using TOEICMaster.Application.Profile;
 
 namespace TOEICMaster.Api.ExceptionHandling;
 
@@ -11,6 +12,15 @@ public sealed class AuthenticationExceptionHandler(IProblemDetailsService proble
     {
         var (status, title, type) = exception switch
         {
+            InvalidProfilePasswordException => (StatusCodes.Status400BadRequest,
+                "Mật khẩu hiện tại không đúng hoặc tài khoản không có mật khẩu.",
+                "https://tools.ietf.org/html/rfc9110#section-15.5.1"),
+            InvalidAvatarException => (StatusCodes.Status400BadRequest,
+                "Ảnh đại diện phải là PNG hoặc JPEG hợp lệ, tối đa 2 MiB.",
+                "https://tools.ietf.org/html/rfc9110#section-15.5.1"),
+            UnauthorizedAccessException => (StatusCodes.Status401Unauthorized,
+                "Phiên đăng nhập không hợp lệ.",
+                "https://tools.ietf.org/html/rfc9110#section-15.5.2"),
             InvalidCredentialsException => (StatusCodes.Status401Unauthorized,
                 "Email hoặc mật khẩu không chính xác.", "https://tools.ietf.org/html/rfc9110#section-15.5.2"),
             InvalidSessionException => (StatusCodes.Status401Unauthorized,

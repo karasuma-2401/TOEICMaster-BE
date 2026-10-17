@@ -13,10 +13,12 @@ using TOEICMaster.Application.Accounts;
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
+using TOEICMaster.Application.Profile;
 using TOEICMaster.Infrastructure.Email;
 using TOEICMaster.Infrastructure.Health;
 using TOEICMaster.Infrastructure.Persistence;
 using TOEICMaster.Infrastructure.Persistence.Accounts;
+using TOEICMaster.Infrastructure.Persistence.Profiles;
 using TOEICMaster.Infrastructure.Repositories;
 using TOEICMaster.Infrastructure.Security;
 using TOEICMaster.Infrastructure.Storage;
@@ -33,6 +35,8 @@ public static class DependencyInjection
             provider.GetRequiredService<IOptions<ConnectionStringsOptions>>().Value.Postgres,
             provider => provider.EnableRetryOnFailure(3)));
         services.AddScoped<IAccountReader, AccountReader>();
+        services.AddScoped<IProfileRepository, EfProfileRepository>();
+        services.AddScoped<IAvatarStore, MinioAvatarStore>();
         services.AddStackExchangeRedisCache(options =>
         {
             options.InstanceName = "toeicmaster:";

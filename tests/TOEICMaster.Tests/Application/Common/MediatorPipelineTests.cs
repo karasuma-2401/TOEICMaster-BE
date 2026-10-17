@@ -7,7 +7,9 @@ using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Email.Commands.SendEmail;
+using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.System.Queries.GetSystemStatus;
+using TOEICMaster.Domain.Entities;
 using TOEICMaster.Tests.TestDoubles;
 
 namespace TOEICMaster.Tests.Application.Common;
@@ -20,6 +22,8 @@ public sealed class MediatorPipelineTests
         services.AddLogging();
         services.AddApplication();
         services.AddSingleton<IAccountReader, SampleAccountReader>();
+        services.AddSingleton<IProfileRepository, EmptyProfileRepository>();
+        services.AddSingleton<IAvatarStore, EmptyAvatarStore>();
         services.AddSingleton<RecordingMailSender>();
         services.AddSingleton<IMailSender>(provider => provider.GetRequiredService<RecordingMailSender>());
         services.AddSingleton<IUserRegistrationRepository, FakeUserRegistrationRepository>();
@@ -125,5 +129,25 @@ public sealed class MediatorPipelineTests
                 return false;
             }).WithMessage("Recipient blocked by async validation.");
         }
+    }
+
+    private sealed class EmptyProfileRepository : IProfileRepository
+    {
+        public Task<User?> FindAsync(Guid userId, CancellationToken cancellationToken) => Task.FromResult<User?>(null);
+        public Task<bool> UpdateDisplayNameAsync(Guid userId, string displayName, CancellationToken cancellationToken) =>
+            Task.FromResult(false);
+        public Task<bool> UpdateAvatarAsync(Guid userId, string objectKey, CancellationToken cancellationToken) =>
+            Task.FromResult(false);
+        public Task<bool> ChangePasswordAsync(Guid userId, string currentHash, string newHash,
+            DateTimeOffset changedAtUtc, CancellationToken cancellationToken) => Task.FromResult(false);
+    }
+
+    private sealed class EmptyAvatarStore : IAvatarStore
+    {
+        public Task UploadAsync(string objectKey, byte[] content, string contentType,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<AvatarContent> DownloadAsync(string objectKey, CancellationToken cancellationToken) =>
+            Task.FromResult(new AvatarContent([], "image/png"));
+        public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

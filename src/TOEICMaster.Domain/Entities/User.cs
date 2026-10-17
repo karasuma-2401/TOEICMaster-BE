@@ -24,6 +24,7 @@ public sealed class User
     public string Email { get; private set; } = string.Empty;
     public string NormalizedEmail { get; private set; } = string.Empty;
     public string? PasswordHash { get; private set; }
+    public string? AvatarObjectKey { get; private set; }
     public bool IsActive { get; private set; }
     public DateTimeOffset? EmailVerifiedAtUtc { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
