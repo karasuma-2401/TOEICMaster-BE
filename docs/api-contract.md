@@ -3,6 +3,11 @@
 Các endpoint trong tài liệu này dùng prefix `/api/v1`. Frontend gọi backend qua Next.js route handler và cấu hình
 server-side `API_BASE_URL`; không đưa URL backend hoặc credential vào browser bundle.
 
+Contract hồ sơ người dùng dùng backend prefix `/api/v1/profile`; BFF ánh xạ nhóm này thành `/api/profile` cho browser.
+Các route `/api/v1/users/me` vẫn có sẵn để tương thích với client cũ.
+Chi tiết request, response, validation, avatar và các alias tương thích nằm trong
+[báo cáo API profile](profile-api-implementation-report.md#contract-cho-frontend).
+
 ## Giới hạn request xác thực
 
 Các endpoint xác thực có fixed-window rate limit theo địa chỉ IP trong từng API instance:

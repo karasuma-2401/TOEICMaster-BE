@@ -134,10 +134,14 @@ public sealed class MediatorPipelineTests
     private sealed class EmptyProfileRepository : IProfileRepository
     {
         public Task<User?> FindAsync(Guid userId, CancellationToken cancellationToken) => Task.FromResult<User?>(null);
-        public Task<bool> UpdateDisplayNameAsync(Guid userId, string displayName, CancellationToken cancellationToken) =>
-            Task.FromResult(false);
+        public Task<bool> UpdateDisplayNameAsync(Guid userId, string displayName,
+            CancellationToken cancellationToken) => Task.FromResult(false);
+        public Task<bool> UpdateProfileAsync(Guid userId, string displayName, string? phone, DateOnly? dateOfBirth,
+            int? targetScore, CancellationToken cancellationToken) => Task.FromResult(false);
         public Task<bool> UpdateAvatarAsync(Guid userId, string objectKey, CancellationToken cancellationToken) =>
             Task.FromResult(false);
+        public Task<string?> ClearAvatarAsync(Guid userId, CancellationToken cancellationToken) =>
+            Task.FromResult<string?>(null);
         public Task<bool> ChangePasswordAsync(Guid userId, string currentHash, string newHash,
             DateTimeOffset changedAtUtc, CancellationToken cancellationToken) => Task.FromResult(false);
     }
