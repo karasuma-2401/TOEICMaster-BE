@@ -25,6 +25,9 @@ public sealed class User
     public string NormalizedEmail { get; private set; } = string.Empty;
     public string? PasswordHash { get; private set; }
     public string? AvatarObjectKey { get; private set; }
+    public string? Phone { get; private set; }
+    public DateOnly? DateOfBirth { get; private set; }
+    public int? TargetScore { get; private set; }
     public bool IsActive { get; private set; }
     public DateTimeOffset? EmailVerifiedAtUtc { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
@@ -48,4 +51,14 @@ public sealed class User
         PasswordHash = null;
         VerifyEmail(verifiedAtUtc);
     }
+
+    public void UpdateProfile(string displayName, string? phone, DateOnly? dateOfBirth, int? targetScore)
+    {
+        DisplayName = displayName;
+        Phone = phone;
+        DateOfBirth = dateOfBirth;
+        TargetScore = targetScore;
+    }
+
+    public void SetAvatarObjectKey(string? objectKey) => AvatarObjectKey = objectKey;
 }

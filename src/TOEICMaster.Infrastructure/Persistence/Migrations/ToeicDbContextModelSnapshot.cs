@@ -128,6 +128,9 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateOnly?>("DateOfBirth")
+                        .HasColumnType("date");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -152,6 +155,13 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.Property<string>("PasswordHash")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(13)
+                        .HasColumnType("character varying(13)");
+
+                    b.Property<int?>("TargetScore")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
