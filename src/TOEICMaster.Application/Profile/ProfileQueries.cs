@@ -1,9 +1,16 @@
 using MediatR;
 using TOEICMaster.Application.Common.Exceptions;
+using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Application.Profile;
 
-public sealed record ProfileDto(Guid Id, string DisplayName, string Email, string? AvatarUrl);
+public sealed record ProfileDto(Guid Id, string DisplayName, string Email, string? AvatarUrl, string? Phone,
+    int? TargetScore, bool HasPassword)
+{
+    public static ProfileDto From(User user) =>
+        new(user.Id, user.DisplayName, user.Email, user.AvatarObjectKey is null ? null : "/api/v1/profile/avatar",
+            user.Phone, user.TargetScore, user.PasswordHash is not null);
+}
 
 public sealed record GetProfileQuery(Guid UserId) : IRequest<ProfileDto>;
 
@@ -14,8 +21,7 @@ public sealed class GetProfileQueryHandler(IProfileRepository repository) : IReq
         var user = await repository.FindAsync(request.UserId, cancellationToken);
         if (user is not { IsActive: true })
             throw new InvalidSessionException();
-        return new ProfileDto(user.Id, user.DisplayName, user.Email,
-            user.AvatarObjectKey is null ? null : "/api/v1/profile/avatar");
+        return ProfileDto.From(user);
     }
 }
 

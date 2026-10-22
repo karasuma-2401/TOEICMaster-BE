@@ -158,6 +158,13 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasColumnType("smallint")
                         .HasDefaultValue((short)0);
 
+                    b.Property<string>("Phone")
+                        .HasMaxLength(13)
+                        .HasColumnType("character varying(13)");
+
+                    b.Property<int?>("TargetScore")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedEmail")
