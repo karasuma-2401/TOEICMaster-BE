@@ -14,6 +14,14 @@ public sealed class EfProfileRepository(ToeicDbContext dbContext) : IProfileRepo
             .ExecuteUpdateAsync(setters => setters.SetProperty(user => user.DisplayName, displayName),
                 cancellationToken) == 1;
 
+    public async Task<bool> UpdateDetailsAsync(Guid userId, string displayName, string? phone, int? targetScore,
+        CancellationToken cancellationToken) =>
+        await dbContext.Users.Where(user => user.Id == userId && user.IsActive)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(user => user.DisplayName, displayName)
+                .SetProperty(user => user.Phone, phone)
+                .SetProperty(user => user.TargetScore, targetScore), cancellationToken) == 1;
+
     public async Task<bool> UpdateAvatarAsync(Guid userId, string objectKey, CancellationToken cancellationToken) =>
         await dbContext.Users.Where(user => user.Id == userId && user.IsActive)
             .ExecuteUpdateAsync(setters => setters.SetProperty(user => user.AvatarObjectKey, objectKey),

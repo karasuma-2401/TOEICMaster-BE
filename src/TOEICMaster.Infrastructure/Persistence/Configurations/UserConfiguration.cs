@@ -16,6 +16,8 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(user => user.PasswordHash).HasMaxLength(100);
         builder.Property(user => user.AvatarObjectKey).HasMaxLength(128);
         builder.Property(user => user.Role).HasConversion<short>().HasDefaultValue(UserRole.User).IsRequired();
+        builder.Property(user => user.Phone).HasMaxLength(13);
+        builder.Property(user => user.TargetScore);
         builder.Property(user => user.IsActive).IsRequired();
         builder.Property(user => user.EmailVerifiedAtUtc);
         builder.Property(user => user.CreatedAtUtc).IsRequired();

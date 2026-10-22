@@ -25,6 +25,14 @@ public sealed class ProfileController(ISender sender) : ControllerBase
         CancellationToken cancellationToken) =>
         Ok(await sender.Send(new UpdateProfileNameCommand(CurrentUserId(), request.DisplayName), cancellationToken));
 
+    [HttpPut]
+    [ProducesResponseType<ProfileDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ProfileDto>> UpdateDetails(UpdateProfileDetailsRequest request,
+        CancellationToken cancellationToken) =>
+        Ok(await sender.Send(new UpdateProfileDetailsCommand(CurrentUserId(), request.DisplayName, request.Phone,
+            request.TargetScore), cancellationToken));
+
     [HttpPut("password")]
     [EnableRateLimiting(AuthRateLimitPolicies.Credentials)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -72,4 +80,5 @@ public sealed class ProfileController(ISender sender) : ControllerBase
 }
 
 public sealed record UpdateProfileRequest(string DisplayName);
+public sealed record UpdateProfileDetailsRequest(string DisplayName, string? Phone, int? TargetScore);
 public sealed record ChangeProfilePasswordRequest(string CurrentPassword, string NewPassword);

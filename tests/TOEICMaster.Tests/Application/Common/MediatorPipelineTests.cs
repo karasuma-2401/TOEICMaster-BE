@@ -145,6 +145,8 @@ public sealed class MediatorPipelineTests
         public Task<User?> FindAsync(Guid userId, CancellationToken cancellationToken) => Task.FromResult<User?>(null);
         public Task<bool> UpdateDisplayNameAsync(Guid userId, string displayName, CancellationToken cancellationToken) =>
             Task.FromResult(false);
+        public Task<bool> UpdateDetailsAsync(Guid userId, string displayName, string? phone, int? targetScore,
+            CancellationToken cancellationToken) => Task.FromResult(false);
         public Task<bool> UpdateAvatarAsync(Guid userId, string objectKey, CancellationToken cancellationToken) =>
             Task.FromResult(false);
         public Task<bool> ChangePasswordAsync(Guid userId, string currentHash, string newHash,

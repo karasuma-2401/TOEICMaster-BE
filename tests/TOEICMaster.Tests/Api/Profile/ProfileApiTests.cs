@@ -22,6 +22,8 @@ public sealed class ProfileApiTests
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/v1/profile")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PatchAsJsonAsync("/api/v1/profile",
             new { displayName = "New name" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PutAsJsonAsync("/api/v1/profile",
+            new { displayName = "New name", phone = (string?)null, targetScore = (int?)null })).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PutAsJsonAsync("/api/v1/profile/password",
             new { currentPassword = "old-password", newPassword = "new-password" })).StatusCode);
     }
@@ -43,6 +45,27 @@ public sealed class ProfileApiTests
         Assert.Equal(user.Id, repository.LastRequestedUserId);
         Assert.Equal(user.Id, profile?.Id);
         Assert.Equal(user.Email, profile?.Email);
+        Assert.False(profile?.HasPassword);
+    }
+
+    [Fact]
+    public async Task Put_updates_phone_and_target_score_and_rejects_invalid_values()
+    {
+        var user = User.CreateExternal("Learner", "learner@example.com", "LEARNER@EXAMPLE.COM", DateTimeOffset.UtcNow);
+        var repository = new FakeProfileRepository(user);
+        using var baseFactory = new ApiFactory();
+        using var factory = baseFactory.WithWebHostBuilder(builder => builder.ConfigureTestServices(
+            services => services.AddSingleton<IProfileRepository>(repository)));
+        using var client = AuthenticatedClient(factory, user);
+
+        using var updated = await client.PutAsJsonAsync("/api/v1/profile",
+            new { displayName = "Linh", phone = "0912345678", targetScore = 750 });
+        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+        Assert.Equal(("Linh", "0912345678", 750), repository.UpdatedDetails);
+
+        using var invalid = await client.PutAsJsonAsync("/api/v1/profile",
+            new { displayName = "Linh", phone = "123", targetScore = 752 });
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
     }
 
     [Fact]
@@ -108,6 +131,7 @@ public sealed class ProfileApiTests
     {
         public Guid LastRequestedUserId { get; private set; }
         public string? AvatarKey { get; private set; }
+        public (string DisplayName, string? Phone, int? TargetScore)? UpdatedDetails { get; private set; }
 
         public Task<User?> FindAsync(Guid userId, CancellationToken cancellationToken)
         {
@@ -117,6 +141,13 @@ public sealed class ProfileApiTests
 
         public Task<bool> UpdateDisplayNameAsync(Guid userId, string displayName, CancellationToken cancellationToken) =>
             Task.FromResult(userId == user.Id);
+
+        public Task<bool> UpdateDetailsAsync(Guid userId, string displayName, string? phone, int? targetScore,
+            CancellationToken cancellationToken)
+        {
+            UpdatedDetails = (displayName, phone, targetScore);
+            return Task.FromResult(userId == user.Id);
+        }
 
         public Task<bool> UpdateAvatarAsync(Guid userId, string objectKey, CancellationToken cancellationToken)
         {

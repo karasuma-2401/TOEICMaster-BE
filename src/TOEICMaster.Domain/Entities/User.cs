@@ -27,6 +27,8 @@ public sealed class User
     public string? PasswordHash { get; private set; }
     public string? AvatarObjectKey { get; private set; }
     public UserRole Role { get; private set; } = UserRole.User;
+    public string? Phone { get; private set; }
+    public int? TargetScore { get; private set; }
     public bool IsActive { get; private set; }
     public DateTimeOffset? EmailVerifiedAtUtc { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
