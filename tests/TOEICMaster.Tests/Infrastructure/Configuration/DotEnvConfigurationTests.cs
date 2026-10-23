@@ -17,6 +17,7 @@ public sealed class DotEnvConfigurationTests
                 JWT_SIGNING_KEY='local-signing-key'
                 REDIS_PASSWORD=local-redis-password
                 SMTP_PORT=587
+                ADMIN_SEED_EMAIL=admin@toeicmaster.test
                 Custom__Value=custom
                 """);
 
@@ -27,6 +28,7 @@ public sealed class DotEnvConfigurationTests
             Assert.Equal("local-signing-key", configuration["Jwt:SigningKey"]);
             Assert.Contains("password=local-redis-password", configuration.GetConnectionString("Redis"));
             Assert.Equal("587", configuration["Smtp:Port"]);
+            Assert.Equal("admin@toeicmaster.test", configuration["AdminBootstrap:Email"]);
             Assert.Equal("custom", configuration["Custom:Value"]);
         }
         finally

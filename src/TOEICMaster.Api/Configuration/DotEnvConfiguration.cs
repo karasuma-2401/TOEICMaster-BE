@@ -26,7 +26,10 @@ public static class DotEnvConfiguration
             ["GEMINI_API_KEY"] = "Gemini:ApiKey",
             ["GEMINI_MODEL"] = "Gemini:Model",
             ["GEMINI_REQUEST_TIMEOUT_SECONDS"] = "Gemini:RequestTimeoutSeconds",
-            ["GEMINI_RUBRIC_VERSION"] = "Gemini:RubricVersion"
+            ["GEMINI_RUBRIC_VERSION"] = "Gemini:RubricVersion",
+            ["ADMIN_SEED_EMAIL"] = "AdminBootstrap:Email",
+            ["ADMIN_SEED_PASSWORD"] = "AdminBootstrap:Password",
+            ["ADMIN_SEED_DISPLAY_NAME"] = "AdminBootstrap:DisplayName"
         };
 
     public static string? FindFile(params string[] searchRoots)

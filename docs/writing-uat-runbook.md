@@ -15,8 +15,8 @@ Tài liệu này chốt phạm vi **Writing**: 5 câu Part 1, 2 câu Part 2 và 
    vào `.env.local` của frontend.
 4. Chạy API và frontend theo README của từng repository. Chỉ dùng đề/bài làm thử không chứa thông tin cá nhân khi UAT
    Gemini Free Tier.
-5. Dùng một account có claim JWT `Admin` để UAT API quản trị. Hệ thống đăng nhập hiện không tự cấp claim này; không
-   thay bằng header, query string hoặc bypass ở client.
+5. Seed một account có role `ADMIN` theo mục **Seed tài khoản Admin local** trong README, rồi đăng xuất/đăng nhập
+   lại để JWT và session nhận role mới. Không thay bằng header, query string hoặc bypass ở client.
 
 ## 2. Checklist User
 

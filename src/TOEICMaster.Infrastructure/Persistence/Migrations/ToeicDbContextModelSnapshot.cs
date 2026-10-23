@@ -153,6 +153,11 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<short>("Role")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)0);
+
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedEmail")

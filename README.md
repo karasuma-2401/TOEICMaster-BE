@@ -230,6 +230,29 @@ Trong Package Manager Console, chọn `TOEICMaster.Infrastructure` làm Default 
 Startup project rồi chạy `Update-Database`; startup cũng đọc cùng file `.env`. Commit migration cùng
 entity/configuration. API không tự apply migration lúc khởi động.
 
+## Seed tài khoản Admin local
+
+Role được lưu ở cột `users.Role`; tài khoản đăng nhập bình thường luôn nhận role `USER`. Để tạo Admin cho môi trường
+Development, điền các biến sau vào `.env` local (không commit file này):
+
+```dotenv
+ADMIN_SEED_EMAIL=admin@toeicmaster.local
+ADMIN_SEED_PASSWORD=<mat-khau-8-den-128-ky-tu>
+ADMIN_SEED_DISPLAY_NAME=TOEICMaster Admin
+```
+
+Sau khi đã review và áp dụng migration, chạy một lần từ solution root:
+
+```powershell
+dotnet run --project src/TOEICMaster.Api -- --seed-admin
+```
+
+Lệnh chỉ chạy ở `Development`, không tự chạy khi khởi động API và không ghi password vào log. Nếu email chưa có,
+lệnh tạo một tài khoản local đã xác minh/active với BCrypt hash. Nếu email đã là tài khoản active, lệnh chỉ nâng role
+lên `ADMIN`, không đổi password. Email của tài khoản đang chờ xác minh sẽ bị từ chối để không bypass ownership.
+Đăng xuất rồi đăng nhập lại sau khi seed để nhận JWT/session mới có role `ADMIN`; có thể xóa
+`ADMIN_SEED_PASSWORD` khỏi `.env` sau khi xong.
+
 ## Xử lý lỗi thường gặp
 
 - **Docker không kết nối được:** mở Docker Desktop, chờ Engine sẵn sàng và kiểm tra `docker info`.

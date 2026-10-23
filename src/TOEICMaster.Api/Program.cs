@@ -4,17 +4,21 @@ using Scalar.AspNetCore;
 using TOEICMaster.Api.Configuration;
 using TOEICMaster.Api.ExceptionHandling;
 using TOEICMaster.Application;
+using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Infrastructure;
 
-var builder = WebApplication.CreateBuilder(args);
+var runAdminSeed = args.Any(argument => argument.Equals("--seed-admin", StringComparison.OrdinalIgnoreCase));
+var configurationArgs = args.Where(argument => !argument.Equals("--seed-admin", StringComparison.OrdinalIgnoreCase))
+    .ToArray();
+var builder = WebApplication.CreateBuilder(configurationArgs);
 var dotEnvPath = DotEnvConfiguration.FindFile(Directory.GetCurrentDirectory(), builder.Environment.ContentRootPath);
 if (dotEnvPath is not null)
 {
     builder.Configuration.AddToeicMasterDotEnvFile(dotEnvPath);
 }
 builder.Configuration.AddEnvironmentVariables();
-if (args.Length > 0)
-    builder.Configuration.AddCommandLine(args);
+if (configurationArgs.Length > 0)
+    builder.Configuration.AddCommandLine(configurationArgs);
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
 builder.Services.AddControllers();
@@ -69,6 +73,19 @@ if (app.Environment.IsDevelopment())
 app.MapControllers();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
+
+if (runAdminSeed)
+{
+    if (!app.Environment.IsDevelopment())
+        throw new InvalidOperationException("--seed-admin chỉ được phép trong môi trường Development.");
+
+    await using var scope = app.Services.CreateAsyncScope();
+    var result = await scope.ServiceProvider.GetRequiredService<IAdminBootstrapSeeder>()
+        .SeedAsync(CancellationToken.None);
+    app.Logger.LogInformation("Admin bootstrap completed with action {Action}.", result.Action);
+    return;
+}
+
 app.Run();
 
 public partial class Program;

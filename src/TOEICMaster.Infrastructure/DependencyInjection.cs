@@ -96,6 +96,7 @@ public static class DependencyInjection
         services.AddOptions<PasswordResetOptions>()
             .Bind(configuration.GetSection(PasswordResetOptions.SectionName))
             .ValidateDataAnnotations().ValidateOnStart();
+        services.AddOptions<AdminBootstrapOptions>().Bind(configuration.GetSection(AdminBootstrapOptions.SectionName));
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .Configure<IOptions<JwtOptions>>((bearerOptions, jwtOptions) =>
@@ -120,6 +121,7 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IAuthenticationTokenService, JwtAuthenticationTokenService>();
+        services.AddScoped<IAdminBootstrapSeeder, AdminBootstrapSeeder>();
         services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
         services.AddSingleton<IEmailVerificationCodeService, EmailVerificationCodeService>();
         services.AddSingleton<IPasswordResetTokenService, PasswordResetTokenService>();
