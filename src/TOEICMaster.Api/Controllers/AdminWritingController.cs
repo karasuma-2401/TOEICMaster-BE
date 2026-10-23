@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.JsonWebTokens;
 using TOEICMaster.Application.Writing.Admin;
+using TOEICMaster.Application.Writing.Attempts;
+using TOEICMaster.Application.Writing.Evaluations;
 
 namespace TOEICMaster.Api.Controllers;
 
@@ -130,6 +132,14 @@ public sealed class AdminWritingController(ISender sender) : ControllerBase
         CancellationToken cancellationToken) =>
         Ok(await sender.Send(new PublishWritingTestCommand(CurrentUserId(), testId, request.Version),
             cancellationToken));
+
+    [HttpGet("evaluations/{attemptId:guid}")]
+    [ProducesResponseType<WritingAttemptDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<WritingAttemptDto>> GetEvaluation(Guid attemptId,
+        CancellationToken cancellationToken) =>
+        Ok(await sender.Send(new GetAdminWritingEvaluationQuery(attemptId), cancellationToken));
 
     private Guid CurrentUserId()
     {

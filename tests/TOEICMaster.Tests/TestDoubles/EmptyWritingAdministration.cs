@@ -1,5 +1,6 @@
 using TOEICMaster.Application.Writing.Admin;
 using TOEICMaster.Application.Writing.Attempts;
+using TOEICMaster.Application.Writing.Evaluations;
 using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Tests.TestDoubles;
@@ -83,6 +84,39 @@ public sealed class EmptyWritingAttemptRepository : IWritingAttemptRepository
 
     public Task AddAttemptAsync(WritingAttempt attempt, CancellationToken cancellationToken) => Task.CompletedTask;
     public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+public sealed class EmptyWritingEvaluationRepository : IWritingEvaluationRepository
+{
+    public Task<WritingEvaluation?> GetByAttemptIdAsync(Guid attemptId, CancellationToken cancellationToken) =>
+        Task.FromResult<WritingEvaluation?>(null);
+
+    public Task<IReadOnlyDictionary<Guid, WritingEvaluation>> GetByAttemptIdsAsync(IReadOnlyCollection<Guid> attemptIds,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, WritingEvaluation>>(new Dictionary<Guid, WritingEvaluation>());
+
+    public Task<WritingEvaluation?> FindForUpdateByAttemptIdAsync(Guid attemptId, CancellationToken cancellationToken) =>
+        Task.FromResult<WritingEvaluation?>(null);
+
+    public Task<WritingEvaluation?> FindForUpdateAsync(Guid evaluationId, CancellationToken cancellationToken) =>
+        Task.FromResult<WritingEvaluation?>(null);
+
+    public Task<bool> HasAnonymousConsentAfterAsync(string anonymousSessionHash, Guid excludingAttemptId,
+        DateTimeOffset afterUtc, CancellationToken cancellationToken) => Task.FromResult(false);
+
+    public Task AddAsync(WritingEvaluation evaluation, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task<WritingEvaluationWork?> ClaimNextAsync(DateTimeOffset now, DateTimeOffset leaseExpiresAtUtc,
+        CancellationToken cancellationToken) => Task.FromResult<WritingEvaluationWork?>(null);
+
+    public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+public sealed class StaticWritingEvaluationSettings : IWritingEvaluationSettings
+{
+    public string Provider => "gemini";
+    public string Model => "gemini-2.5-flash-lite";
+    public string RubricVersion => "toeic-writing-v1";
 }
 
 public sealed class EmptyWritingExerciseImportParser : IWritingExerciseImportParser

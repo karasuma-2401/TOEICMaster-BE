@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using TOEICMaster.Application.Writing.Admin;
+using TOEICMaster.Application.Writing.Evaluations;
 using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Application.Writing.Attempts;
@@ -85,7 +86,8 @@ public sealed class GetPublishedWritingImageQueryHandler(IWritingAttemptReposito
     }
 }
 
-public sealed class GetWritingAttemptQueryHandler(IWritingAttemptRepository repository, TimeProvider timeProvider)
+public sealed class GetWritingAttemptQueryHandler(IWritingAttemptRepository repository,
+    IWritingEvaluationRepository evaluationRepository, TimeProvider timeProvider)
     : IRequestHandler<GetWritingAttemptQuery, WritingAttemptDto>
 {
     public async Task<WritingAttemptDto> Handle(GetWritingAttemptQuery request, CancellationToken cancellationToken)
@@ -96,7 +98,8 @@ public sealed class GetWritingAttemptQueryHandler(IWritingAttemptRepository repo
         var now = timeProvider.GetUtcNow();
         if (attempt.AdvanceExpired(now))
             await repository.SaveChangesAsync(cancellationToken);
-        return attempt.ToDto(now);
+        var evaluation = await evaluationRepository.GetByAttemptIdAsync(attempt.Id, cancellationToken);
+        return attempt.ToDto(now, evaluation);
     }
 
     internal static void EnsureOwner(WritingAttempt attempt, WritingAttemptOwner owner)
@@ -106,13 +109,17 @@ public sealed class GetWritingAttemptQueryHandler(IWritingAttemptRepository repo
     }
 }
 
-public sealed class GetWritingAttemptHistoryQueryHandler(IWritingAttemptRepository repository)
+public sealed class GetWritingAttemptHistoryQueryHandler(IWritingAttemptRepository repository,
+    IWritingEvaluationRepository evaluationRepository)
     : IRequestHandler<GetWritingAttemptHistoryQuery, WritingAttemptPageDto>
 {
     public async Task<WritingAttemptPageDto> Handle(GetWritingAttemptHistoryQuery request,
         CancellationToken cancellationToken)
     {
         var attempts = await repository.GetAttemptsAsync(request.Owner, cancellationToken);
-        return new WritingAttemptPageDto(attempts.Select(WritingAttemptMapping.ToSummaryDto).ToArray());
+        var evaluations = await evaluationRepository.GetByAttemptIdsAsync(attempts.Select(attempt => attempt.Id).ToArray(),
+            cancellationToken);
+        return new WritingAttemptPageDto(attempts.Select(attempt => WritingAttemptMapping.ToSummaryDto(attempt,
+            evaluations.GetValueOrDefault(attempt.Id))).ToArray());
     }
 }

@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using TOEICMaster.Domain.Entities;
+using TOEICMaster.Application.Writing.Evaluations;
 
 namespace TOEICMaster.Application.Writing.Attempts;
 
@@ -15,6 +16,11 @@ public sealed record NextWritingAttemptQuestionCommand(WritingAttemptOwner Owner
 
 public sealed record SubmitWritingAttemptCommand(WritingAttemptOwner Owner, Guid AttemptId)
     : IRequest<WritingAttemptDto>;
+
+public sealed record GrantWritingEvaluationConsentInput(bool Accepted);
+
+public sealed record GrantWritingEvaluationConsentCommand(WritingAttemptOwner Owner, Guid AttemptId,
+    GrantWritingEvaluationConsentInput Input) : IRequest<WritingAttemptDto>;
 
 public sealed class StartWritingAttemptInputValidator : AbstractValidator<StartWritingAttemptInput>
 {
@@ -70,6 +76,17 @@ public sealed class SubmitWritingAttemptCommandValidator : AbstractValidator<Sub
     }
 }
 
+public sealed class GrantWritingEvaluationConsentCommandValidator : AbstractValidator<GrantWritingEvaluationConsentCommand>
+{
+    public GrantWritingEvaluationConsentCommandValidator()
+    {
+        RuleFor(command => command.Owner).SetValidator(new WritingAttemptOwnerValidator());
+        RuleFor(command => command.AttemptId).NotEmpty();
+        RuleFor(command => command.Input.Accepted).Equal(true)
+            .WithMessage("Cần đồng ý trước khi gửi bài làm đến dịch vụ chấm AI.");
+    }
+}
+
 public sealed class StartWritingAttemptCommandHandler(IWritingAttemptRepository repository, TimeProvider timeProvider)
     : IRequestHandler<StartWritingAttemptCommand, WritingAttemptDto>
 {
@@ -90,7 +107,8 @@ public sealed class StartWritingAttemptCommandHandler(IWritingAttemptRepository 
             var timing = question.Part.TimingFor();
             return WritingAttemptQuestion.Create(attemptId, question.Id, index + 1, question.Part,
                 timing.PreparationSeconds, timing.ResponseSeconds,
-                WritingAttemptMapping.ToPromptSnapshotJson(question.SnapshotJson!));
+                WritingAttemptMapping.ToPromptSnapshotJson(question.SnapshotJson!),
+                WritingAttemptMapping.ToReviewSnapshotJson(question.SnapshotJson!));
         }).ToArray();
         var now = timeProvider.GetUtcNow();
         var attempt = WritingAttempt.Create(attemptId, test.Id, test.Code, test.Title, mode, request.Owner.UserId,
@@ -144,7 +162,9 @@ public sealed class NextWritingAttemptQuestionCommandHandler(IWritingAttemptRepo
     }
 }
 
-public sealed class SubmitWritingAttemptCommandHandler(IWritingAttemptRepository repository, TimeProvider timeProvider)
+public sealed class SubmitWritingAttemptCommandHandler(IWritingAttemptRepository repository,
+    IWritingEvaluationRepository evaluationRepository, IWritingEvaluationSettings evaluationSettings,
+    TimeProvider timeProvider)
     : IRequestHandler<SubmitWritingAttemptCommand, WritingAttemptDto>
 {
     public async Task<WritingAttemptDto> Handle(SubmitWritingAttemptCommand request,
@@ -154,8 +174,47 @@ public sealed class SubmitWritingAttemptCommandHandler(IWritingAttemptRepository
             request.AttemptId, cancellationToken);
         var now = timeProvider.GetUtcNow();
         attempt.Submit(now);
-        await repository.SaveChangesAsync(cancellationToken);
-        return attempt.ToDto(now);
+        var evaluation = await evaluationRepository.FindForUpdateByAttemptIdAsync(attempt.Id, cancellationToken);
+        if (evaluation is null)
+        {
+            evaluation = WritingEvaluation.Create(attempt.Id, evaluationSettings.Provider, evaluationSettings.Model,
+                evaluationSettings.RubricVersion, now);
+            await evaluationRepository.AddAsync(evaluation, cancellationToken);
+        }
+        await evaluationRepository.SaveChangesAsync(cancellationToken);
+        return attempt.ToDto(now, evaluation);
+    }
+}
+
+public sealed class GrantWritingEvaluationConsentCommandHandler(IWritingAttemptRepository repository,
+    IWritingEvaluationRepository evaluationRepository, IWritingEvaluationSettings evaluationSettings,
+    TimeProvider timeProvider) : IRequestHandler<GrantWritingEvaluationConsentCommand, WritingAttemptDto>
+{
+    public async Task<WritingAttemptDto> Handle(GrantWritingEvaluationConsentCommand request,
+        CancellationToken cancellationToken)
+    {
+        var attempt = await WritingAttemptCommandHelpers.FindOwnedAttemptAsync(repository, request.Owner,
+            request.AttemptId, cancellationToken);
+        if (attempt.Status != WritingAttemptStatus.SubmittedAwaitingEvaluation)
+            throw new WritingAttemptConflictException("Chỉ có thể chấm AI sau khi đã nộp bài Writing.");
+
+        var now = timeProvider.GetUtcNow();
+        var evaluation = await evaluationRepository.FindForUpdateByAttemptIdAsync(attempt.Id, cancellationToken);
+        if (request.Owner.AnonymousSessionHash is { } anonymousSessionHash &&
+            (evaluation is null || evaluation.ConsentAcceptedAtUtc is null) &&
+            await evaluationRepository.HasAnonymousConsentAfterAsync(anonymousSessionHash, attempt.Id, now.AddDays(-1),
+                cancellationToken))
+            throw new WritingAttemptConflictException(
+                "Phiên ẩn danh đã dùng lượt chấm AI trong 24 giờ qua. Hãy đăng nhập hoặc thử lại sau.");
+        if (evaluation is null)
+        {
+            evaluation = WritingEvaluation.Create(attempt.Id, evaluationSettings.Provider, evaluationSettings.Model,
+                evaluationSettings.RubricVersion, now);
+            await evaluationRepository.AddAsync(evaluation, cancellationToken);
+        }
+        evaluation.GrantConsentAndQueue(now);
+        await evaluationRepository.SaveChangesAsync(cancellationToken);
+        return attempt.ToDto(now, evaluation);
     }
 }
 

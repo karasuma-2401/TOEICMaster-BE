@@ -76,6 +76,14 @@ public sealed class WritingAttemptsController(ISender sender) : ControllerBase
     public async Task<ActionResult<WritingAttemptDto>> Submit(Guid attemptId, CancellationToken cancellationToken) =>
         Ok(await sender.Send(new SubmitWritingAttemptCommand(CurrentOwner(), attemptId), cancellationToken));
 
+    [HttpPost("attempts/{attemptId:guid}/evaluation-consent")]
+    [ProducesResponseType<WritingAttemptDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<WritingAttemptDto>> GrantEvaluationConsent(Guid attemptId,
+        GrantWritingEvaluationConsentInput input, CancellationToken cancellationToken) =>
+        Ok(await sender.Send(new GrantWritingEvaluationConsentCommand(CurrentOwner(), attemptId, input),
+            cancellationToken));
+
     private WritingAttemptOwner CurrentOwner()
     {
         if (User.Identity?.IsAuthenticated == true)

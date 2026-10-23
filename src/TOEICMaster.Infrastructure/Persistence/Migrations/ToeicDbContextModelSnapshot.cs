@@ -301,6 +301,12 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.Property<int>("ResponseSeconds")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ReviewSnapshotJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValue("{}");
+
                     b.Property<Guid>("WritingAttemptId")
                         .HasColumnType("uuid");
 
@@ -315,6 +321,130 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("writing_attempt_questions", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingEvaluation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ConsentAcceptedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("EstimatedScore")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("FailureMessage")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<string>("ImprovementsJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset?>("LeaseExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset?>("QueuedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RubricVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<short>("Status")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("StrengthsJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("WritingAttemptId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LeaseExpiresAtUtc");
+
+                    b.HasIndex("WritingAttemptId")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "NextAttemptAtUtc");
+
+                    b.ToTable("writing_evaluations", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingEvaluationFeedback", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CriterionScore")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Feedback")
+                        .IsRequired()
+                        .HasMaxLength(1500)
+                        .HasColumnType("character varying(1500)");
+
+                    b.Property<int>("QuestionPosition")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SuggestedRevision")
+                        .IsRequired()
+                        .HasMaxLength(1500)
+                        .HasColumnType("character varying(1500)");
+
+                    b.Property<Guid>("WritingEvaluationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WritingEvaluationId", "QuestionPosition")
+                        .IsUnique();
+
+                    b.ToTable("writing_evaluation_feedback", (string)null);
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingExercise", b =>
@@ -598,6 +728,24 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingEvaluation", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.WritingAttempt", null)
+                        .WithOne()
+                        .HasForeignKey("TOEICMaster.Domain.Entities.WritingEvaluation", "WritingAttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingEvaluationFeedback", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.WritingEvaluation", null)
+                        .WithMany("Feedback")
+                        .HasForeignKey("WritingEvaluationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingExercise", b =>
                 {
                     b.HasOne("TOEICMaster.Domain.Entities.WritingMediaAsset", null)
@@ -624,6 +772,11 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingAttempt", b =>
                 {
                     b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingEvaluation", b =>
+                {
+                    b.Navigation("Feedback");
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingTest", b =>

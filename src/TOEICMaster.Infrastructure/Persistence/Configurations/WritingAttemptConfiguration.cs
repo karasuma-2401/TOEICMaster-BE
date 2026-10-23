@@ -33,6 +33,8 @@ public sealed class WritingAttemptQuestionConfiguration : IEntityTypeConfigurati
         builder.HasKey(question => question.Id);
         builder.Property(question => question.Part).HasConversion<short>().IsRequired();
         builder.Property(question => question.PromptSnapshotJson).HasColumnType("jsonb").IsRequired();
+        builder.Property(question => question.ReviewSnapshotJson).HasColumnType("jsonb").HasDefaultValue("{}")
+            .IsRequired();
         builder.Property(question => question.Answer).HasMaxLength(12_000).IsRequired();
         builder.HasIndex(question => new { question.WritingAttemptId, question.Position }).IsUnique();
         builder.HasIndex(question => question.WritingTestQuestionId);

@@ -183,7 +183,8 @@ public sealed class WritingAttemptQuestion
     }
 
     private WritingAttemptQuestion(Guid id, Guid writingAttemptId, Guid writingTestQuestionId, int position,
-        WritingPart part, int preparationSeconds, int responseSeconds, string promptSnapshotJson)
+        WritingPart part, int preparationSeconds, int responseSeconds, string promptSnapshotJson,
+        string reviewSnapshotJson)
     {
         Id = id;
         WritingAttemptId = writingAttemptId;
@@ -193,6 +194,7 @@ public sealed class WritingAttemptQuestion
         PreparationSeconds = preparationSeconds;
         ResponseSeconds = responseSeconds;
         PromptSnapshotJson = promptSnapshotJson;
+        ReviewSnapshotJson = reviewSnapshotJson;
     }
 
     public Guid Id { get; private set; }
@@ -203,14 +205,22 @@ public sealed class WritingAttemptQuestion
     public int PreparationSeconds { get; private set; }
     public int ResponseSeconds { get; private set; }
     public string PromptSnapshotJson { get; private set; } = string.Empty;
+    /// <summary>Private post-submission snapshot containing rubric/model answer. Never sent to a learner in progress.</summary>
+    public string ReviewSnapshotJson { get; private set; } = string.Empty;
     public string Answer { get; private set; } = string.Empty;
     public DateTimeOffset? LastSavedAtUtc { get; private set; }
     public DateTimeOffset? LockedAtUtc { get; private set; }
 
     public static WritingAttemptQuestion Create(Guid writingAttemptId, Guid writingTestQuestionId, int position,
         WritingPart part, int preparationSeconds, int responseSeconds, string promptSnapshotJson) =>
+        Create(writingAttemptId, writingTestQuestionId, position, part, preparationSeconds, responseSeconds,
+            promptSnapshotJson, "{}");
+
+    public static WritingAttemptQuestion Create(Guid writingAttemptId, Guid writingTestQuestionId, int position,
+        WritingPart part, int preparationSeconds, int responseSeconds, string promptSnapshotJson,
+        string reviewSnapshotJson) =>
         new(Guid.NewGuid(), writingAttemptId, writingTestQuestionId, position, part, preparationSeconds,
-            responseSeconds, promptSnapshotJson);
+            responseSeconds, promptSnapshotJson, reviewSnapshotJson);
 
     public void SaveAnswer(string answer, DateTimeOffset now)
     {

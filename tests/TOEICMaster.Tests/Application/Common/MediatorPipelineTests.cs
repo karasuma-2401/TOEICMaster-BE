@@ -11,6 +11,7 @@ using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.System.Queries.GetSystemStatus;
 using TOEICMaster.Application.Writing.Admin;
 using TOEICMaster.Application.Writing.Attempts;
+using TOEICMaster.Application.Writing.Evaluations;
 using TOEICMaster.Domain.Entities;
 using TOEICMaster.Tests.TestDoubles;
 
@@ -28,6 +29,8 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<IAvatarStore, EmptyAvatarStore>();
         services.AddSingleton<IWritingAdminRepository, EmptyWritingAdminRepository>();
         services.AddSingleton<IWritingAttemptRepository, EmptyWritingAttemptRepository>();
+        services.AddSingleton<IWritingEvaluationRepository, EmptyWritingEvaluationRepository>();
+        services.AddSingleton<IWritingEvaluationSettings, StaticWritingEvaluationSettings>();
         services.AddSingleton<IWritingImageStore, EmptyWritingImageStore>();
         services.AddSingleton<IWritingExerciseImportParser, EmptyWritingExerciseImportParser>();
         services.AddSingleton<RecordingMailSender>();

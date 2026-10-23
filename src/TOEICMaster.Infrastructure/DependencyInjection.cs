@@ -16,6 +16,7 @@ using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.Writing.Admin;
 using TOEICMaster.Application.Writing.Attempts;
+using TOEICMaster.Application.Writing.Evaluations;
 using TOEICMaster.Infrastructure.Email;
 using TOEICMaster.Infrastructure.Health;
 using TOEICMaster.Infrastructure.Persistence;
@@ -25,6 +26,7 @@ using TOEICMaster.Infrastructure.Persistence.Writing;
 using TOEICMaster.Infrastructure.Repositories;
 using TOEICMaster.Infrastructure.Security;
 using TOEICMaster.Infrastructure.Storage;
+using TOEICMaster.Infrastructure.Writing.Evaluations;
 
 namespace TOEICMaster.Infrastructure;
 
@@ -42,8 +44,24 @@ public static class DependencyInjection
         services.AddScoped<IAvatarStore, MinioAvatarStore>();
         services.AddScoped<IWritingAdminRepository, EfWritingAdminRepository>();
         services.AddScoped<IWritingAttemptRepository, EfWritingAttemptRepository>();
+        services.AddScoped<IWritingEvaluationRepository, EfWritingEvaluationRepository>();
         services.AddScoped<IWritingImageStore, MinioWritingImageStore>();
         services.AddSingleton<IWritingExerciseImportParser, XlsxWritingExerciseImportParser>();
+        services.AddOptions<GeminiOptions>().Bind(configuration.GetSection(GeminiOptions.SectionName))
+            .ValidateDataAnnotations()
+            .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.ApiKey),
+                "Gemini API key is required when Gemini is enabled.")
+            .ValidateOnStart();
+        services.AddHttpClient<GeminiWritingEvaluator>(client =>
+        {
+            client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+        });
+        services.AddScoped<IWritingEvaluator>(provider => provider.GetRequiredService<IOptions<GeminiOptions>>().Value.Enabled
+            ? provider.GetRequiredService<GeminiWritingEvaluator>()
+            : new DisabledWritingEvaluator());
+        services.AddScoped<IWritingEvaluationSettings, GeminiWritingEvaluationSettings>();
+        services.AddScoped<IWritingEvaluationProcessor, WritingEvaluationProcessor>();
+        services.AddHostedService<WritingEvaluationWorker>();
         services.AddStackExchangeRedisCache(options =>
         {
             options.InstanceName = "toeicmaster:";

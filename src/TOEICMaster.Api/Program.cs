@@ -11,10 +11,10 @@ var dotEnvPath = DotEnvConfiguration.FindFile(Directory.GetCurrentDirectory(), b
 if (dotEnvPath is not null)
 {
     builder.Configuration.AddToeicMasterDotEnvFile(dotEnvPath);
-    builder.Configuration.AddEnvironmentVariables();
-    if (args.Length > 0)
-        builder.Configuration.AddCommandLine(args);
 }
+builder.Configuration.AddEnvironmentVariables();
+if (args.Length > 0)
+    builder.Configuration.AddCommandLine(args);
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
 builder.Services.AddControllers();
