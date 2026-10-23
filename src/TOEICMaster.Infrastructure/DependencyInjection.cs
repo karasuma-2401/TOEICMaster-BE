@@ -14,6 +14,9 @@ using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Profile;
+using TOEICMaster.Application.Speaking;
+using TOEICMaster.Application.Speaking.Admin;
+using TOEICMaster.Application.Speaking.Attempts;
 using TOEICMaster.Application.Writing.Admin;
 using TOEICMaster.Application.Writing.Attempts;
 using TOEICMaster.Application.Writing.Evaluations;
@@ -22,6 +25,7 @@ using TOEICMaster.Infrastructure.Health;
 using TOEICMaster.Infrastructure.Persistence;
 using TOEICMaster.Infrastructure.Persistence.Accounts;
 using TOEICMaster.Infrastructure.Persistence.Profiles;
+using TOEICMaster.Infrastructure.Persistence.Speaking;
 using TOEICMaster.Infrastructure.Persistence.Writing;
 using TOEICMaster.Infrastructure.Repositories;
 using TOEICMaster.Infrastructure.Security;
@@ -47,6 +51,10 @@ public static class DependencyInjection
         services.AddScoped<IWritingEvaluationRepository, EfWritingEvaluationRepository>();
         services.AddScoped<IWritingImageStore, MinioWritingImageStore>();
         services.AddSingleton<IWritingExerciseImportParser, XlsxWritingExerciseImportParser>();
+        services.AddScoped<ISpeakingAdminRepository, EfSpeakingAdminRepository>();
+        services.AddScoped<ISpeakingAttemptRepository, EfSpeakingAttemptRepository>();
+        services.AddScoped<ISpeakingMediaStore, MinioSpeakingMediaStore>();
+        services.AddHostedService<SpeakingRecordingRetentionWorker>();
         services.AddOptions<GeminiOptions>().Bind(configuration.GetSection(GeminiOptions.SectionName))
             .ValidateDataAnnotations()
             .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.ApiKey),

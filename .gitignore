@@ -11,3 +11,6 @@
 *.suo
 artifacts/
 coverage/
+
+# Local working notes (not committed)
+report.md
