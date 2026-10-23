@@ -24,6 +24,7 @@ builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddAuthRateLimiting();
+builder.Services.AddSpeakingRateLimiting();
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
     context.ProblemDetails.Extensions["traceId"] = Activity.Current?.Id ?? context.HttpContext.TraceIdentifier);
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
@@ -31,6 +32,7 @@ builder.Services.AddExceptionHandler<DuplicateEmailExceptionHandler>();
 builder.Services.AddExceptionHandler<AuthenticationExceptionHandler>();
 builder.Services.AddExceptionHandler<WritingAdministrationExceptionHandler>();
 builder.Services.AddExceptionHandler<WritingAttemptExceptionHandler>();
+builder.Services.AddExceptionHandler<SpeakingExceptionHandler>();
 builder.Services.AddExceptionHandler(options => options.StatusCodeSelector = _ => StatusCodes.Status500InternalServerError);
 builder.Services.AddApplication(builder.Configuration["MediatR:LicenseKey"],
     builder.Configuration["AutoMapper:LicenseKey"], typeof(Program).Assembly);
@@ -38,6 +40,8 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddAuthorization(options => options.AddPolicy("AccountAdministration",
     policy => policy.RequireAuthenticatedUser().RequireRole("Admin")));
 builder.Services.AddAuthorization(options => options.AddPolicy("WritingAdministration",
+    policy => policy.RequireAuthenticatedUser().RequireRole("Admin")));
+builder.Services.AddAuthorization(options => options.AddPolicy("SpeakingAdministration",
     policy => policy.RequireAuthenticatedUser().RequireRole("Admin")));
 builder.Services.AddCors(options => options.AddPolicy("Frontend", policy =>
 {

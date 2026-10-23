@@ -115,6 +115,430 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.ToTable("password_reset_challenges", (string)null);
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingAttempt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AnonymousSessionHash")
+                        .HasColumnType("character(64)")
+                        .HasColumnName("anonymous_session_hash");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("CurrentPhase")
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("current_phase");
+
+                    b.Property<short?>("CurrentPosition")
+                        .HasColumnType("smallint")
+                        .HasColumnName("current_position");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("mode");
+
+                    b.Property<Guid?>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<DateTimeOffset?>("PhaseEndsAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("phase_ends_at_utc");
+
+                    b.Property<DateTimeOffset?>("PhaseStartedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("phase_started_at_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset?>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at_utc");
+
+                    b.Property<Guid>("TestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("test_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TestId");
+
+                    b.HasIndex("AnonymousSessionHash", "CreatedAtUtc")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_speaking_attempts_anonymous_session_hash_created_at_utc");
+
+                    b.HasIndex("OwnerUserId", "CreatedAtUtc")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_speaking_attempts_owner_user_id_created_at_utc");
+
+                    b.ToTable("speaking_attempts", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_speaking_attempts_current_phase", "current_phase IS NULL OR current_phase IN ('READING', 'PREPARING', 'RESPONDING')");
+
+                            t.HasCheckConstraint("ck_speaking_attempts_mode", "mode IN ('FULL', 'PART_1', 'PART_2', 'PART_3', 'PART_4', 'PART_5')");
+
+                            t.HasCheckConstraint("ck_speaking_attempts_owner", "(owner_user_id IS NOT NULL) <> (anonymous_session_hash IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_speaking_attempts_status", "status IN ('IN_PROGRESS', 'SUBMITTED')");
+                        });
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingAttemptQuestion", b =>
+                {
+                    b.Property<Guid>("AttemptId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("attempt_id");
+
+                    b.Property<short>("Position")
+                        .HasColumnType("smallint")
+                        .HasColumnName("position");
+
+                    b.Property<string>("ContentJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("content_json");
+
+                    b.Property<Guid>("ExerciseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("exercise_id");
+
+                    b.Property<DateTimeOffset?>("LockedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("locked_at_utc");
+
+                    b.Property<short>("Part")
+                        .HasColumnType("smallint")
+                        .HasColumnName("part");
+
+                    b.Property<short>("PreparationSeconds")
+                        .HasColumnType("smallint")
+                        .HasColumnName("preparation_seconds");
+
+                    b.Property<short>("QuestionIndex")
+                        .HasColumnType("smallint")
+                        .HasColumnName("question_index");
+
+                    b.Property<short>("ReadingSeconds")
+                        .HasColumnType("smallint")
+                        .HasColumnName("reading_seconds");
+
+                    b.Property<Guid?>("RecordingAssetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recording_asset_id");
+
+                    b.Property<short?>("RecordingDurationSeconds")
+                        .HasColumnType("smallint")
+                        .HasColumnName("recording_duration_seconds");
+
+                    b.Property<DateTimeOffset?>("RecordingUploadedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recording_uploaded_at_utc");
+
+                    b.Property<short>("ResponseSeconds")
+                        .HasColumnType("smallint")
+                        .HasColumnName("response_seconds");
+
+                    b.Property<string>("ReviewJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("review_json");
+
+                    b.HasKey("AttemptId", "Position");
+
+                    b.HasIndex("RecordingAssetId");
+
+                    b.ToTable("speaking_attempt_questions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_speaking_attempt_questions_part", "part BETWEEN 1 AND 5");
+
+                            t.HasCheckConstraint("ck_speaking_attempt_questions_question_index", "question_index BETWEEN 0 AND 2");
+                        });
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingExercise", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("ContentJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("content_json");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Difficulty")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("difficulty");
+
+                    b.Property<Guid?>("ImageAssetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("image_asset_id");
+
+                    b.Property<string>("ModelAnswer")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("model_answer");
+
+                    b.Property<short>("Part")
+                        .HasColumnType("smallint")
+                        .HasColumnName("part");
+
+                    b.Property<string>("RubricNotes")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasDefaultValue("")
+                        .HasColumnName("rubric_notes");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Topic")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("topic");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImageAssetId");
+
+                    b.HasIndex("Part", "Status", "UpdatedAtUtc", "Id")
+                        .IsDescending(false, false, true, false)
+                        .HasDatabaseName("ix_speaking_exercises_part_status_updated_at_utc_id");
+
+                    b.ToTable("speaking_exercises", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_speaking_exercises_difficulty", "difficulty IN ('EASY', 'MEDIUM', 'HARD')");
+
+                            t.HasCheckConstraint("ck_speaking_exercises_image", "(part = 2) = (image_asset_id IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_speaking_exercises_part", "part BETWEEN 1 AND 5");
+
+                            t.HasCheckConstraint("ck_speaking_exercises_status", "status IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')");
+                        });
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingMediaAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("object_key");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasColumnType("character(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ObjectKey")
+                        .IsUnique();
+
+                    b.ToTable("speaking_media_assets", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_speaking_media_assets_kind", "kind IN ('IMAGE', 'RECORDING')");
+
+                            t.HasCheckConstraint("ck_speaking_media_assets_size_bytes", "size_bytes > 0");
+                        });
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingTest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasDefaultValue("")
+                        .HasColumnName("description");
+
+                    b.Property<DateTimeOffset?>("PublishedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "UpdatedAtUtc", "Id")
+                        .IsDescending(false, true, false)
+                        .HasDatabaseName("ix_speaking_tests_status_updated_at_utc_id");
+
+                    b.ToTable("speaking_tests", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_speaking_tests_published_at", "status <> 'PUBLISHED' OR published_at_utc IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_speaking_tests_status", "status IN ('DRAFT', 'PUBLISHED')");
+                        });
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingTestExercise", b =>
+                {
+                    b.Property<Guid>("TestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("test_id");
+
+                    b.Property<short>("Part")
+                        .HasColumnType("smallint")
+                        .HasColumnName("part");
+
+                    b.Property<short>("SequenceNumber")
+                        .HasColumnType("smallint")
+                        .HasColumnName("sequence_number");
+
+                    b.Property<Guid>("ExerciseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("exercise_id");
+
+                    b.Property<string>("SnapshotJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("snapshot_json");
+
+                    b.HasKey("TestId", "Part", "SequenceNumber");
+
+                    b.HasIndex("ExerciseId");
+
+                    b.HasIndex("TestId", "ExerciseId")
+                        .IsUnique();
+
+                    b.ToTable("speaking_test_exercises", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_speaking_test_exercises_part", "part BETWEEN 1 AND 5");
+
+                            t.HasCheckConstraint("ck_speaking_test_exercises_sequence_number", "sequence_number >= 1");
+                        });
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -153,14 +577,14 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Phone")
+                        .HasMaxLength(13)
+                        .HasColumnType("character varying(13)");
+
                     b.Property<short>("Role")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
                         .HasDefaultValue((short)0);
-
-                    b.Property<string>("Phone")
-                        .HasMaxLength(13)
-                        .HasColumnType("character varying(13)");
 
                     b.Property<int?>("TargetScore")
                         .HasColumnType("integer");
@@ -717,6 +1141,52 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingAttempt", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.SpeakingTest", null)
+                        .WithMany()
+                        .HasForeignKey("TestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingAttemptQuestion", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.SpeakingAttempt", null)
+                        .WithMany("Questions")
+                        .HasForeignKey("AttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TOEICMaster.Domain.Entities.SpeakingMediaAsset", null)
+                        .WithMany()
+                        .HasForeignKey("RecordingAssetId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingExercise", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.SpeakingMediaAsset", null)
+                        .WithMany()
+                        .HasForeignKey("ImageAssetId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingTestExercise", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.SpeakingExercise", null)
+                        .WithMany()
+                        .HasForeignKey("ExerciseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TOEICMaster.Domain.Entities.SpeakingTest", null)
+                        .WithMany()
+                        .HasForeignKey("TestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.UserSession", b =>
                 {
                     b.HasOne("TOEICMaster.Domain.Entities.UserSession", null)
@@ -779,6 +1249,11 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasForeignKey("WritingTestId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingAttempt", b =>
+                {
+                    b.Navigation("Questions");
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingAttempt", b =>
