@@ -38,6 +38,7 @@ public sealed class WritingAttemptsController(ISender sender) : ControllerBase
     }
 
     [HttpPost("attempts")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<WritingAttemptDto>(StatusCodes.Status201Created)]
     public async Task<ActionResult<WritingAttemptDto>> StartAttempt(StartWritingAttemptInput input,
         CancellationToken cancellationToken)
@@ -47,17 +48,20 @@ public sealed class WritingAttemptsController(ISender sender) : ControllerBase
     }
 
     [HttpGet("attempts")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<WritingAttemptPageDto>(StatusCodes.Status200OK)]
     public async Task<ActionResult<WritingAttemptPageDto>> GetHistory(CancellationToken cancellationToken) =>
         Ok(await sender.Send(new GetWritingAttemptHistoryQuery(CurrentOwner()), cancellationToken));
 
     [HttpGet("attempts/{attemptId:guid}")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<WritingAttemptDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<WritingAttemptDto>> GetAttempt(Guid attemptId, CancellationToken cancellationToken) =>
         Ok(await sender.Send(new GetWritingAttemptQuery(CurrentOwner(), attemptId), cancellationToken));
 
     [HttpPut("attempts/{attemptId:guid}/answers/{position:int}")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<WritingAttemptDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<WritingAttemptDto>> SaveAnswer(Guid attemptId, int position,
@@ -66,17 +70,20 @@ public sealed class WritingAttemptsController(ISender sender) : ControllerBase
             cancellationToken));
 
     [HttpPost("attempts/{attemptId:guid}/next")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<WritingAttemptDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<WritingAttemptDto>> Next(Guid attemptId, CancellationToken cancellationToken) =>
         Ok(await sender.Send(new NextWritingAttemptQuestionCommand(CurrentOwner(), attemptId), cancellationToken));
 
     [HttpPost("attempts/{attemptId:guid}/submit")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<WritingAttemptDto>(StatusCodes.Status200OK)]
     public async Task<ActionResult<WritingAttemptDto>> Submit(Guid attemptId, CancellationToken cancellationToken) =>
         Ok(await sender.Send(new SubmitWritingAttemptCommand(CurrentOwner(), attemptId), cancellationToken));
 
     [HttpPost("attempts/{attemptId:guid}/evaluation-consent")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<WritingAttemptDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<WritingAttemptDto>> GrantEvaluationConsent(Guid attemptId,

@@ -42,6 +42,17 @@ builder.Services.AddCors(options => options.AddPolicy("Frontend", policy =>
 }));
 
 var app = builder.Build();
+app.Use((context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers.TryAdd("X-Content-Type-Options", "nosniff");
+        context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
+        context.Response.Headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
+        return Task.CompletedTask;
+    });
+    return next(context);
+});
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseCors("Frontend");

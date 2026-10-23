@@ -174,6 +174,8 @@ docs/                         Kiến trúc
 refresh và logout đã có; nghiệp vụ TOEIC được bổ sung theo backlog.
 
 API quản trị ngân hàng và đề Writing (Part 1/2/3) được mô tả trong [Writing Administration API](docs/writing-admin-api.md).
+Luồng làm bài, chấm AI và checklist UAT Writing nằm tại [Writing Attempt API](docs/writing-attempt-api.md),
+[AI evaluation](docs/writing-ai-evaluation.md) và [Writing UAT runbook](docs/writing-uat-runbook.md).
 
 Các endpoint auth có rate limit theo IP: gửi email 5 request/phút, kiểm tra credential 10 request/phút và thao tác
 session 30 request/phút. Request vượt giới hạn nhận `429` kèm `Retry-After`; xem chi tiết trong API contract.

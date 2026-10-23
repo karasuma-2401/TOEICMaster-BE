@@ -38,8 +38,17 @@ Frontend đếm ngược từ `phaseEndsAtUtc`; backend là nguồn thời gian 
 `PREPARING → ANSWERING → khóa câu → câu kế`, kể cả khi người dùng đóng tab lâu hơn tổng nhiều pha. Thời lượng cố định:
 Part 1 là 30 giây chuẩn bị + 60 giây làm; Part 2 là 60 giây + 540 giây; Part 3 là 120 giây + 1680 giây.
 
-Snapshot của `writing_attempt_questions` chỉ giữ prompt hiển thị cho User, không lưu `modelAnswer` hoặc `rubricNotes`.
-Checkpoint này chưa gọi AI; bài đã nộp dừng tại `SUBMITTED_AWAITING_EVALUATION` để CP6 tạo job chấm bất đồng bộ.
+Response public của `writing_attempt_questions` chỉ chứa prompt hiển thị; không trả `modelAnswer` hoặc `rubricNotes`
+khi User đang làm bài. Server giữ private review snapshot bất biến cho evaluation; model answer chỉ được trả trong
+`reviewQuestions` khi evaluation AI đã `COMPLETED`.
+
+Các endpoint `attempts` và response BFF tương ứng luôn có `Cache-Control: no-store`, nên browser/proxy không cache
+bài làm, trạng thái timer hoặc kết quả của User. Autosave debounce 800ms; khi tab bị ẩn hoặc User rời trang, frontend
+gửi thêm một request `keepalive` best-effort. Không coi request lifecycle này là bảo đảm tuyệt đối: khi mở lại trang,
+API vẫn là nguồn chân lý và trả câu trả lời đã được server lưu gần nhất.
+
+Sau khi submit, server tạo job AI ở `CONSENT_REQUIRED`. Xem [AI evaluation cho Writing](writing-ai-evaluation.md) để
+biết consent, retry và cách quy đổi điểm.
 
 Migration `AddWritingAttempts` tạo `writing_attempts` và `writing_attempt_questions`. Nó chỉ được thêm vào source; chưa
 chạy `database update` trên Neon.

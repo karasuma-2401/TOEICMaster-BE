@@ -26,6 +26,17 @@ public sealed class SystemApiTests(ApiFactory factory) : IClassFixture<ApiFactor
     }
 
     [Fact]
+    public async Task Responses_include_browser_protection_headers()
+    {
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/health/live");
+
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        Assert.Equal("strict-origin-when-cross-origin", response.Headers.GetValues("Referrer-Policy").Single());
+    }
+
+    [Fact]
     public async Task Ping_has_the_frontend_contract()
     {
         using var client = factory.CreateClient();

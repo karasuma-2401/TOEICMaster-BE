@@ -79,3 +79,8 @@ Gemini là công cụ phản hồi học tập, không phải scorer ETS. Trư�
 | Nhận xét reviewer | `quá ưu tiên từ vựng hơn đáp ứng yêu cầu` |
 
 Chỉ nâng `GEMINI_RUBRIC_VERSION` sau khi review chênh lệch; lịch sử evaluation đã hoàn thành giữ model và rubric version cũ để audit.
+
+## UAT và bật demo
+
+Xem [Writing UAT runbook](writing-uat-runbook.md) trước khi chạy migration hoặc gửi một bài test đến Gemini. Runbook
+liệt kê luồng User/Admin, điều kiện an toàn cho Free Tier và các giới hạn đã được chấp nhận.
