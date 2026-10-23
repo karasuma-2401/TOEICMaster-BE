@@ -15,6 +15,7 @@ using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.Writing.Admin;
+using TOEICMaster.Application.Writing.Attempts;
 using TOEICMaster.Infrastructure.Email;
 using TOEICMaster.Infrastructure.Health;
 using TOEICMaster.Infrastructure.Persistence;
@@ -40,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IProfileRepository, EfProfileRepository>();
         services.AddScoped<IAvatarStore, MinioAvatarStore>();
         services.AddScoped<IWritingAdminRepository, EfWritingAdminRepository>();
+        services.AddScoped<IWritingAttemptRepository, EfWritingAttemptRepository>();
         services.AddScoped<IWritingImageStore, MinioWritingImageStore>();
         services.AddSingleton<IWritingExerciseImportParser, XlsxWritingExerciseImportParser>();
         services.AddStackExchangeRedisCache(options =>

@@ -1,4 +1,5 @@
 using TOEICMaster.Application.Writing.Admin;
+using TOEICMaster.Application.Writing.Attempts;
 using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Tests.TestDoubles;
@@ -54,6 +55,34 @@ public sealed class EmptyWritingImageStore : IWritingImageStore
         Task.FromResult(new WritingImageContent([], "image/png"));
 
     public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+public sealed class EmptyWritingAttemptRepository : IWritingAttemptRepository
+{
+    public Task<WritingPublicTestPageDto> GetPublishedTestsAsync(string? query, int pageNumber, int pageSize,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(new WritingPublicTestPageDto([], pageNumber, pageSize, 0));
+
+    public Task<WritingPublicTestDto?> GetPublishedTestAsync(Guid testId, CancellationToken cancellationToken) =>
+        Task.FromResult<WritingPublicTestDto?>(null);
+
+    public Task<WritingTest?> FindPublishedTestForAttemptAsync(Guid testId, CancellationToken cancellationToken) =>
+        Task.FromResult<WritingTest?>(null);
+
+    public Task<WritingMediaAsset?> FindPublishedMediaAssetAsync(Guid assetId, CancellationToken cancellationToken) =>
+        Task.FromResult<WritingMediaAsset?>(null);
+
+    public Task<WritingAttempt?> FindAttemptForUpdateAsync(Guid attemptId, CancellationToken cancellationToken) =>
+        Task.FromResult<WritingAttempt?>(null);
+
+    public Task<WritingAttempt?> GetAttemptAsync(Guid attemptId, CancellationToken cancellationToken) =>
+        Task.FromResult<WritingAttempt?>(null);
+
+    public Task<IReadOnlyList<WritingAttempt>> GetAttemptsAsync(WritingAttemptOwner owner,
+        CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WritingAttempt>>([]);
+
+    public Task AddAttemptAsync(WritingAttempt attempt, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 public sealed class EmptyWritingExerciseImportParser : IWritingExerciseImportParser

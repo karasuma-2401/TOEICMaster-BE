@@ -201,6 +201,122 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.ToTable("user_sessions", (string)null);
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingAttempt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AnonymousSessionHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<short>("CurrentPhase")
+                        .HasColumnType("smallint");
+
+                    b.Property<int>("CurrentQuestionIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<short>("Mode")
+                        .HasColumnType("smallint");
+
+                    b.Property<DateTimeOffset>("PhaseEndsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("PhaseStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<short>("Status")
+                        .HasColumnType("smallint");
+
+                    b.Property<DateTimeOffset?>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TestCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("TestTitle")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WritingTestId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AnonymousSessionHash", "UpdatedAtUtc");
+
+                    b.HasIndex("UserId", "UpdatedAtUtc");
+
+                    b.HasIndex("WritingTestId", "CreatedAtUtc");
+
+                    b.ToTable("writing_attempts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_writing_attempt_owner", "(\"UserId\" IS NOT NULL AND \"AnonymousSessionHash\" IS NULL) OR (\"UserId\" IS NULL AND \"AnonymousSessionHash\" IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingAttemptQuestion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Answer")
+                        .IsRequired()
+                        .HasMaxLength(12000)
+                        .HasColumnType("character varying(12000)");
+
+                    b.Property<DateTimeOffset?>("LastSavedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LockedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<short>("Part")
+                        .HasColumnType("smallint");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PreparationSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PromptSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<int>("ResponseSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("WritingAttemptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WritingTestQuestionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WritingTestQuestionId");
+
+                    b.HasIndex("WritingAttemptId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("writing_attempt_questions", (string)null);
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingExercise", b =>
                 {
                     b.Property<Guid>("Id")
@@ -473,6 +589,15 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingAttemptQuestion", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.WritingAttempt", null)
+                        .WithMany("Questions")
+                        .HasForeignKey("WritingAttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingExercise", b =>
                 {
                     b.HasOne("TOEICMaster.Domain.Entities.WritingMediaAsset", null)
@@ -494,6 +619,11 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasForeignKey("WritingTestId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingAttempt", b =>
+                {
+                    b.Navigation("Questions");
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingTest", b =>

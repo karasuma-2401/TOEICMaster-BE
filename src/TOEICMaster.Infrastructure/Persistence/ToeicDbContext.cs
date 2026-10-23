@@ -14,6 +14,8 @@ public sealed class ToeicDbContext(DbContextOptions<ToeicDbContext> options) : D
     public DbSet<WritingMediaAsset> WritingMediaAssets => Set<WritingMediaAsset>();
     public DbSet<WritingTest> WritingTests => Set<WritingTest>();
     public DbSet<WritingTestQuestion> WritingTestQuestions => Set<WritingTestQuestion>();
+    public DbSet<WritingAttempt> WritingAttempts => Set<WritingAttempt>();
+    public DbSet<WritingAttemptQuestion> WritingAttemptQuestions => Set<WritingAttemptQuestion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
