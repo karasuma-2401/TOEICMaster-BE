@@ -9,6 +9,7 @@ using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Email.Commands.SendEmail;
 using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.System.Queries.GetSystemStatus;
+using TOEICMaster.Application.Writing.Admin;
 using TOEICMaster.Domain.Entities;
 using TOEICMaster.Tests.TestDoubles;
 
@@ -24,6 +25,9 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<IAccountReader, SampleAccountReader>();
         services.AddSingleton<IProfileRepository, EmptyProfileRepository>();
         services.AddSingleton<IAvatarStore, EmptyAvatarStore>();
+        services.AddSingleton<IWritingAdminRepository, EmptyWritingAdminRepository>();
+        services.AddSingleton<IWritingImageStore, EmptyWritingImageStore>();
+        services.AddSingleton<IWritingExerciseImportParser, EmptyWritingExerciseImportParser>();
         services.AddSingleton<RecordingMailSender>();
         services.AddSingleton<IMailSender>(provider => provider.GetRequiredService<RecordingMailSender>());
         services.AddSingleton<IUserRegistrationRepository, FakeUserRegistrationRepository>();

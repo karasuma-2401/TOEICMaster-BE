@@ -173,6 +173,8 @@ docs/                         Kiến trúc
 [Chi tiết kiến trúc](docs/architecture.md) và [API contract](docs/api-contract.md). API đăng ký, đăng nhập local/Google,
 refresh và logout đã có; nghiệp vụ TOEIC được bổ sung theo backlog.
 
+API quản trị ngân hàng và đề Writing (Part 1/2/3) được mô tả trong [Writing Administration API](docs/writing-admin-api.md).
+
 Các endpoint auth có rate limit theo IP: gửi email 5 request/phút, kiểm tra credential 10 request/phút và thao tác
 session 30 request/phút. Request vượt giới hạn nhận `429` kèm `Retry-After`; xem chi tiết trong API contract.
 
