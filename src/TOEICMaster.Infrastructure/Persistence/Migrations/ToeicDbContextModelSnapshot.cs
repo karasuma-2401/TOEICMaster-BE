@@ -47,6 +47,226 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.ToTable("email_verification_challenges", (string)null);
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.Exam", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("exams", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamBlock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("FirstQuestionNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("Part")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("RevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RevisionId", "FirstQuestionNumber")
+                        .IsUnique();
+
+                    b.HasIndex("RevisionId", "Key")
+                        .IsUnique();
+
+                    b.ToTable("exam_blocks", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamContextBlock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AltText")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("BlockId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ImageAssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Text")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImageAssetId");
+
+                    b.HasIndex("BlockId", "Ordinal")
+                        .IsUnique();
+
+                    b.ToTable("exam_context_blocks", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamMediaAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ObjectKey")
+                        .IsUnique();
+
+                    b.ToTable("exam_media_assets", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamQuestion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BlockId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("CorrectKey")
+                        .HasMaxLength(1)
+                        .HasColumnType("character varying(1)");
+
+                    b.Property<string>("Explanation")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ImageAssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OptionA")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OptionB")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OptionC")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OptionD")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Stem")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Translation")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImageAssetId");
+
+                    b.HasIndex("BlockId", "Number")
+                        .IsUnique();
+
+                    b.ToTable("exam_questions", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ExamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MasterAudioObjectKey")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("ScoreProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScoreProfileId");
+
+                    b.HasIndex("ExamId", "Status");
+
+                    b.HasIndex("ExamId", "VersionNumber")
+                        .IsUnique();
+
+                    b.ToTable("exam_revisions", (string)null);
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.ExternalIdentity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -113,6 +333,48 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("password_reset_challenges", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ScoreConversion", b =>
+                {
+                    b.Property<Guid>("ScoreProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Skill")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int>("RawCorrectCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ScaledScore")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ScoreProfileId", "Skill", "RawCorrectCount");
+
+                    b.ToTable("score_conversions", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ScoreProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("score_profiles", (string)null);
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.User", b =>
@@ -220,6 +482,58 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamBlock", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.ExamRevision", null)
+                        .WithMany("Blocks")
+                        .HasForeignKey("RevisionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamContextBlock", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.ExamBlock", null)
+                        .WithMany("ContextBlocks")
+                        .HasForeignKey("BlockId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TOEICMaster.Domain.Entities.ExamMediaAsset", null)
+                        .WithMany()
+                        .HasForeignKey("ImageAssetId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamQuestion", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.ExamBlock", null)
+                        .WithMany("Questions")
+                        .HasForeignKey("BlockId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TOEICMaster.Domain.Entities.ExamMediaAsset", null)
+                        .WithMany()
+                        .HasForeignKey("ImageAssetId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamRevision", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.Exam", null)
+                        .WithMany("Revisions")
+                        .HasForeignKey("ExamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TOEICMaster.Domain.Entities.ScoreProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ScoreProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.ExternalIdentity", b =>
                 {
                     b.HasOne("TOEICMaster.Domain.Entities.User", null)
@@ -238,6 +552,15 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ScoreConversion", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.ScoreProfile", null)
+                        .WithMany("Conversions")
+                        .HasForeignKey("ScoreProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.UserSession", b =>
                 {
                     b.HasOne("TOEICMaster.Domain.Entities.UserSession", null)
@@ -250,6 +573,28 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.Exam", b =>
+                {
+                    b.Navigation("Revisions");
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamBlock", b =>
+                {
+                    b.Navigation("ContextBlocks");
+
+                    b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamRevision", b =>
+                {
+                    b.Navigation("Blocks");
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ScoreProfile", b =>
+                {
+                    b.Navigation("Conversions");
                 });
 #pragma warning restore 612, 618
         }
