@@ -1,5 +1,43 @@
 # Backend API contract
 
+## Quản trị đề TOEIC Listening & Reading
+
+Nhóm endpoint `/api/v1/admin/exams`, `/api/v1/admin/exam-media` và `/api/v1/admin/score-profiles` yêu cầu policy `AccountAdministration` (role `Admin`). Phạm vi này chỉ quản trị nội dung đề. Không có endpoint làm bài, nộp bài, chấm điểm hay xem đề của học viên.
+
+`POST /api/v1/admin/score-profiles` tạo một barem tái sử dụng. Request gồm `name` và `conversions`, trong đó mỗi conversion có `skill` (`Listening` hoặc `Reading`), `rawCorrectCount` từ 0 đến 100 và `scaledScore` từ 5 đến 495, là bội số của 5. `GET /api/v1/admin/score-profiles` trả về các profile để Admin chọn khi tạo hoặc import đề. Một profile được xem là đầy đủ khi có 101 mốc cho mỗi kỹ năng; API không tự seed barem ETS.
+
+`POST /api/v1/admin/exams` nhận JSON:
+
+```json
+{ "code": "LR-2026-001", "title": "Practice test 1", "scoreProfileId": "<uuid>" }
+```
+
+Trả `201` với Draft revision đã có đúng 200 slot. `GET /api/v1/admin/exams?status=Draft&pageNumber=1&pageSize=20` phân trang theo trạng thái revision mới nhất. `GET /api/v1/admin/exams/{examId}/revisions/{revisionId}` trả nội dung preview đầy đủ dành cho Admin, bao gồm đáp án.
+
+Để chỉnh Draft:
+
+| Endpoint | Nội dung |
+| --- | --- |
+| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/questions/{questionNumber}` | JSON nội dung câu hỏi và đáp án; Part 2 chỉ nhận A–C, các Part khác A–D. `imageAssetId` phải là asset đã upload. |
+| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/score-profile` | JSON `{ "scoreProfileId": "<uuid>" }`; chọn lại barem cho Draft. |
+| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/blocks/{blockKey}/contexts` | JSON `{ "contexts": [...] }`, với `ordinal` liên tiếp từ 1. Một context là `Text` hoặc `Image`; context ảnh phải tham chiếu asset đã upload. |
+| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/master-audio` | `multipart/form-data`, field `file`; `.mp3`/`.wav`, tối đa 100 MiB. |
+| `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/publish` | Publish nếu revision đầy đủ. |
+| `POST /api/v1/admin/exams/{examId}/revisions` | JSON `{ "sourceRevisionId": "<published-revision-uuid>" }`; fork published revision thành Draft mới. |
+
+`POST /api/v1/admin/exam-media/images` nhận `multipart/form-data`, field `file`, chỉ PNG/JPEG/WebP tối đa 5 MiB. API kiểm tra signature file và trả asset UUID; client dùng UUID đó trong `ImageAssetId`, không dùng tên file hoặc URL.
+
+### Import một đề L&R hoàn chỉnh
+
+`POST /api/v1/admin/exams/import` nhận `multipart/form-data` với hai field bắt buộc:
+
+- `workbook`: XLSX, tối đa 10 MiB.
+- `masterAudio`: `.mp3` hoặc `.wav`, tối đa 100 MiB.
+
+Workbook có bốn sheet bắt buộc: `Manifest`, `Blocks`, `ContextBlocks`, `Questions`. `Manifest` có `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, `ScoreProfileId`. Importer đối chiếu chính xác 103 block và 200 câu theo `BlockKey` + `QuestionNumber`; không dựa vào thứ tự dòng. Lỗi workbook trả `400 ValidationProblemDetails` với key `workbook`; lỗi Master Audio trả `400 ProblemDetails`. Cả hai trường hợp đều không tạo Draft. Lỗi ghi DB sau upload thực hiện cleanup object audio tốt nhất có thể.
+
+Template đi kèm nằm tại `outputs/admin-lr-exam-import-template/toeic-lr-exam-import-template.xlsx`. Thay toàn bộ placeholder nội dung, `ScoreProfileId` và `ImageAssetId` trước khi import; template cố ý không thể publish nguyên trạng.
+
 Các endpoint trong tài liệu này dùng prefix `/api/v1`. Frontend gọi backend qua Next.js route handler và cấu hình
 server-side `API_BASE_URL`; không đưa URL backend hoặc credential vào browser bundle.
 
