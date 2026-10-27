@@ -13,7 +13,7 @@ public sealed record AuthenticationResult(
 {
     public static AuthenticationResult Create(User user, IssuedAuthenticationTokens tokens) =>
         new("Bearer", tokens.AccessToken, tokens.AccessTokenExpiresAtUtc, tokens.RefreshToken,
-            tokens.RefreshTokenExpiresAtUtc, new AuthenticatedUser(user.Id, user.DisplayName, user.Email));
+            tokens.RefreshTokenExpiresAtUtc, new AuthenticatedUser(user.Id, user.DisplayName, user.Email, user.Role));
 }
 
-public sealed record AuthenticatedUser(Guid Id, string DisplayName, string Email);
+public sealed record AuthenticatedUser(Guid Id, string DisplayName, string Email, UserRole Role);

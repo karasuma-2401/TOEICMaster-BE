@@ -21,7 +21,15 @@ public static class DotEnvConfiguration
             ["MINIO_ROOT_USER"] = "Minio:AccessKey",
             ["MINIO_ROOT_PASSWORD"] = "Minio:SecretKey",
             ["MEDIATR_LICENSE_KEY"] = "MediatR:LicenseKey",
-            ["AUTOMAPPER_LICENSE_KEY"] = "AutoMapper:LicenseKey"
+            ["AUTOMAPPER_LICENSE_KEY"] = "AutoMapper:LicenseKey",
+            ["GEMINI_ENABLED"] = "Gemini:Enabled",
+            ["GEMINI_API_KEY"] = "Gemini:ApiKey",
+            ["GEMINI_MODEL"] = "Gemini:Model",
+            ["GEMINI_REQUEST_TIMEOUT_SECONDS"] = "Gemini:RequestTimeoutSeconds",
+            ["GEMINI_RUBRIC_VERSION"] = "Gemini:RubricVersion",
+            ["ADMIN_SEED_EMAIL"] = "AdminBootstrap:Email",
+            ["ADMIN_SEED_PASSWORD"] = "AdminBootstrap:Password",
+            ["ADMIN_SEED_DISPLAY_NAME"] = "AdminBootstrap:DisplayName"
         };
 
     public static string? FindFile(params string[] searchRoots)

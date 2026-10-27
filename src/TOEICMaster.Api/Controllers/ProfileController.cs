@@ -108,6 +108,7 @@ public sealed class ProfileController(ISender sender) : ControllerBase
 
 public sealed record UpdateProfileNameRequest(string DisplayName);
 public sealed record UpdateProfileRequest(string DisplayName, string? Phone, DateOnly? DateOfBirth, int? TargetScore);
+public sealed record UpdateProfileDetailsRequest(string DisplayName, string? Phone, int? TargetScore);
 public sealed record ChangeProfilePasswordRequest(string CurrentPassword, string NewPassword);
 public sealed record ChangeProfilePasswordFrontendRequest(
     string CurrentPassword, string NewPassword, string ConfirmPassword);

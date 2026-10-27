@@ -23,6 +23,7 @@ xác thực; client không gửi user ID.
 | Endpoint | Input | Thành công | Lỗi chính |
 | --- | --- | --- | --- |
 | `GET /api/v1/profile` | Không có body | `200` JSON profile | `401` khi không có phiên hợp lệ |
+<!-- Local profile contract retained during dev integration. -->
 | `PATCH /api/v1/profile` | JSON `{ displayName }` | `200` JSON profile sau cập nhật; các trường khác giữ nguyên | `400` khi dữ liệu không hợp lệ |
 | `PUT /api/v1/profile/avatar` | `multipart/form-data`, field `file` | `200` JSON profile sau cập nhật | `400` khi file không hợp lệ, `413` khi request vượt giới hạn |
 | `GET /api/v1/profile/avatar` | Không có body | `200` binary PNG/JPEG/WebP | `404` khi chưa có ảnh |
@@ -30,6 +31,13 @@ xác thực; client không gửi user ID.
 
 Alias `/api/v1/users/me` còn hỗ trợ `PUT` cập nhật `{ displayName, phone, dateOfBirth, targetScore }`,
 `POST /password` có `confirmPassword` và `DELETE /avatar` cho client cũ.
+<!-- Origin/dev profile contract retained for compatibility review. -->
+| `PATCH /api/v1/profile` | JSON `{ "displayName": "Tên mới" }` | `200` JSON profile sau cập nhật | `400` khi tên trống/quá 100 ký tự |
+| `PUT /api/v1/profile` | JSON `{ "displayName": "Tên", "phone": "0912345678", "targetScore": 750 }`; `phone`, `targetScore` có thể `null` để xoá | `200` JSON profile sau cập nhật | `400` khi tên trống/quá 100 ký tự, số điện thoại không khớp `^(0\|\+84)\d{9}$`, điểm ngoài 10–990 hoặc không chia hết cho 5 |
+| `PUT /api/v1/profile/avatar` | `multipart/form-data`, field `file` | `204` | `400` khi file không hợp lệ, `413` khi request vượt giới hạn |
+| `GET /api/v1/profile/avatar` | Không có body | `200` binary PNG/JPEG | `404` khi chưa có ảnh |
+| `PUT /api/v1/profile/password` | JSON `{ "currentPassword": "...", "newPassword": "..." }` | `204` | `400` khi mật khẩu cũ sai, tài khoản Google chưa có mật khẩu local hoặc dữ liệu không hợp lệ |
+<!-- End of merged contract notes. -->
 
 JSON profile:
 
@@ -38,14 +46,22 @@ JSON profile:
   "id": "00000000-0000-0000-0000-000000000001",
   "displayName": "Nguyen Van A",
   "email": "learner@example.com",
+<!-- Local profile response example retained during dev integration. -->
   "avatarUrl": "/api/v1/users/me/avatar",
   "phone": "+84912345678",
   "dateOfBirth": "2001-06-15",
   "targetScore": 850,
   "avatarVersion": "00000000000000000000000000000000",
+<!-- Origin/dev response example retained for compatibility review. -->
+  "avatarUrl": "/api/v1/profile/avatar",
+  "phone": "0912345678",
+  "targetScore": 750,
+<!-- End of merged response examples. -->
   "hasPassword": true
 }
 ```
+
+`avatarUrl`, `phone`, `targetScore` là `null` nếu chưa có. `hasPassword` là `false` với tài khoản chỉ đăng nhập bằng Google. Cột `users.Phone` và `users.TargetScore` được thêm bởi migration `20261022184631_AddProfilePhoneAndTargetScore`.
 
 `avatarUrl` là `null` nếu chưa có ảnh. Đây là đường dẫn tương đối đến endpoint cần Bearer token; frontend cần tải ảnh bằng request có header Authorization rồi hiển thị blob/object URL. Không đưa đường dẫn này trực tiếp vào thẻ `<img>` nếu thẻ không gửi Bearer token.
 

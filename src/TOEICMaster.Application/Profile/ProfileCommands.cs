@@ -48,6 +48,25 @@ public sealed class UpdateProfileCommandValidator : AbstractValidator<UpdateProf
             .WithMessage("Ngày sinh không được ở tương lai.");
         RuleFor(command => command.TargetScore)
             .Must(score => score is null || score is >= 10 and <= 990 && score % 5 == 0)
+            .WithMessage("Target score must be between 10 and 990 and divisible by 5.");
+    }
+}
+
+public sealed record UpdateProfileDetailsCommand(Guid UserId, string DisplayName, string? Phone, int? TargetScore)
+    : IRequest<ProfileDto>;
+
+public sealed class UpdateProfileDetailsCommandValidator : AbstractValidator<UpdateProfileDetailsCommand>
+{
+    public UpdateProfileDetailsCommandValidator()
+    {
+        RuleFor(command => command.DisplayName).Must(name => !string.IsNullOrWhiteSpace(name))
+            .WithMessage("Vui lòng nhập tên hiển thị.").MaximumLength(100);
+        RuleFor(command => command.Phone).Matches(@"^(0|\+84)\d{9}$")
+            .When(command => !string.IsNullOrWhiteSpace(command.Phone))
+            .WithMessage("Số điện thoại không hợp lệ.");
+        RuleFor(command => command.TargetScore)
+            .Must(score => score is >= 10 and <= 990 && score % 5 == 0)
+            .When(command => command.TargetScore is not null)
             .WithMessage("Điểm TOEIC mục tiêu phải từ 10 đến 990 và là bội số của 5.");
     }
 }
@@ -61,6 +80,21 @@ public sealed class UpdateProfileCommandHandler(IProfileRepository repository)
         var phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
         if (displayName.Length == 0 || !await repository.UpdateProfileAsync(request.UserId, displayName, phone,
                 request.DateOfBirth, request.TargetScore, cancellationToken))
+            throw new InvalidSessionException();
+        var user = await repository.FindAsync(request.UserId, cancellationToken)
+            ?? throw new InvalidSessionException();
+        return ProfileDto.From(user);
+    }
+}
+
+public sealed class UpdateProfileDetailsCommandHandler(IProfileRepository repository)
+    : IRequestHandler<UpdateProfileDetailsCommand, ProfileDto>
+{
+    public async Task<ProfileDto> Handle(UpdateProfileDetailsCommand request, CancellationToken cancellationToken)
+    {
+        var phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
+        if (!await repository.UpdateDetailsAsync(request.UserId, request.DisplayName.Trim(), phone,
+                request.TargetScore, cancellationToken))
             throw new InvalidSessionException();
         var user = await repository.FindAsync(request.UserId, cancellationToken)
             ?? throw new InvalidSessionException();

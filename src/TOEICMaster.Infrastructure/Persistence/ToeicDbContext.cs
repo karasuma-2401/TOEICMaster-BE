@@ -10,6 +10,20 @@ public sealed class ToeicDbContext(DbContextOptions<ToeicDbContext> options) : D
     public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();
     public DbSet<EmailVerificationChallenge> EmailVerificationChallenges => Set<EmailVerificationChallenge>();
     public DbSet<PasswordResetChallenge> PasswordResetChallenges => Set<PasswordResetChallenge>();
+    public DbSet<WritingExercise> WritingExercises => Set<WritingExercise>();
+    public DbSet<WritingMediaAsset> WritingMediaAssets => Set<WritingMediaAsset>();
+    public DbSet<WritingTest> WritingTests => Set<WritingTest>();
+    public DbSet<WritingTestQuestion> WritingTestQuestions => Set<WritingTestQuestion>();
+    public DbSet<WritingAttempt> WritingAttempts => Set<WritingAttempt>();
+    public DbSet<WritingAttemptQuestion> WritingAttemptQuestions => Set<WritingAttemptQuestion>();
+    public DbSet<WritingEvaluation> WritingEvaluations => Set<WritingEvaluation>();
+    public DbSet<WritingEvaluationFeedback> WritingEvaluationFeedback => Set<WritingEvaluationFeedback>();
+    public DbSet<SpeakingMediaAsset> SpeakingMediaAssets => Set<SpeakingMediaAsset>();
+    public DbSet<SpeakingExercise> SpeakingExercises => Set<SpeakingExercise>();
+    public DbSet<SpeakingTest> SpeakingTests => Set<SpeakingTest>();
+    public DbSet<SpeakingTestExercise> SpeakingTestExercises => Set<SpeakingTestExercise>();
+    public DbSet<SpeakingAttempt> SpeakingAttempts => Set<SpeakingAttempt>();
+    public DbSet<SpeakingAttemptQuestion> SpeakingAttemptQuestions => Set<SpeakingAttemptQuestion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

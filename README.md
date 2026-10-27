@@ -173,6 +173,10 @@ docs/                         Kiến trúc
 [Chi tiết kiến trúc](docs/architecture.md) và [API contract](docs/api-contract.md). API đăng ký, đăng nhập local/Google,
 refresh và logout đã có; nghiệp vụ TOEIC được bổ sung theo backlog.
 
+API quản trị ngân hàng và đề Writing (Part 1/2/3) được mô tả trong [Writing Administration API](docs/writing-admin-api.md).
+Luồng làm bài, chấm AI và checklist UAT Writing nằm tại [Writing Attempt API](docs/writing-attempt-api.md),
+[AI evaluation](docs/writing-ai-evaluation.md) và [Writing UAT runbook](docs/writing-uat-runbook.md).
+
 Các endpoint auth có rate limit theo IP: gửi email 5 request/phút, kiểm tra credential 10 request/phút và thao tác
 session 30 request/phút. Request vượt giới hạn nhận `429` kèm `Retry-After`; xem chi tiết trong API contract.
 
@@ -225,6 +229,29 @@ dotnet ef database update --project src/TOEICMaster.Infrastructure --startup-pro
 Trong Package Manager Console, chọn `TOEICMaster.Infrastructure` làm Default project, giữ `TOEICMaster.Api` làm
 Startup project rồi chạy `Update-Database`; startup cũng đọc cùng file `.env`. Commit migration cùng
 entity/configuration. API không tự apply migration lúc khởi động.
+
+## Seed tài khoản Admin local
+
+Role được lưu ở cột `users.Role`; tài khoản đăng nhập bình thường luôn nhận role `USER`. Để tạo Admin cho môi trường
+Development, điền các biến sau vào `.env` local (không commit file này):
+
+```dotenv
+ADMIN_SEED_EMAIL=admin@toeicmaster.local
+ADMIN_SEED_PASSWORD=<mat-khau-8-den-128-ky-tu>
+ADMIN_SEED_DISPLAY_NAME=TOEICMaster Admin
+```
+
+Sau khi đã review và áp dụng migration, chạy một lần từ solution root:
+
+```powershell
+dotnet run --project src/TOEICMaster.Api -- --seed-admin
+```
+
+Lệnh chỉ chạy ở `Development`, không tự chạy khi khởi động API và không ghi password vào log. Nếu email chưa có,
+lệnh tạo một tài khoản local đã xác minh/active với BCrypt hash. Nếu email đã là tài khoản active, lệnh chỉ nâng role
+lên `ADMIN`, không đổi password. Email của tài khoản đang chờ xác minh sẽ bị từ chối để không bypass ownership.
+Đăng xuất rồi đăng nhập lại sau khi seed để nhận JWT/session mới có role `ADMIN`; có thể xóa
+`ADMIN_SEED_PASSWORD` khỏi `.env` sau khi xong.
 
 ## Xử lý lỗi thường gặp
 

@@ -66,6 +66,7 @@ public sealed class GoogleLoginApiTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("Bearer", body?.TokenType);
         Assert.Equal(factory.User.Id, body?.User.Id);
+        Assert.Equal("USER", body?.User.Role);
         Assert.Equal("signed-google-id-token", factory.Verifier.Credential);
         Assert.Contains("no-store", response.Headers.CacheControl?.ToString());
     }
@@ -114,7 +115,7 @@ public sealed class GoogleLoginApiTests
     }
 
     private sealed record GoogleAuthenticationResponse(string TokenType, GoogleAuthenticatedUser User);
-    private sealed record GoogleAuthenticatedUser(Guid Id, string DisplayName, string Email);
+    private sealed record GoogleAuthenticatedUser(Guid Id, string DisplayName, string Email, string Role);
     private sealed record GoogleAuthenticationProblem(string? Title, Dictionary<string, string[]> Errors,
         string? TraceId);
 }

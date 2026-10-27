@@ -13,7 +13,8 @@ public sealed record AuthenticationResponse(
     public static AuthenticationResponse From(AuthenticationResult result) =>
         new(result.TokenType, result.AccessToken, result.AccessTokenExpiresAtUtc, result.RefreshToken,
             result.RefreshTokenExpiresAtUtc,
-            new AuthenticatedUserResponse(result.User.Id, result.User.DisplayName, result.User.Email));
+            new AuthenticatedUserResponse(result.User.Id, result.User.DisplayName, result.User.Email,
+                result.User.Role.ToString().ToUpperInvariant()));
 }
 
-public sealed record AuthenticatedUserResponse(Guid Id, string DisplayName, string Email);
+public sealed record AuthenticatedUserResponse(Guid Id, string DisplayName, string Email, string Role);

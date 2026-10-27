@@ -17,7 +17,7 @@ public sealed record ProfileDto(
 {
     public static ProfileDto From(User user)
     {
-        var avatarUrl = user.AvatarObjectKey is null ? null : "/api/v1/users/me/avatar";
+        var avatarUrl = user.AvatarObjectKey is null ? null : "/api/v1/profile/avatar";
         var avatarVersion = user.AvatarObjectKey is null
             ? null
             : Path.GetFileNameWithoutExtension(user.AvatarObjectKey);

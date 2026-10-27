@@ -14,14 +14,23 @@ using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Profile;
+using TOEICMaster.Application.Speaking;
+using TOEICMaster.Application.Speaking.Admin;
+using TOEICMaster.Application.Speaking.Attempts;
+using TOEICMaster.Application.Writing.Admin;
+using TOEICMaster.Application.Writing.Attempts;
+using TOEICMaster.Application.Writing.Evaluations;
 using TOEICMaster.Infrastructure.Email;
 using TOEICMaster.Infrastructure.Health;
 using TOEICMaster.Infrastructure.Persistence;
 using TOEICMaster.Infrastructure.Persistence.Accounts;
 using TOEICMaster.Infrastructure.Persistence.Profiles;
+using TOEICMaster.Infrastructure.Persistence.Speaking;
+using TOEICMaster.Infrastructure.Persistence.Writing;
 using TOEICMaster.Infrastructure.Repositories;
 using TOEICMaster.Infrastructure.Security;
 using TOEICMaster.Infrastructure.Storage;
+using TOEICMaster.Infrastructure.Writing.Evaluations;
 
 namespace TOEICMaster.Infrastructure;
 
@@ -37,6 +46,30 @@ public static class DependencyInjection
         services.AddScoped<IAccountReader, AccountReader>();
         services.AddScoped<IProfileRepository, EfProfileRepository>();
         services.AddScoped<IAvatarStore, MinioAvatarStore>();
+        services.AddScoped<IWritingAdminRepository, EfWritingAdminRepository>();
+        services.AddScoped<IWritingAttemptRepository, EfWritingAttemptRepository>();
+        services.AddScoped<IWritingEvaluationRepository, EfWritingEvaluationRepository>();
+        services.AddScoped<IWritingImageStore, MinioWritingImageStore>();
+        services.AddSingleton<IWritingExerciseImportParser, XlsxWritingExerciseImportParser>();
+        services.AddScoped<ISpeakingAdminRepository, EfSpeakingAdminRepository>();
+        services.AddScoped<ISpeakingAttemptRepository, EfSpeakingAttemptRepository>();
+        services.AddScoped<ISpeakingMediaStore, MinioSpeakingMediaStore>();
+        services.AddHostedService<SpeakingRecordingRetentionWorker>();
+        services.AddOptions<GeminiOptions>().Bind(configuration.GetSection(GeminiOptions.SectionName))
+            .ValidateDataAnnotations()
+            .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.ApiKey),
+                "Gemini API key is required when Gemini is enabled.")
+            .ValidateOnStart();
+        services.AddHttpClient<GeminiWritingEvaluator>(client =>
+        {
+            client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+        });
+        services.AddScoped<IWritingEvaluator>(provider => provider.GetRequiredService<IOptions<GeminiOptions>>().Value.Enabled
+            ? provider.GetRequiredService<GeminiWritingEvaluator>()
+            : new DisabledWritingEvaluator());
+        services.AddScoped<IWritingEvaluationSettings, GeminiWritingEvaluationSettings>();
+        services.AddScoped<IWritingEvaluationProcessor, WritingEvaluationProcessor>();
+        services.AddHostedService<WritingEvaluationWorker>();
         services.AddStackExchangeRedisCache(options =>
         {
             options.InstanceName = "toeicmaster:";
@@ -71,6 +104,7 @@ public static class DependencyInjection
         services.AddOptions<PasswordResetOptions>()
             .Bind(configuration.GetSection(PasswordResetOptions.SectionName))
             .ValidateDataAnnotations().ValidateOnStart();
+        services.AddOptions<AdminBootstrapOptions>().Bind(configuration.GetSection(AdminBootstrapOptions.SectionName));
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .Configure<IOptions<JwtOptions>>((bearerOptions, jwtOptions) =>
@@ -95,6 +129,7 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IAuthenticationTokenService, JwtAuthenticationTokenService>();
+        services.AddScoped<IAdminBootstrapSeeder, AdminBootstrapSeeder>();
         services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
         services.AddSingleton<IEmailVerificationCodeService, EmailVerificationCodeService>();
         services.AddSingleton<IPasswordResetTokenService, PasswordResetTokenService>();

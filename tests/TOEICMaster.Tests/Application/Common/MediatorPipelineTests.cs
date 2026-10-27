@@ -8,7 +8,13 @@ using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Email.Commands.SendEmail;
 using TOEICMaster.Application.Profile;
+using TOEICMaster.Application.Speaking;
+using TOEICMaster.Application.Speaking.Admin;
+using TOEICMaster.Application.Speaking.Attempts;
 using TOEICMaster.Application.System.Queries.GetSystemStatus;
+using TOEICMaster.Application.Writing.Admin;
+using TOEICMaster.Application.Writing.Attempts;
+using TOEICMaster.Application.Writing.Evaluations;
 using TOEICMaster.Domain.Entities;
 using TOEICMaster.Tests.TestDoubles;
 
@@ -24,6 +30,16 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<IAccountReader, SampleAccountReader>();
         services.AddSingleton<IProfileRepository, EmptyProfileRepository>();
         services.AddSingleton<IAvatarStore, EmptyAvatarStore>();
+        services.AddSingleton<IWritingAdminRepository, EmptyWritingAdminRepository>();
+        services.AddSingleton<IWritingAttemptRepository, EmptyWritingAttemptRepository>();
+        services.AddSingleton<IWritingEvaluationRepository, EmptyWritingEvaluationRepository>();
+        services.AddSingleton<IWritingEvaluationSettings, StaticWritingEvaluationSettings>();
+        services.AddSingleton<IWritingImageStore, EmptyWritingImageStore>();
+        services.AddSingleton<IWritingExerciseImportParser, EmptyWritingExerciseImportParser>();
+        var speaking = new InMemorySpeaking();
+        services.AddSingleton<ISpeakingAdminRepository>(speaking);
+        services.AddSingleton<ISpeakingAttemptRepository>(speaking);
+        services.AddSingleton<ISpeakingMediaStore>(speaking);
         services.AddSingleton<RecordingMailSender>();
         services.AddSingleton<IMailSender>(provider => provider.GetRequiredService<RecordingMailSender>());
         services.AddSingleton<IUserRegistrationRepository, FakeUserRegistrationRepository>();
@@ -138,6 +154,8 @@ public sealed class MediatorPipelineTests
             CancellationToken cancellationToken) => Task.FromResult(false);
         public Task<bool> UpdateProfileAsync(Guid userId, string displayName, string? phone, DateOnly? dateOfBirth,
             int? targetScore, CancellationToken cancellationToken) => Task.FromResult(false);
+        public Task<bool> UpdateDetailsAsync(Guid userId, string displayName, string? phone, int? targetScore,
+            CancellationToken cancellationToken) => Task.FromResult(false);
         public Task<bool> UpdateAvatarAsync(Guid userId, string objectKey, CancellationToken cancellationToken) =>
             Task.FromResult(false);
         public Task<string?> ClearAvatarAsync(Guid userId, CancellationToken cancellationToken) =>

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -38,7 +39,33 @@ public sealed class JwtAuthenticationTokenServiceTests
         Assert.Equal(user.Id.ToString(), token.Subject);
         Assert.Equal(user.Email, token.GetClaim(JwtRegisteredClaimNames.Email).Value);
         Assert.Equal(user.DisplayName, token.GetClaim(JwtRegisteredClaimNames.Name).Value);
+        Assert.Equal(UserRole.User.ToString(), token.GetClaim(ClaimTypes.Role).Value);
         Assert.Equal(now.AddMinutes(15), tokens.AccessTokenExpiresAtUtc);
+    }
+
+    [Fact]
+    public async Task Admin_access_token_contains_the_admin_role_claim()
+    {
+        var service = new JwtAuthenticationTokenService(Options.Create(CreateOptions()));
+        var now = DateTimeOffset.UtcNow;
+        var user = User.CreateLocal("Admin", "admin@example.com", "ADMIN@EXAMPLE.COM", "hash", now);
+        user.PromoteToAdmin();
+
+        var tokens = service.IssueForLogin(user, now, false);
+        var validation = await new JsonWebTokenHandler().ValidateTokenAsync(tokens.AccessToken,
+            new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SigningKey)),
+                ValidateIssuer = true,
+                ValidIssuer = "TOEICMaster.Tests",
+                ValidateAudience = true,
+                ValidAudience = "TOEICMaster.Tests.Client",
+                ValidateLifetime = true
+            });
+
+        var token = Assert.IsType<JsonWebToken>(validation.SecurityToken);
+        Assert.Equal(UserRole.Admin.ToString(), token.GetClaim(ClaimTypes.Role).Value);
     }
 
     [Fact]

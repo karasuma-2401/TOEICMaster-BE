@@ -69,6 +69,7 @@ public sealed class LoginApiTests
         Assert.Equal("access-token", body.AccessToken);
         Assert.Equal("login-refresh-token", body.RefreshToken);
         Assert.Equal(factory.User.Id, body.User.Id);
+        Assert.Equal("USER", body.User.Role);
         Assert.Equal(LoginApiFactory.Now.AddDays(30), body.RefreshTokenExpiresAtUtc);
         Assert.Contains("no-store", response.Headers.CacheControl?.ToString());
         Assert.Contains("no-cache", response.Headers.Pragma.Select(value => value.Name));
@@ -146,7 +147,7 @@ public sealed class LoginApiTests
         DateTimeOffset RefreshTokenExpiresAtUtc,
         AuthenticatedUserResponse User);
 
-    private sealed record AuthenticatedUserResponse(Guid Id, string DisplayName, string Email);
+    private sealed record AuthenticatedUserResponse(Guid Id, string DisplayName, string Email, string Role);
 
     private sealed record AuthenticationProblem(string? Title, Dictionary<string, string[]> Errors,
         string? TraceId);
