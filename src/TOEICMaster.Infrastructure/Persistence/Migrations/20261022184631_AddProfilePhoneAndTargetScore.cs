@@ -10,18 +10,12 @@ public partial class AddProfilePhoneAndTargetScore : Migration
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.AddColumn<string>(
-            name: "Phone",
-            table: "users",
-            type: "character varying(13)",
-            maxLength: 13,
-            nullable: true);
-
-        migrationBuilder.AddColumn<int>(
-            name: "TargetScore",
-            table: "users",
-            type: "integer",
-            nullable: true);
+        // This migration and 20261020154939 were created on divergent branches.
+        // Preserve both histories by making their shared columns idempotent for PostgreSQL.
+        migrationBuilder.Sql("""
+            ALTER TABLE \"users\" ADD COLUMN IF NOT EXISTS \"Phone\" character varying(13);
+            ALTER TABLE \"users\" ADD COLUMN IF NOT EXISTS \"TargetScore\" integer;
+            """);
     }
 
     /// <inheritdoc />

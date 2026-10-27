@@ -105,8 +105,23 @@ public sealed class ProfileApplicationTests
             return Task.FromResult(User?.Id == userId ? User : null);
         }
 
-        public Task<bool> UpdateDisplayNameAsync(Guid userId, string displayName, CancellationToken cancellationToken) =>
-            Task.FromResult(User?.Id == userId);
+        public Task<bool> UpdateProfileAsync(Guid userId, string displayName, string? phone, DateOnly? dateOfBirth,
+            int? targetScore, CancellationToken cancellationToken)
+        {
+            if (User?.Id != userId)
+                return Task.FromResult(false);
+            User.UpdateProfile(displayName, phone, dateOfBirth, targetScore);
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> UpdateDisplayNameAsync(Guid userId, string displayName,
+            CancellationToken cancellationToken)
+        {
+            if (User?.Id != userId)
+                return Task.FromResult(false);
+            User.UpdateProfile(displayName, User.Phone, User.DateOfBirth, User.TargetScore);
+            return Task.FromResult(true);
+        }
 
         public Task<bool> UpdateDetailsAsync(Guid userId, string displayName, string? phone, int? targetScore,
             CancellationToken cancellationToken)
@@ -117,6 +132,9 @@ public sealed class ProfileApplicationTests
 
         public Task<bool> UpdateAvatarAsync(Guid userId, string objectKey, CancellationToken cancellationToken) =>
             Task.FromResult(User?.Id == userId);
+
+        public Task<string?> ClearAvatarAsync(Guid userId, CancellationToken cancellationToken) =>
+            Task.FromResult<string?>(null);
 
         public Task<bool> ChangePasswordAsync(Guid userId, string currentHash, string newHash,
             DateTimeOffset changedAtUtc, CancellationToken cancellationToken)

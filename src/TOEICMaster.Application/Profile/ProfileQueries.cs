@@ -4,12 +4,26 @@ using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Application.Profile;
 
-public sealed record ProfileDto(Guid Id, string DisplayName, string Email, string? AvatarUrl, string? Phone,
-    int? TargetScore, bool HasPassword)
+public sealed record ProfileDto(
+    Guid Id,
+    string DisplayName,
+    string Email,
+    string? AvatarUrl,
+    string? Phone,
+    DateOnly? DateOfBirth,
+    int? TargetScore,
+    string? AvatarVersion,
+    bool HasPassword)
 {
-    public static ProfileDto From(User user) =>
-        new(user.Id, user.DisplayName, user.Email, user.AvatarObjectKey is null ? null : "/api/v1/profile/avatar",
-            user.Phone, user.TargetScore, user.PasswordHash is not null);
+    public static ProfileDto From(User user)
+    {
+        var avatarUrl = user.AvatarObjectKey is null ? null : "/api/v1/profile/avatar";
+        var avatarVersion = user.AvatarObjectKey is null
+            ? null
+            : Path.GetFileNameWithoutExtension(user.AvatarObjectKey);
+        return new ProfileDto(user.Id, user.DisplayName, user.Email, avatarUrl, user.Phone, user.DateOfBirth,
+            user.TargetScore, avatarVersion, user.PasswordHash is not null);
+    }
 }
 
 public sealed record GetProfileQuery(Guid UserId) : IRequest<ProfileDto>;

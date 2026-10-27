@@ -7,6 +7,7 @@ using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Email.Commands.SendEmail;
+using TOEICMaster.Application.Exams;
 using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.Speaking;
 using TOEICMaster.Application.Speaking.Admin;
@@ -40,6 +41,8 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<ISpeakingAdminRepository>(speaking);
         services.AddSingleton<ISpeakingAttemptRepository>(speaking);
         services.AddSingleton<ISpeakingMediaStore>(speaking);
+        services.AddSingleton<IExamRepository, EmptyExamRepository>();
+        services.AddSingleton<IExamMediaStore, EmptyExamMediaStore>();
         services.AddSingleton<RecordingMailSender>();
         services.AddSingleton<IMailSender>(provider => provider.GetRequiredService<RecordingMailSender>());
         services.AddSingleton<IUserRegistrationRepository, FakeUserRegistrationRepository>();
@@ -150,12 +153,16 @@ public sealed class MediatorPipelineTests
     private sealed class EmptyProfileRepository : IProfileRepository
     {
         public Task<User?> FindAsync(Guid userId, CancellationToken cancellationToken) => Task.FromResult<User?>(null);
-        public Task<bool> UpdateDisplayNameAsync(Guid userId, string displayName, CancellationToken cancellationToken) =>
-            Task.FromResult(false);
+        public Task<bool> UpdateDisplayNameAsync(Guid userId, string displayName,
+            CancellationToken cancellationToken) => Task.FromResult(false);
+        public Task<bool> UpdateProfileAsync(Guid userId, string displayName, string? phone, DateOnly? dateOfBirth,
+            int? targetScore, CancellationToken cancellationToken) => Task.FromResult(false);
         public Task<bool> UpdateDetailsAsync(Guid userId, string displayName, string? phone, int? targetScore,
             CancellationToken cancellationToken) => Task.FromResult(false);
         public Task<bool> UpdateAvatarAsync(Guid userId, string objectKey, CancellationToken cancellationToken) =>
             Task.FromResult(false);
+        public Task<string?> ClearAvatarAsync(Guid userId, CancellationToken cancellationToken) =>
+            Task.FromResult<string?>(null);
         public Task<bool> ChangePasswordAsync(Guid userId, string currentHash, string newHash,
             DateTimeOffset changedAtUtc, CancellationToken cancellationToken) => Task.FromResult(false);
     }
@@ -166,6 +173,30 @@ public sealed class MediatorPipelineTests
             CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<AvatarContent> DownloadAsync(string objectKey, CancellationToken cancellationToken) =>
             Task.FromResult(new AvatarContent([], "image/png"));
+        public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class EmptyExamRepository : IExamRepository
+    {
+        public Task<bool> ExamCodeExistsAsync(string code, CancellationToken cancellationToken) => Task.FromResult(false);
+        public Task<Exam?> FindExamAsync(Guid examId, CancellationToken cancellationToken) => Task.FromResult<Exam?>(null);
+        public Task<ExamPageDto> GetExamPageAsync(ExamRevisionStatus? status, int pageNumber, int pageSize,
+            CancellationToken cancellationToken) => Task.FromResult(new ExamPageDto([], pageNumber, pageSize, 0));
+        public Task<ScoreProfile?> FindScoreProfileAsync(Guid scoreProfileId, CancellationToken cancellationToken) =>
+            Task.FromResult<ScoreProfile?>(null);
+        public Task<bool> ImageAssetsExistAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken cancellationToken) =>
+            Task.FromResult(assetIds.Count == 0);
+        public Task AddScoreProfileAsync(ScoreProfile scoreProfile, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+        public Task AddExamMediaAssetAsync(ExamMediaAsset asset, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task AddExamAsync(Exam exam, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class EmptyExamMediaStore : IExamMediaStore
+    {
+        public Task UploadAsync(string objectKey, byte[] content, string contentType,
+            CancellationToken cancellationToken) => Task.CompletedTask;
         public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

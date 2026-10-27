@@ -28,6 +28,7 @@ public sealed class User
     public string? AvatarObjectKey { get; private set; }
     public UserRole Role { get; private set; } = UserRole.User;
     public string? Phone { get; private set; }
+    public DateOnly? DateOfBirth { get; private set; }
     public int? TargetScore { get; private set; }
     public bool IsActive { get; private set; }
     public DateTimeOffset? EmailVerifiedAtUtc { get; private set; }
@@ -54,4 +55,14 @@ public sealed class User
         PasswordHash = null;
         VerifyEmail(verifiedAtUtc);
     }
+
+    public void UpdateProfile(string displayName, string? phone, DateOnly? dateOfBirth, int? targetScore)
+    {
+        DisplayName = displayName;
+        Phone = phone;
+        DateOfBirth = dateOfBirth;
+        TargetScore = targetScore;
+    }
+
+    public void SetAvatarObjectKey(string? objectKey) => AvatarObjectKey = objectKey;
 }

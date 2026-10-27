@@ -15,16 +15,29 @@ Các endpoint trong ảnh frontend `/api/v1/admin/users...` là chức năng qu�
 
 ## Contract cho frontend
 
-Tất cả endpoint dưới đây yêu cầu `Authorization: Bearer <accessToken>`. Backend lấy user ID từ claim `sub` đã xác thực; client không gửi user ID.
+Browser gọi các Next.js BFF route `/api/profile`, `/api/profile/password` và `/api/profile/avatar`. BFF chuyển tiếp đến
+backend qua prefix `/api/v1/profile`. Các route backend dưới `/api/v1/users/me` vẫn được giữ làm alias tương thích.
+Tất cả endpoint backend dưới đây yêu cầu `Authorization: Bearer <accessToken>`. Backend lấy user ID từ claim `sub` đã
+xác thực; client không gửi user ID.
 
 | Endpoint | Input | Thành công | Lỗi chính |
 | --- | --- | --- | --- |
 | `GET /api/v1/profile` | Không có body | `200` JSON profile | `401` khi không có phiên hợp lệ |
+<!-- Local profile contract retained during dev integration. -->
+| `PATCH /api/v1/profile` | JSON `{ displayName }` | `200` JSON profile sau cập nhật; các trường khác giữ nguyên | `400` khi dữ liệu không hợp lệ |
+| `PUT /api/v1/profile/avatar` | `multipart/form-data`, field `file` | `200` JSON profile sau cập nhật | `400` khi file không hợp lệ, `413` khi request vượt giới hạn |
+| `GET /api/v1/profile/avatar` | Không có body | `200` binary PNG/JPEG/WebP | `404` khi chưa có ảnh |
+| `PUT /api/v1/profile/password` | JSON `{ currentPassword, newPassword }` | `204` | `400` khi mật khẩu cũ sai hoặc dữ liệu không hợp lệ |
+
+Alias `/api/v1/users/me` còn hỗ trợ `PUT` cập nhật `{ displayName, phone, dateOfBirth, targetScore }`,
+`POST /password` có `confirmPassword` và `DELETE /avatar` cho client cũ.
+<!-- Origin/dev profile contract retained for compatibility review. -->
 | `PATCH /api/v1/profile` | JSON `{ "displayName": "Tên mới" }` | `200` JSON profile sau cập nhật | `400` khi tên trống/quá 100 ký tự |
 | `PUT /api/v1/profile` | JSON `{ "displayName": "Tên", "phone": "0912345678", "targetScore": 750 }`; `phone`, `targetScore` có thể `null` để xoá | `200` JSON profile sau cập nhật | `400` khi tên trống/quá 100 ký tự, số điện thoại không khớp `^(0\|\+84)\d{9}$`, điểm ngoài 10–990 hoặc không chia hết cho 5 |
 | `PUT /api/v1/profile/avatar` | `multipart/form-data`, field `file` | `204` | `400` khi file không hợp lệ, `413` khi request vượt giới hạn |
 | `GET /api/v1/profile/avatar` | Không có body | `200` binary PNG/JPEG | `404` khi chưa có ảnh |
 | `PUT /api/v1/profile/password` | JSON `{ "currentPassword": "...", "newPassword": "..." }` | `204` | `400` khi mật khẩu cũ sai, tài khoản Google chưa có mật khẩu local hoặc dữ liệu không hợp lệ |
+<!-- End of merged contract notes. -->
 
 JSON profile:
 
@@ -33,9 +46,17 @@ JSON profile:
   "id": "00000000-0000-0000-0000-000000000001",
   "displayName": "Nguyen Van A",
   "email": "learner@example.com",
+<!-- Local profile response example retained during dev integration. -->
+  "avatarUrl": "/api/v1/users/me/avatar",
+  "phone": "+84912345678",
+  "dateOfBirth": "2001-06-15",
+  "targetScore": 850,
+  "avatarVersion": "00000000000000000000000000000000",
+<!-- Origin/dev response example retained for compatibility review. -->
   "avatarUrl": "/api/v1/profile/avatar",
   "phone": "0912345678",
   "targetScore": 750,
+<!-- End of merged response examples. -->
   "hasPassword": true
 }
 ```
@@ -44,7 +65,10 @@ JSON profile:
 
 `avatarUrl` là `null` nếu chưa có ảnh. Đây là đường dẫn tương đối đến endpoint cần Bearer token; frontend cần tải ảnh bằng request có header Authorization rồi hiển thị blob/object URL. Không đưa đường dẫn này trực tiếp vào thẻ `<img>` nếu thẻ không gửi Bearer token.
 
-Ảnh đại diện giới hạn 2 MiB, chỉ nhận MIME `image/png` hoặc `image/jpeg` khớp dấu hiệu file. Bucket MinIO được tạo tự động lúc upload đầu tiên và không cấu hình quyền public. Ảnh cũ được xóa sau khi bản ghi profile cập nhật thành công; lỗi dọn ảnh cũ không làm thất bại request đã thành công.
+`phone` nhận số Việt Nam bắt đầu bằng `0` hoặc `+84` và chín chữ số theo sau. `dateOfBirth` từ `1900-01-01` đến
+ngày hiện tại. `targetScore` từ 10 đến 990 và là bội số của 5. Các trường này nhận `null`.
+
+Ảnh đại diện giới hạn 2 MiB, chỉ nhận MIME `image/png`, `image/jpeg` hoặc `image/webp` khớp dấu hiệu file. Bucket MinIO được tạo tự động lúc upload đầu tiên và không cấu hình quyền public. Ảnh cũ được xóa sau khi bản ghi profile cập nhật thành công; lỗi dọn ảnh cũ không làm thất bại request đã thành công.
 
 Đổi mật khẩu yêu cầu mật khẩu mới dài 8–128 ký tự và khác mật khẩu hiện tại. Tài khoản đăng nhập Google chỉ đổi được mật khẩu khi đã có mật khẩu local. Refresh token cũ không dùng được sau thay đổi; access token đã phát hành vẫn có hiệu lực đến khi hết hạn (cấu hình hiện tại là 15 phút). Frontend nên yêu cầu đăng nhập lại sau khi nhận `204`.
 Endpoint đổi mật khẩu sử dụng rate limit `Credentials` có sẵn của backend; khi vượt giới hạn trả `429`.
@@ -59,7 +83,7 @@ Endpoint đổi mật khẩu sử dụng rate limit `Credentials` có sẵn củ
 
 ## Kiểm chứng
 
-- `dotnet test TOEICMaster.slnx -c Release --no-restore --verbosity quiet`: **120 pass, 0 fail, 0 skip**.
+- `dotnet test TOEICMaster.slnx --no-restore`: **125 pass, 0 fail, 0 skip**.
 - `dotnet format TOEICMaster.slnx --verify-no-changes --no-restore`: **pass**.
 - Test mới kiểm tra profile theo `sub`, yêu cầu Bearer token, upload PNG hợp lệ, từ chối nội dung giả ảnh, xác thực mật khẩu hiện tại và thu hồi session theo use case.
 - Migration đã sinh và review: chỉ thêm một cột nullable, không thay đổi dữ liệu cũ.

@@ -23,8 +23,10 @@ public sealed class MinioAvatarStore(IMinioClient client) : IAvatarStore
         using var output = new MemoryStream();
         await client.GetObjectAsync(new GetObjectArgs().WithBucket(Bucket).WithObject(objectKey)
             .WithCallbackStream(stream => stream.CopyTo(output)), cancellationToken);
-        return new AvatarContent(output.ToArray(), objectKey.EndsWith(".png", StringComparison.Ordinal)
-            ? "image/png" : "image/jpeg");
+        var contentType = objectKey.EndsWith(".png", StringComparison.Ordinal)
+            ? "image/png"
+            : objectKey.EndsWith(".webp", StringComparison.Ordinal) ? "image/webp" : "image/jpeg";
+        return new AvatarContent(output.ToArray(), contentType);
     }
 
     public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) =>
