@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using FluentValidation;
 using FluentValidation.Results;
 using MediatR;
+using TOEICMaster.Application.Speaking.Evaluations;
 using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Application.Speaking.Attempts;
@@ -12,6 +13,11 @@ public sealed record GetPublishedSpeakingTestsQuery(string? Query, int PageNumbe
 public sealed record GetPublishedSpeakingTestQuery(Guid TestId) : IRequest<SpeakingPublicTestDto>;
 
 public sealed record GetPublishedSpeakingImageQuery(Guid AssetId) : IRequest<SpeakingMediaContent>;
+
+public sealed record GetPublishedSpeakingExercisesQuery(int? Part, int PageNumber = 1, int PageSize = 20)
+    : IRequest<SpeakingPageDto<SpeakingPublicExerciseDto>>;
+
+public sealed record GetPublishedSpeakingExerciseQuery(Guid ExerciseId) : IRequest<SpeakingPublicExerciseDto>;
 
 public sealed record StartSpeakingAttemptCommand(SpeakingAttemptOwner Owner, StartSpeakingAttemptInput Input)
     : IRequest<SpeakingAttemptDto>;
@@ -43,14 +49,27 @@ public sealed class GetPublishedSpeakingTestsQueryValidator : AbstractValidator<
     }
 }
 
+public sealed class GetPublishedSpeakingExercisesQueryValidator : AbstractValidator<GetPublishedSpeakingExercisesQuery>
+{
+    public GetPublishedSpeakingExercisesQueryValidator()
+    {
+        RuleFor(query => query.Part).InclusiveBetween(1, 5).When(query => query.Part is not null)
+            .WithMessage("Part phải từ 1 đến 5.");
+        RuleFor(query => query.PageNumber).GreaterThan(0);
+        RuleFor(query => query.PageSize).InclusiveBetween(1, 100);
+    }
+}
+
 public sealed class StartSpeakingAttemptCommandValidator : AbstractValidator<StartSpeakingAttemptCommand>
 {
     public StartSpeakingAttemptCommandValidator()
     {
         RuleFor(command => command.Owner).SetValidator(new SpeakingAttemptOwnerValidator());
-        RuleFor(command => command.Input.TestId).NotEmpty().OverridePropertyName("TestId")
-            .WithMessage("Cần chọn đề Speaking.");
+        RuleFor(command => command.Input).Must(input => (input.TestId is { } testId && testId != Guid.Empty) !=
+                                                       (input.ExerciseId is { } exerciseId && exerciseId != Guid.Empty))
+            .OverridePropertyName("TestId").WithMessage("Cần chọn một đề hoặc một bài tập Speaking.");
         RuleFor(command => command.Input.Mode).Must(mode => SpeakingCodes.TryParseMode(mode, out _))
+            .When(command => command.Input.ExerciseId is null)
             .OverridePropertyName("Mode").WithMessage("Chế độ làm bài phải là FULL hoặc PART_1 đến PART_5.");
     }
 }
@@ -103,13 +122,37 @@ public sealed class GetPublishedSpeakingImageQueryHandler(ISpeakingAttemptReposi
     }
 }
 
+public sealed class GetPublishedSpeakingExercisesQueryHandler(ISpeakingAttemptRepository repository)
+    : IRequestHandler<GetPublishedSpeakingExercisesQuery, SpeakingPageDto<SpeakingPublicExerciseDto>>
+{
+    public async Task<SpeakingPageDto<SpeakingPublicExerciseDto>> Handle(GetPublishedSpeakingExercisesQuery request,
+        CancellationToken cancellationToken)
+    {
+        var page = await repository.GetPublishedExercisePageAsync(request.Part, request.PageNumber, request.PageSize,
+            cancellationToken);
+        return new SpeakingPageDto<SpeakingPublicExerciseDto>(page.Items.Select(SpeakingAttemptMapping.ToPublicDto)
+            .ToArray(), page.PageNumber, page.PageSize, page.TotalCount);
+    }
+}
+
+public sealed class GetPublishedSpeakingExerciseQueryHandler(ISpeakingAttemptRepository repository)
+    : IRequestHandler<GetPublishedSpeakingExerciseQuery, SpeakingPublicExerciseDto>
+{
+    public async Task<SpeakingPublicExerciseDto> Handle(GetPublishedSpeakingExerciseQuery request,
+        CancellationToken cancellationToken) =>
+        (await repository.FindPublishedExerciseAsync(request.ExerciseId, cancellationToken))?.ToPublicDto()
+        ?? throw new SpeakingNotFoundException("Không tìm thấy bài tập Speaking.");
+}
+
 public sealed class StartSpeakingAttemptCommandHandler(ISpeakingAttemptRepository repository,
     TimeProvider timeProvider) : IRequestHandler<StartSpeakingAttemptCommand, SpeakingAttemptDto>
 {
     public async Task<SpeakingAttemptDto> Handle(StartSpeakingAttemptCommand request,
         CancellationToken cancellationToken)
     {
-        var loaded = await repository.FindPublishedTestAsync(request.Input.TestId, cancellationToken)
+        if (request.Input.ExerciseId is { } exerciseId)
+            return await StartExercisePracticeAsync(request.Owner, exerciseId, cancellationToken);
+        var loaded = await repository.FindPublishedTestAsync(request.Input.TestId!.Value, cancellationToken)
             ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
         SpeakingCodes.TryParseMode(request.Input.Mode, out var mode);
         var part = mode.Part();
@@ -127,10 +170,24 @@ public sealed class StartSpeakingAttemptCommandHandler(ISpeakingAttemptRepositor
         await repository.SaveChangesAsync(cancellationToken);
         return attempt.ToDto(new SpeakingTestHeader(loaded.Test.Code, loaded.Test.Title), now);
     }
+
+    private async Task<SpeakingAttemptDto> StartExercisePracticeAsync(SpeakingAttemptOwner owner, Guid exerciseId,
+        CancellationToken cancellationToken)
+    {
+        var exercise = await repository.FindPublishedExerciseAsync(exerciseId, cancellationToken)
+            ?? throw new SpeakingNotFoundException("Không tìm thấy bài tập Speaking.");
+        var attemptId = Guid.NewGuid();
+        var now = timeProvider.GetUtcNow();
+        var attempt = SpeakingAttempt.CreateForExercise(attemptId, exercise.Id, exercise.Part, owner.UserId,
+            owner.AnonymousSessionHash, SpeakingAttemptMapping.BuildQuestions(attemptId, exercise), now);
+        repository.AddAttempt(attempt);
+        await repository.SaveChangesAsync(cancellationToken);
+        return attempt.ToDto(exercise.ToHeader(), now);
+    }
 }
 
-public sealed class GetSpeakingAttemptsQueryHandler(ISpeakingAttemptRepository repository)
-    : IRequestHandler<GetSpeakingAttemptsQuery, SpeakingPageDto<SpeakingAttemptSummaryDto>>
+public sealed class GetSpeakingAttemptsQueryHandler(ISpeakingAttemptRepository repository,
+    ISpeakingEvaluationRepository evaluations) : IRequestHandler<GetSpeakingAttemptsQuery, SpeakingPageDto<SpeakingAttemptSummaryDto>>
 {
     public const int MaxItems = 100;
 
@@ -138,16 +195,17 @@ public sealed class GetSpeakingAttemptsQueryHandler(ISpeakingAttemptRepository r
         CancellationToken cancellationToken)
     {
         var attempts = await repository.GetAttemptsAsync(request.Owner, MaxItems, cancellationToken);
-        var headers = await repository.GetTestHeadersAsync(attempts.Select(attempt => attempt.TestId).Distinct()
-            .ToArray(), cancellationToken);
-        var items = attempts.Select(attempt => attempt.ToSummaryDto(headers.GetValueOrDefault(attempt.TestId)
-            ?? new SpeakingTestHeader(string.Empty, string.Empty))).ToArray();
+        var headers = await SpeakingAttemptAccess.HeadersAsync(repository, attempts, cancellationToken);
+        var evaluated = await evaluations.GetByAttemptIdsAsync(attempts.Select(attempt => attempt.Id).ToArray(),
+            cancellationToken);
+        var items = attempts.Select(attempt => attempt.ToSummaryDto(headers[attempt.Id],
+            evaluated.GetValueOrDefault(attempt.Id))).ToArray();
         return new SpeakingPageDto<SpeakingAttemptSummaryDto>(items, 1, MaxItems, items.Length);
     }
 }
 
-public sealed class GetSpeakingAttemptQueryHandler(ISpeakingAttemptRepository repository, TimeProvider timeProvider)
-    : IRequestHandler<GetSpeakingAttemptQuery, SpeakingAttemptDto>
+public sealed class GetSpeakingAttemptQueryHandler(ISpeakingAttemptRepository repository,
+    ISpeakingEvaluationRepository evaluations, TimeProvider timeProvider) : IRequestHandler<GetSpeakingAttemptQuery, SpeakingAttemptDto>
 {
     public async Task<SpeakingAttemptDto> Handle(GetSpeakingAttemptQuery request, CancellationToken cancellationToken)
     {
@@ -170,7 +228,8 @@ public sealed class GetSpeakingAttemptQueryHandler(ISpeakingAttemptRepository re
                 attempt.AdvanceExpired(now);
             }
         }
-        return await SpeakingAttemptAccess.ToDtoAsync(repository, attempt, now, cancellationToken);
+        return await SpeakingAttemptAccess.ToDtoAsync(repository, attempt, now, cancellationToken,
+            await evaluations.GetByAttemptIdAsync(attempt.Id, cancellationToken));
     }
 }
 
@@ -340,10 +399,26 @@ internal static class SpeakingAttemptAccess
     }
 
     public static async Task<SpeakingAttemptDto> ToDtoAsync(ISpeakingAttemptRepository repository,
-        SpeakingAttempt attempt, DateTimeOffset now, CancellationToken cancellationToken)
+        SpeakingAttempt attempt, DateTimeOffset now, CancellationToken cancellationToken,
+        SpeakingEvaluation? evaluation = null)
     {
-        var headers = await repository.GetTestHeadersAsync([attempt.TestId], cancellationToken);
-        return attempt.ToDto(headers.GetValueOrDefault(attempt.TestId)
-            ?? new SpeakingTestHeader(string.Empty, string.Empty), now);
+        var headers = await HeadersAsync(repository, [attempt], cancellationToken);
+        return attempt.ToDto(headers[attempt.Id], now, evaluation);
+    }
+
+    /// <summary>Display header per attempt id: its test, or the exercise it practises.</summary>
+    public static async Task<IReadOnlyDictionary<Guid, SpeakingTestHeader>> HeadersAsync(
+        ISpeakingAttemptRepository repository, IReadOnlyCollection<SpeakingAttempt> attempts,
+        CancellationToken cancellationToken)
+    {
+        var tests = await repository.GetTestHeadersAsync(attempts.Where(attempt => attempt.TestId is not null)
+            .Select(attempt => attempt.TestId!.Value).Distinct().ToArray(), cancellationToken);
+        var exercises = await repository.GetExerciseHeadersAsync(attempts
+            .Where(attempt => attempt.ExerciseId is not null).Select(attempt => attempt.ExerciseId!.Value).Distinct()
+            .ToArray(), cancellationToken);
+        var missing = new SpeakingTestHeader(string.Empty, string.Empty);
+        return attempts.ToDictionary(attempt => attempt.Id, attempt =>
+            (attempt.TestId is { } testId ? tests.GetValueOrDefault(testId) : null) ??
+            (attempt.ExerciseId is { } exerciseId ? exercises.GetValueOrDefault(exerciseId) : null) ?? missing);
     }
 }

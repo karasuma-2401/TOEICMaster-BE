@@ -14,7 +14,10 @@ public sealed class SpeakingAttemptApplicationTests
     private static readonly SpeakingAttemptOwner Guest =
         SpeakingAttemptOwner.ForAnonymousSession("6f9619ff-8b86-d011-b42d-00c04fc964ff");
     private readonly InMemorySpeaking _store = new();
+    private readonly InMemorySpeakingEvaluations _evaluations;
     private readonly MutableTimeProvider _clock = new(new DateTimeOffset(2026, 10, 23, 10, 0, 0, TimeSpan.Zero));
+
+    public SpeakingAttemptApplicationTests() => _evaluations = new InMemorySpeakingEvaluations(_store);
 
     [Fact]
     public async Task Published_tests_expose_standard_part_durations_without_review_material()
@@ -132,13 +135,13 @@ public sealed class SpeakingAttemptApplicationTests
             new StartSpeakingAttemptCommand(Guest, new StartSpeakingAttemptInput(test.Id, "PART_1")),
             CancellationToken.None);
 
-        await Assert.ThrowsAsync<SpeakingNotFoundException>(() => new GetSpeakingAttemptQueryHandler(_store, _clock)
+        await Assert.ThrowsAsync<SpeakingNotFoundException>(() => new GetSpeakingAttemptQueryHandler(_store, _evaluations, _clock)
             .Handle(new GetSpeakingAttemptQuery(SpeakingAttemptOwner.ForUser(Guid.NewGuid()), attempt.Id),
                 CancellationToken.None));
-        await Assert.ThrowsAsync<SpeakingNotFoundException>(() => new GetSpeakingAttemptQueryHandler(_store, _clock)
+        await Assert.ThrowsAsync<SpeakingNotFoundException>(() => new GetSpeakingAttemptQueryHandler(_store, _evaluations, _clock)
             .Handle(new GetSpeakingAttemptQuery(SpeakingAttemptOwner.ForAnonymousSession(Guid.NewGuid().ToString()),
                 guestAttempt.Id), CancellationToken.None));
-        var history = await new GetSpeakingAttemptsQueryHandler(_store).Handle(new GetSpeakingAttemptsQuery(Guest),
+        var history = await new GetSpeakingAttemptsQueryHandler(_store, _evaluations).Handle(new GetSpeakingAttemptsQuery(Guest),
             CancellationToken.None);
         Assert.Equal([guestAttempt.Id], history.Items.Select(item => item.Id));
     }
@@ -228,7 +231,7 @@ public sealed class SpeakingAttemptApplicationTests
     }
 
     private Task<SpeakingAttemptDto> GetAsync(Guid attemptId) =>
-        new GetSpeakingAttemptQueryHandler(_store, _clock).Handle(new GetSpeakingAttemptQuery(Learner, attemptId),
+        new GetSpeakingAttemptQueryHandler(_store, _evaluations, _clock).Handle(new GetSpeakingAttemptQuery(Learner, attemptId),
             CancellationToken.None);
 
     private Task<SpeakingAttemptDto> NextAsync(Guid attemptId) =>

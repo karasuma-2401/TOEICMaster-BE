@@ -33,6 +33,7 @@ using TOEICMaster.Infrastructure.Persistence.Speaking;
 using TOEICMaster.Infrastructure.Persistence.Writing;
 using TOEICMaster.Infrastructure.Repositories;
 using TOEICMaster.Infrastructure.Security;
+using TOEICMaster.Infrastructure.Speaking.Evaluations;
 using TOEICMaster.Infrastructure.Storage;
 using TOEICMaster.Infrastructure.Writing.Evaluations;
 
@@ -63,6 +64,7 @@ public static class DependencyInjection
         services.AddScoped<ISpeakingAttemptRepository, EfSpeakingAttemptRepository>();
         services.AddScoped<ISpeakingMediaStore, MinioSpeakingMediaStore>();
         services.AddHostedService<SpeakingRecordingRetentionWorker>();
+        services.AddSpeakingEvaluation(configuration);
         services.AddOptions<GeminiOptions>().Bind(configuration.GetSection(GeminiOptions.SectionName))
             .ValidateDataAnnotations()
             .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.ApiKey),

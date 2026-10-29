@@ -13,6 +13,7 @@ using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.Speaking;
 using TOEICMaster.Application.Speaking.Admin;
 using TOEICMaster.Application.Speaking.Attempts;
+using TOEICMaster.Application.Speaking.Evaluations;
 using TOEICMaster.Application.System.Queries.GetSystemStatus;
 using TOEICMaster.Application.Writing.Admin;
 using TOEICMaster.Application.Writing.Attempts;
@@ -42,6 +43,8 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<ISpeakingAdminRepository>(speaking);
         services.AddSingleton<ISpeakingAttemptRepository>(speaking);
         services.AddSingleton<ISpeakingMediaStore>(speaking);
+        services.AddSingleton<ISpeakingEvaluationRepository>(new InMemorySpeakingEvaluations(speaking));
+        services.AddSingleton<ISpeakingEvaluationSettings, StaticSpeakingEvaluationSettings>();
         services.AddSingleton<IExamRepository, EmptyExamRepository>();
         services.AddSingleton<IExamMediaStore, EmptyExamMediaStore>();
         services.AddSingleton<ILrExerciseBankRepository, EmptyLrExerciseBankRepository>();

@@ -43,13 +43,18 @@ public sealed class EfSpeakingAttemptRepository(ToeicDbContext context) : ISpeak
     public async Task<SpeakingMediaAsset?> FindPublishedImageAsync(Guid assetId, CancellationToken cancellationToken)
     {
         var assetText = assetId.ToString();
-        // The frozen snapshot decides which picture a published test shows, even if the exercise changed later.
+        // The frozen snapshot decides which picture a published test shows, even if the exercise changed later;
+        // Part practice shows the picture of a published exercise.
         var published = await context.Database.SqlQuery<bool>($"""
             SELECT EXISTS (
                 SELECT 1
                 FROM speaking_test_exercises AS slot
                 JOIN speaking_tests AS test ON test.id = slot.test_id
                 WHERE test.status = 'PUBLISHED' AND slot.snapshot_json ->> 'imageAssetId' = {assetText}
+            ) OR EXISTS (
+                SELECT 1
+                FROM speaking_exercises AS exercise
+                WHERE exercise.status = 'PUBLISHED' AND exercise.image_asset_id = {assetId}
             ) AS "Value"
             """).SingleAsync(cancellationToken);
         return published
@@ -80,6 +85,31 @@ public sealed class EfSpeakingAttemptRepository(ToeicDbContext context) : ISpeak
             : await context.SpeakingTests.AsNoTracking().Where(test => testIds.Contains(test.Id))
                 .ToDictionaryAsync(test => test.Id, test => new SpeakingTestHeader(test.Code, test.Title),
                     cancellationToken);
+
+    public async Task<SpeakingPageDto<SpeakingExercise>> GetPublishedExercisePageAsync(int? part, int pageNumber,
+        int pageSize, CancellationToken cancellationToken)
+    {
+        var exercises = context.SpeakingExercises.AsNoTracking()
+            .Where(exercise => exercise.Status == SpeakingExerciseStatus.Published);
+        if (part is { } value)
+            exercises = exercises.Where(exercise => exercise.Part == value);
+        var totalCount = await exercises.CountAsync(cancellationToken);
+        var items = await exercises.OrderBy(exercise => exercise.Part).ThenByDescending(exercise => exercise.UpdatedAtUtc)
+            .ThenBy(exercise => exercise.Id).Skip(checked((pageNumber - 1) * pageSize)).Take(pageSize)
+            .ToListAsync(cancellationToken);
+        return new SpeakingPageDto<SpeakingExercise>(items, pageNumber, pageSize, totalCount);
+    }
+
+    public Task<SpeakingExercise?> FindPublishedExerciseAsync(Guid exerciseId, CancellationToken cancellationToken) =>
+        context.SpeakingExercises.AsNoTracking().SingleOrDefaultAsync(exercise =>
+            exercise.Id == exerciseId && exercise.Status == SpeakingExerciseStatus.Published, cancellationToken);
+
+    public async Task<IReadOnlyDictionary<Guid, SpeakingTestHeader>> GetExerciseHeadersAsync(
+        IReadOnlyCollection<Guid> exerciseIds, CancellationToken cancellationToken) =>
+        exerciseIds.Count == 0
+            ? new Dictionary<Guid, SpeakingTestHeader>()
+            : (await context.SpeakingExercises.AsNoTracking().Where(exercise => exerciseIds.Contains(exercise.Id))
+                .ToListAsync(cancellationToken)).ToDictionary(exercise => exercise.Id, exercise => exercise.ToHeader());
 
     public void AddAttempt(SpeakingAttempt attempt) => context.SpeakingAttempts.Add(attempt);
 

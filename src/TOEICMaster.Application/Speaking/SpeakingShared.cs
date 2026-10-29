@@ -123,6 +123,24 @@ public static class SpeakingCodes
         _ => throw new ArgumentOutOfRangeException(nameof(value))
     };
 
+    public static string ToCode(this SpeakingEvaluationStatus value) => value switch
+    {
+        SpeakingEvaluationStatus.Queued => "QUEUED",
+        SpeakingEvaluationStatus.Processing => "PROCESSING",
+        SpeakingEvaluationStatus.Retrying => "RETRYING",
+        SpeakingEvaluationStatus.Completed => "COMPLETED",
+        SpeakingEvaluationStatus.Failed => "FAILED",
+        _ => throw new ArgumentOutOfRangeException(nameof(value))
+    };
+
+    public static string ToCode(this SpeakingRecognitionStatus value) => value switch
+    {
+        SpeakingRecognitionStatus.Recognized => "RECOGNIZED",
+        SpeakingRecognitionStatus.NoSpeech => "NO_SPEECH",
+        SpeakingRecognitionStatus.NoRecording => "NO_RECORDING",
+        _ => throw new ArgumentOutOfRangeException(nameof(value))
+    };
+
     public static bool TryParseDifficulty(string? value, out SpeakingDifficulty result) =>
         TryParse(value, out result, SpeakingDifficulty.Easy, SpeakingDifficulty.Medium, SpeakingDifficulty.Hard);
 
@@ -166,6 +184,8 @@ public static class SpeakingCodes
         SpeakingAttemptMode mode => mode.ToCode(),
         SpeakingAttemptStatus status => status.ToCode(),
         SpeakingPhase phase => phase.ToCode(),
+        SpeakingEvaluationStatus status => status.ToCode(),
+        SpeakingRecognitionStatus status => status.ToCode(),
         _ => throw new ArgumentOutOfRangeException(nameof(value))
     };
 }

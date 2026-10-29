@@ -38,11 +38,12 @@ public sealed class SpeakingAttempt
     {
     }
 
-    private SpeakingAttempt(Guid id, Guid testId, SpeakingAttemptMode mode, Guid? ownerUserId,
+    private SpeakingAttempt(Guid id, Guid? testId, Guid? exerciseId, SpeakingAttemptMode mode, Guid? ownerUserId,
         string? anonymousSessionHash, DateTimeOffset now)
     {
         Id = id;
         TestId = testId;
+        ExerciseId = exerciseId;
         Mode = mode;
         OwnerUserId = ownerUserId;
         AnonymousSessionHash = anonymousSessionHash;
@@ -53,7 +54,10 @@ public sealed class SpeakingAttempt
     }
 
     public Guid Id { get; private set; }
-    public Guid TestId { get; private set; }
+    /// <summary>The published test this attempt was started from; null for single-exercise Part practice.</summary>
+    public Guid? TestId { get; private set; }
+    /// <summary>The published exercise practised on its own; null for test attempts.</summary>
+    public Guid? ExerciseId { get; private set; }
     public SpeakingAttemptMode Mode { get; private set; }
     public SpeakingAttemptStatus Status { get; private set; }
     public Guid? OwnerUserId { get; private set; }
@@ -70,14 +74,31 @@ public sealed class SpeakingAttempt
     public IReadOnlyList<SpeakingAttemptQuestion> Questions => _questions.OrderBy(question => question.Position).ToArray();
 
     public static SpeakingAttempt Create(Guid id, Guid testId, SpeakingAttemptMode mode, Guid? ownerUserId,
+        string? anonymousSessionHash, IReadOnlyList<SpeakingAttemptQuestion> questions, DateTimeOffset now) =>
+        Create(id, testId, null, mode, ownerUserId, anonymousSessionHash, questions, now);
+
+    /// <summary>Practises one published exercise; the mode is the exercise's Part.</summary>
+    public static SpeakingAttempt CreateForExercise(Guid id, Guid exerciseId, int part, Guid? ownerUserId,
         string? anonymousSessionHash, IReadOnlyList<SpeakingAttemptQuestion> questions, DateTimeOffset now)
     {
+        if (part is < 1 or > 5)
+            throw new ArgumentOutOfRangeException(nameof(part));
+        return Create(id, null, exerciseId, (SpeakingAttemptMode)(part + 1), ownerUserId, anonymousSessionHash,
+            questions, now);
+    }
+
+    private static SpeakingAttempt Create(Guid id, Guid? testId, Guid? exerciseId, SpeakingAttemptMode mode,
+        Guid? ownerUserId, string? anonymousSessionHash, IReadOnlyList<SpeakingAttemptQuestion> questions,
+        DateTimeOffset now)
+    {
+        if (testId is null == exerciseId is null)
+            throw new InvalidOperationException("A Speaking attempt comes from exactly one test or exercise.");
         if (ownerUserId is null == string.IsNullOrWhiteSpace(anonymousSessionHash))
             throw new InvalidOperationException("A Speaking attempt must have exactly one owner.");
         if (questions.Count == 0)
             throw new InvalidOperationException("A Speaking attempt must contain questions.");
 
-        var attempt = new SpeakingAttempt(id, testId, mode, ownerUserId, anonymousSessionHash, now);
+        var attempt = new SpeakingAttempt(id, testId, exerciseId, mode, ownerUserId, anonymousSessionHash, now);
         attempt._questions.AddRange(questions.OrderBy(question => question.Position));
         if (!attempt._questions.Select(question => question.Position)
                 .SequenceEqual(Enumerable.Range(1, attempt._questions.Count)))
