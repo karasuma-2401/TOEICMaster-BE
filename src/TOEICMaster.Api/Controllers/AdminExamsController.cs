@@ -21,8 +21,20 @@ namespace TOEICMaster.Api.Controllers;
 [ApiController]
 [Route("api/v1/admin/exams")]
 [Authorize(Policy = "AccountAdministration")]
-public sealed class AdminExamsController(ISender sender) : ControllerBase
+public sealed class AdminExamsController(ISender sender, IWebHostEnvironment environment) : ControllerBase
 {
+    [HttpGet("import-template")]
+    [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
+    public IActionResult DownloadImportTemplate()
+    {
+        const string filename = "toeic-lr-complete-exam-import-template.xlsx";
+        var path = Path.Combine(environment.ContentRootPath, "Resources", "ExamTemplates", filename);
+        if (!System.IO.File.Exists(path))
+            return NotFound();
+        return PhysicalFile(path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename,
+            enableRangeProcessing: false);
+    }
+
     [HttpGet]
     [ProducesResponseType<ExamPageDto>(StatusCodes.Status200OK)]
     public async Task<ActionResult<ExamPageDto>> GetExams([FromQuery] ExamRevisionStatus? status,

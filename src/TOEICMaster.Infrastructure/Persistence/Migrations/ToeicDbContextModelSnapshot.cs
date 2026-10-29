@@ -299,6 +299,137 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.ToTable("external_identities", (string)null);
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.LrExerciseBankItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AudioUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Context")
+                        .HasMaxLength(12000)
+                        .HasColumnType("character varying(12000)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<short>("Difficulty")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<short>("Kind")
+                        .HasColumnType("smallint");
+
+                    b.Property<short>("Part")
+                        .HasColumnType("smallint");
+
+                    b.Property<short>("Status")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("Topic")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("Part", "Status", "UpdatedAtUtc");
+
+                    b.ToTable("lr_exercise_bank_items", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.LrExerciseBankQuestion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("CorrectKey")
+                        .IsRequired()
+                        .HasMaxLength(1)
+                        .HasColumnType("character varying(1)");
+
+                    b.Property<string>("Explanation")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OptionA")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("OptionB")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("OptionC")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("OptionD")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Prompt")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("Translation")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("ItemId", "Ordinal")
+                        .IsUnique();
+
+                    b.ToTable("lr_exercise_bank_questions", (string)null);
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.PasswordResetChallenge", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -333,6 +464,48 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("password_reset_challenges", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ScoreConversion", b =>
+                {
+                    b.Property<Guid>("ScoreProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Skill")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int>("RawCorrectCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ScaledScore")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ScoreProfileId", "Skill", "RawCorrectCount");
+
+                    b.ToTable("score_conversions", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ScoreProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("score_profiles", (string)null);
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingAttempt", b =>
@@ -759,48 +932,6 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("TOEICMaster.Domain.Entities.ScoreConversion", b =>
-                {
-                    b.Property<Guid>("ScoreProfileId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Skill")
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<int>("RawCorrectCount")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ScaledScore")
-                        .HasColumnType("integer");
-
-                    b.HasKey("ScoreProfileId", "Skill", "RawCorrectCount");
-
-                    b.ToTable("score_conversions", (string)null);
-                });
-
-            modelBuilder.Entity("TOEICMaster.Domain.Entities.ScoreProfile", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("score_profiles", (string)null);
-                });
-
             modelBuilder.Entity("TOEICMaster.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -814,6 +945,9 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateOnly?>("DateOfBirth")
+                        .HasColumnType("date");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -823,9 +957,6 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(254)
                         .HasColumnType("character varying(254)");
-
-                    b.Property<DateOnly?>("DateOfBirth")
-                        .HasColumnType("date");
 
                     b.Property<DateTimeOffset?>("EmailVerifiedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -1449,11 +1580,29 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.LrExerciseBankQuestion", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.LrExerciseBankItem", null)
+                        .WithMany("Questions")
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.PasswordResetChallenge", b =>
                 {
                     b.HasOne("TOEICMaster.Domain.Entities.User", null)
                         .WithOne()
                         .HasForeignKey("TOEICMaster.Domain.Entities.PasswordResetChallenge", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ScoreConversion", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.ScoreProfile", null)
+                        .WithMany("Conversions")
+                        .HasForeignKey("ScoreProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1500,15 +1649,6 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.HasOne("TOEICMaster.Domain.Entities.SpeakingTest", null)
                         .WithMany()
                         .HasForeignKey("TestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("TOEICMaster.Domain.Entities.ScoreConversion", b =>
-                {
-                    b.HasOne("TOEICMaster.Domain.Entities.ScoreProfile", null)
-                        .WithMany("Conversions")
-                        .HasForeignKey("ScoreProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1577,6 +1717,33 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.Exam", b =>
+                {
+                    b.Navigation("Revisions");
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamBlock", b =>
+                {
+                    b.Navigation("ContextBlocks");
+
+                    b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamRevision", b =>
+                {
+                    b.Navigation("Blocks");
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.LrExerciseBankItem", b =>
+                {
+                    b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ScoreProfile", b =>
+                {
+                    b.Navigation("Conversions");
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingAttempt", b =>
                 {
                     b.Navigation("Questions");
@@ -1595,28 +1762,6 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingTest", b =>
                 {
                     b.Navigation("Questions");
-                });
-
-            modelBuilder.Entity("TOEICMaster.Domain.Entities.Exam", b =>
-                {
-                    b.Navigation("Revisions");
-                });
-
-            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamBlock", b =>
-                {
-                    b.Navigation("ContextBlocks");
-
-                    b.Navigation("Questions");
-                });
-
-            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamRevision", b =>
-                {
-                    b.Navigation("Blocks");
-                });
-
-            modelBuilder.Entity("TOEICMaster.Domain.Entities.ScoreProfile", b =>
-                {
-                    b.Navigation("Conversions");
                 });
 #pragma warning restore 612, 618
         }

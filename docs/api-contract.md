@@ -36,7 +36,9 @@ Trả `201` với Draft revision đã có đúng 200 slot. `GET /api/v1/admin/ex
 
 Workbook có bốn sheet bắt buộc: `Manifest`, `Blocks`, `ContextBlocks`, `Questions`. `Manifest` có `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, `ScoreProfileId`. Importer đối chiếu chính xác 103 block và 200 câu theo `BlockKey` + `QuestionNumber`; không dựa vào thứ tự dòng. Lỗi workbook trả `400 ValidationProblemDetails` với key `workbook`; lỗi Master Audio trả `400 ProblemDetails`. Cả hai trường hợp đều không tạo Draft. Lỗi ghi DB sau upload thực hiện cleanup object audio tốt nhất có thể.
 
-Template đi kèm nằm tại `outputs/admin-lr-exam-import-template/toeic-lr-exam-import-template.xlsx`. Thay toàn bộ placeholder nội dung, `ScoreProfileId` và `ImageAssetId` trước khi import; template cố ý không thể publish nguyên trạng.
+Thay toàn bộ placeholder nội dung, `ScoreProfileId` và `ImageAssetId` trước khi import; template cố ý không thể publish nguyên trạng.
+
+`GET /api/v1/admin/exams/import-template` tải mẫu XLSX 200 câu, 103 block với đủ Part 1–7. Mẫu được phân phối từ API sau khi admin đăng nhập. Thay `ScoreProfileId`, các `ImageAssetId` của Part 1 và nội dung demo, rồi đính kèm Master Audio khi gọi endpoint import.
 
 Các endpoint trong tài liệu này dùng prefix `/api/v1`. Frontend gọi backend qua Next.js route handler và cấu hình
 server-side `API_BASE_URL`; không đưa URL backend hoặc credential vào browser bundle.
