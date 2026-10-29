@@ -13,8 +13,8 @@ public partial class AddProfilePhoneAndTargetScore : Migration
         // This migration and 20261020154939 were created on divergent branches.
         // Preserve both histories by making their shared columns idempotent for PostgreSQL.
         migrationBuilder.Sql("""
-            ALTER TABLE \"users\" ADD COLUMN IF NOT EXISTS \"Phone\" character varying(13);
-            ALTER TABLE \"users\" ADD COLUMN IF NOT EXISTS \"TargetScore\" integer;
+            ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "Phone" character varying(13);
+            ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "TargetScore" integer;
             """);
     }
 

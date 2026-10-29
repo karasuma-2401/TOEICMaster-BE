@@ -49,4 +49,15 @@ public sealed class AccountsPersistenceTests
         Assert.DoesNotMatch("CREATE TABLE \"?user_roles\"?\\s", script);
         Assert.DoesNotContain("CREATE TABLE \"Accounts\"", script);
     }
+
+    [Fact]
+    public void Profile_migrations_generate_postgresql_identifiers_without_escape_characters()
+    {
+        using var context = CreateContext();
+        var script = context.GetService<IMigrator>().GenerateScript(
+            "20261017172845_AddProfileAvatar", "20261022184631_AddProfilePhoneAndTargetScore");
+
+        Assert.DoesNotContain("\\\"", script);
+        Assert.Contains("ALTER TABLE \"users\" ADD COLUMN IF NOT EXISTS \"Phone\"", script);
+    }
 }

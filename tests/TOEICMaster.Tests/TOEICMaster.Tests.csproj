@@ -23,4 +23,11 @@
     <ProjectReference Include="..\..\src\TOEICMaster.Api\TOEICMaster.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\src\TOEICMaster.Api\Resources\ExamTemplates\toeic-lr-complete-exam-import-template.xlsx">
+      <Link>Resources\ExamTemplates\toeic-lr-complete-exam-import-template.xlsx</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
