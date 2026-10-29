@@ -15,14 +15,22 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using TOEICMaster.Application.Speaking;
 using TOEICMaster.Application.Speaking.Admin;
 using TOEICMaster.Application.Speaking.Attempts;
+using TOEICMaster.Application.Speaking.Evaluations;
+using TOEICMaster.Domain.Entities;
 using TOEICMaster.Tests.Api.Common;
+using TOEICMaster.Tests.Application.Speaking;
 using TOEICMaster.Tests.TestDoubles;
 
 namespace TOEICMaster.Tests.Api.Speaking;
 
 public sealed class SpeakingApiFactory : ApiFactory
 {
+    public SpeakingApiFactory() => Evaluations = new InMemorySpeakingEvaluations(Store);
+
     public InMemorySpeaking Store { get; } = new();
+    public InMemorySpeakingEvaluations Evaluations { get; }
+    public FakeSpeechAssessor Speech { get; } = new();
+    public FakeLanguageEvaluator Language { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -32,6 +40,10 @@ public sealed class SpeakingApiFactory : ApiFactory
             services.AddSingleton<ISpeakingAdminRepository>(Store);
             services.AddSingleton<ISpeakingAttemptRepository>(Store);
             services.AddSingleton<ISpeakingMediaStore>(Store);
+            services.AddSingleton<ISpeakingEvaluationRepository>(Evaluations);
+            services.AddSingleton<ISpeakingEvaluationSettings, StaticSpeakingEvaluationSettings>();
+            services.AddSingleton<ISpeakingSpeechAssessor>(Speech);
+            services.AddSingleton<ISpeakingLanguageEvaluator>(Language);
             services.AddAuthentication(options =>
                 {
                     options.DefaultAuthenticateScheme = "SpeakingTest";
@@ -221,6 +233,95 @@ public sealed class SpeakingApiTests : IDisposable
         Assert.Equal("Model answer SP4-001.", done["reviewQuestions"]![0]!["modelAnswer"]!.GetValue<string>());
         using var history = await guest.GetAsync($"{Learner}/attempts");
         Assert.Equal(attemptId, (await JsonAsync(history))["items"]![0]!["id"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Ai_evaluation_is_queued_by_consent_and_processed_in_the_background()
+    {
+        using var guest = GuestClient();
+        var session = guest.DefaultRequestHeaders.GetValues("X-Speaking-Anonymous-Session").Single();
+        var attemptId = await SubmittedPartFiveAttemptAsync(SpeakingAttemptOwner.ForAnonymousSession(session));
+
+        using var availability = await guest.GetAsync($"{Learner}/evaluation-availability");
+        Assert.True((await JsonAsync(availability))["available"]!.GetValue<bool>());
+        using var refused = await guest.PostAsJsonAsync($"{Learner}/attempts/{attemptId}/evaluation-consent",
+            new { accepted = false });
+        Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
+        using var consented = await guest.PostAsJsonAsync($"{Learner}/attempts/{attemptId}/evaluation-consent",
+            new { accepted = true });
+        Assert.Equal(HttpStatusCode.OK, consented.StatusCode);
+        Assert.Equal("QUEUED", (await JsonAsync(consented))["evaluation"]!["status"]!.GetValue<string>());
+
+        JsonNode? evaluation = null;
+        for (var poll = 0; poll < 50 && evaluation?["status"]?.GetValue<string>() != "COMPLETED"; poll++)
+        {
+            await Task.Delay(200);
+            using var current = await guest.GetAsync($"{Learner}/attempts/{attemptId}");
+            evaluation = (await JsonAsync(current))["evaluation"];
+        }
+
+        Assert.Equal("COMPLETED", evaluation!["status"]!.GetValue<string>());
+        Assert.Equal(160, evaluation["estimatedScore"]!.GetValue<int>());
+        var item = evaluation["items"]![0]!;
+        Assert.Equal(("RECOGNIZED", "I would like to book a table.", 80d, 80, 4, 5),
+            (item["recognitionStatus"]!.GetValue<string>(), item["transcript"]!.GetValue<string>(),
+                item["pronunciationScore"]!.GetValue<double>(), item["grammarScore"]!.GetValue<int>(),
+                item["rawScore"]!.GetValue<int>(), item["maxRawScore"]!.GetValue<int>()));
+        Assert.Equal("table", item["wordIssues"]![0]!["word"]!.GetValue<string>());
+        using var history = await guest.GetAsync($"{Learner}/attempts");
+        var summary = (await JsonAsync(history))["items"]![0]!;
+        Assert.Equal(("COMPLETED", 160), (summary["evaluationStatus"]!.GetValue<string>(),
+            summary["estimatedScore"]!.GetValue<int>()));
+    }
+
+    [Fact]
+    public async Task Part_practice_lists_published_exercises_and_starts_from_one()
+    {
+        using var admin = AdminClient();
+        using var created = await admin.PostAsJsonAsync($"{Admin}/exercises", SpeakingSamples.Exercise(3, "SP3-API"));
+        var exerciseId = (await JsonAsync(created))["id"]!.GetValue<string>();
+        using var guest = GuestClient();
+
+        using var list = await guest.GetAsync($"{Learner}/exercises?part=3&pageNumber=1&pageSize=20");
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        var page = await JsonAsync(list);
+        var item = page["items"]![0]!;
+        Assert.Equal((exerciseId, "SP3-API", 3, "Công việc", "MEDIUM", 3, 69, 1),
+            (item["id"]!.GetValue<string>(), item["code"]!.GetValue<string>(), item["part"]!.GetValue<int>(),
+                item["topic"]!.GetValue<string>(), item["difficulty"]!.GetValue<string>(),
+                item["questionCount"]!.GetValue<int>(), item["durationSeconds"]!.GetValue<int>(),
+                page["totalCount"]!.GetValue<int>()));
+        Assert.Equal(HttpStatusCode.BadRequest, (await guest.GetAsync($"{Learner}/exercises?part=9")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await guest.GetAsync($"{Learner}/exercises/{exerciseId}")).StatusCode);
+
+        using var started = await guest.PostAsJsonAsync($"{Learner}/attempts", new { exerciseId });
+        Assert.Equal(HttpStatusCode.Created, started.StatusCode);
+        var attempt = await JsonAsync(started);
+        Assert.Null(attempt["testId"]);
+        Assert.Equal((exerciseId, "PART_3", "Luyện Part 3 · Công việc", 3), (attempt["exerciseId"]!.GetValue<string>(),
+            attempt["mode"]!.GetValue<string>(), attempt["testTitle"]!.GetValue<string>(),
+            attempt["questions"]!.AsArray().Count));
+    }
+
+    /// <summary>A Part 5 attempt submitted an hour ago with one recording, so its upload window is closed.</summary>
+    private async Task<Guid> SubmittedPartFiveAttemptAsync(SpeakingAttemptOwner owner)
+    {
+        var store = _factory.Store;
+        var startedAt = DateTimeOffset.UtcNow.AddHours(-1);
+        var test = await SpeakingAdministrationTests.CreatePublishedTestAsync(store, TimeProvider.System);
+        var attemptId = Guid.NewGuid();
+        var attempt = SpeakingAttempt.Create(attemptId, test.Id, SpeakingAttemptMode.Part5, owner.UserId,
+            owner.AnonymousSessionHash, SpeakingAttemptMapping.BuildQuestions(attemptId,
+                store.Slots.Where(slot => slot.TestId == test.Id && slot.Part == 5)), startedAt);
+        attempt.Next(startedAt.AddSeconds(1));
+        var recording = SpeakingMediaAsset.Create(SpeakingMediaKind.Recording, $"recordings/{attemptId:N}/1.webm",
+            "audio/webm", SpeakingSamples.WebmAudio.Length, new string('a', 64), owner.UserId, startedAt);
+        store.Assets.Add(recording);
+        store.Objects[(SpeakingMediaKind.Recording, recording.ObjectKey)] = SpeakingSamples.WebmAudio;
+        attempt.AttachRecording(1, recording.Id, 20, startedAt.AddSeconds(20));
+        attempt.Submit(startedAt.AddSeconds(30));
+        store.AddAttempt(attempt);
+        return attemptId;
     }
 
     private HttpClient AdminClient()

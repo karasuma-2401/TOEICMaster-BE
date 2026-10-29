@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using TOEICMaster.Api.Configuration;
 using TOEICMaster.Application.Speaking;
 using TOEICMaster.Application.Speaking.Attempts;
+using TOEICMaster.Application.Speaking.Evaluations;
 
 namespace TOEICMaster.Api.Controllers;
 
@@ -27,6 +28,21 @@ public sealed class SpeakingAttemptsController(ISender sender) : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<SpeakingPublicTestDto>> GetTest(Guid testId, CancellationToken cancellationToken) =>
         Ok(await sender.Send(new GetPublishedSpeakingTestQuery(testId), cancellationToken));
+
+    /// <summary>Published bank exercises for Part practice, optionally limited to one Part.</summary>
+    [HttpGet("exercises")]
+    [ProducesResponseType<SpeakingPageDto<SpeakingPublicExerciseDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<SpeakingPageDto<SpeakingPublicExerciseDto>>> GetExercises([FromQuery] int? part,
+        [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default) =>
+        Ok(await sender.Send(new GetPublishedSpeakingExercisesQuery(part, pageNumber, pageSize), cancellationToken));
+
+    [HttpGet("exercises/{exerciseId:guid}")]
+    [ProducesResponseType<SpeakingPublicExerciseDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<SpeakingPublicExerciseDto>> GetExercise(Guid exerciseId,
+        CancellationToken cancellationToken) =>
+        Ok(await sender.Send(new GetPublishedSpeakingExerciseQuery(exerciseId), cancellationToken));
 
     [HttpGet("media/{assetId:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -68,6 +84,23 @@ public sealed class SpeakingAttemptsController(ISender sender) : ControllerBase
     [ProducesResponseType<SpeakingAttemptDto>(StatusCodes.Status200OK)]
     public async Task<ActionResult<SpeakingAttemptDto>> Submit(Guid attemptId, CancellationToken cancellationToken) =>
         Ok(await sender.Send(new SubmitSpeakingAttemptCommand(CurrentOwner(), attemptId), cancellationToken));
+
+    [HttpGet("evaluation-availability")]
+    [ProducesResponseType<SpeakingEvaluationAvailabilityDto>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<SpeakingEvaluationAvailabilityDto>> GetEvaluationAvailability(
+        CancellationToken cancellationToken) =>
+        Ok(await sender.Send(new GetSpeakingEvaluationAvailabilityQuery(), cancellationToken));
+
+    /// <summary>Consents to AI evaluation (Azure Speech + language model) and queues it; poll the attempt for the result.</summary>
+    [HttpPost("attempts/{attemptId:guid}/evaluation-consent")]
+    [ProducesResponseType<SpeakingAttemptDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<SpeakingAttemptDto>> GrantEvaluationConsent(Guid attemptId,
+        GrantSpeakingEvaluationConsentInput input, CancellationToken cancellationToken) =>
+        Ok(await sender.Send(new GrantSpeakingEvaluationConsentCommand(CurrentOwner(), attemptId, input),
+            cancellationToken));
 
     [HttpPut("attempts/{attemptId:guid}/recordings/{position:int}")]
     [Consumes("multipart/form-data")]

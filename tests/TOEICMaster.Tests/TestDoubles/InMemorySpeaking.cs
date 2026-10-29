@@ -116,7 +116,9 @@ public sealed class InMemorySpeaking : ISpeakingAdminRepository, ISpeakingAttemp
     {
         var published = Slots.Any(slot => slot.SnapshotJson?.Contains(assetId.ToString(), StringComparison.Ordinal)
                                           == true && Tests.Single(test => test.Id == slot.TestId).Status ==
-                                          SpeakingTestStatus.Published);
+                                          SpeakingTestStatus.Published) ||
+                        Exercises.Any(exercise => exercise.ImageAssetId == assetId &&
+                                                  exercise.Status == SpeakingExerciseStatus.Published);
         return Task.FromResult(published ? Assets.SingleOrDefault(asset => asset.Id == assetId) : null);
     }
 
@@ -133,6 +135,26 @@ public sealed class InMemorySpeaking : ISpeakingAdminRepository, ISpeakingAttemp
         IReadOnlyCollection<Guid> testIds, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyDictionary<Guid, SpeakingTestHeader>>(Tests.Where(test => testIds.Contains(test.Id))
             .ToDictionary(test => test.Id, test => new SpeakingTestHeader(test.Code, test.Title)));
+
+    public Task<SpeakingPageDto<SpeakingExercise>> GetPublishedExercisePageAsync(int? part, int pageNumber,
+        int pageSize, CancellationToken cancellationToken)
+    {
+        var published = Exercises.Where(exercise => exercise.Status == SpeakingExerciseStatus.Published &&
+                                                    (part is null || exercise.Part == part))
+            .OrderBy(exercise => exercise.Part).ThenByDescending(exercise => exercise.UpdatedAtUtc).ToArray();
+        return Task.FromResult(new SpeakingPageDto<SpeakingExercise>(published.Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize).ToArray(), pageNumber, pageSize, published.Length));
+    }
+
+    public Task<SpeakingExercise?> FindPublishedExerciseAsync(Guid exerciseId, CancellationToken cancellationToken) =>
+        Task.FromResult(Exercises.SingleOrDefault(exercise =>
+            exercise.Id == exerciseId && exercise.Status == SpeakingExerciseStatus.Published));
+
+    public Task<IReadOnlyDictionary<Guid, SpeakingTestHeader>> GetExerciseHeadersAsync(
+        IReadOnlyCollection<Guid> exerciseIds, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, SpeakingTestHeader>>(Exercises
+            .Where(exercise => exerciseIds.Contains(exercise.Id))
+            .ToDictionary(exercise => exercise.Id, exercise => exercise.ToHeader()));
 
     public void AddAttempt(SpeakingAttempt attempt) => Attempts.Add(attempt);
 

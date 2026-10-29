@@ -21,6 +21,8 @@ internal static class SpeakingColumns
         SpeakingAttemptMode mode => mode.ToCode(),
         SpeakingAttemptStatus status => status.ToCode(),
         SpeakingPhase phase => phase.ToCode(),
+        SpeakingEvaluationStatus status => status.ToCode(),
+        SpeakingRecognitionStatus status => status.ToCode(),
         _ => throw new ArgumentOutOfRangeException(nameof(value))
     };
 }
@@ -150,6 +152,7 @@ public sealed class SpeakingAttemptConfiguration : IEntityTypeConfiguration<Spea
         {
             table.HasCheckConstraint("ck_speaking_attempts_owner",
                 "(owner_user_id IS NOT NULL) <> (anonymous_session_hash IS NOT NULL)");
+            table.HasCheckConstraint("ck_speaking_attempts_source", "(test_id IS NOT NULL) <> (exercise_id IS NOT NULL)");
             table.HasCheckConstraint("ck_speaking_attempts_mode",
                 "mode IN ('FULL', 'PART_1', 'PART_2', 'PART_3', 'PART_4', 'PART_5')");
             table.HasCheckConstraint("ck_speaking_attempts_status", "status IN ('IN_PROGRESS', 'SUBMITTED')");
@@ -158,7 +161,8 @@ public sealed class SpeakingAttemptConfiguration : IEntityTypeConfiguration<Spea
         });
         builder.HasKey(attempt => attempt.Id);
         builder.Property(attempt => attempt.Id).HasColumnName("id");
-        builder.Property(attempt => attempt.TestId).HasColumnName("test_id").IsRequired();
+        builder.Property(attempt => attempt.TestId).HasColumnName("test_id");
+        builder.Property(attempt => attempt.ExerciseId).HasColumnName("exercise_id");
         builder.Property(attempt => attempt.Mode).HasColumnName("mode").HasMaxLength(8)
             .HasConversion(SpeakingColumns.Code<SpeakingAttemptMode>()).IsRequired();
         builder.Property(attempt => attempt.Status).HasColumnName("status").HasMaxLength(12)
@@ -183,7 +187,10 @@ public sealed class SpeakingAttemptConfiguration : IEntityTypeConfiguration<Spea
         builder.HasIndex(attempt => new { attempt.AnonymousSessionHash, attempt.CreatedAtUtc })
             .IsDescending(false, true).HasDatabaseName("ix_speaking_attempts_anonymous_session_hash_created_at_utc");
         builder.HasIndex(attempt => attempt.TestId);
+        builder.HasIndex(attempt => attempt.ExerciseId);
         builder.HasOne<SpeakingTest>().WithMany().HasForeignKey(attempt => attempt.TestId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<SpeakingExercise>().WithMany().HasForeignKey(attempt => attempt.ExerciseId)
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasMany(attempt => attempt.Questions).WithOne().HasForeignKey(question => question.AttemptId)
             .OnDelete(DeleteBehavior.Cascade);

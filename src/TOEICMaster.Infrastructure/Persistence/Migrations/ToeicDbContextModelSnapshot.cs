@@ -532,6 +532,10 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("current_position");
 
+                    b.Property<Guid?>("ExerciseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("exercise_id");
+
                     b.Property<string>("Mode")
                         .IsRequired()
                         .HasMaxLength(8)
@@ -560,7 +564,7 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("submitted_at_utc");
 
-                    b.Property<Guid>("TestId")
+                    b.Property<Guid?>("TestId")
                         .HasColumnType("uuid")
                         .HasColumnName("test_id");
 
@@ -574,6 +578,8 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasColumnName("version");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ExerciseId");
 
                     b.HasIndex("TestId");
 
@@ -592,6 +598,8 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_speaking_attempts_mode", "mode IN ('FULL', 'PART_1', 'PART_2', 'PART_3', 'PART_4', 'PART_5')");
 
                             t.HasCheckConstraint("ck_speaking_attempts_owner", "(owner_user_id IS NOT NULL) <> (anonymous_session_hash IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_speaking_attempts_source", "(test_id IS NOT NULL) <> (exercise_id IS NOT NULL)");
 
                             t.HasCheckConstraint("ck_speaking_attempts_status", "status IN ('IN_PROGRESS', 'SUBMITTED')");
                         });
@@ -666,6 +674,241 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_speaking_attempt_questions_part", "part BETWEEN 1 AND 5");
 
                             t.HasCheckConstraint("ck_speaking_attempt_questions_question_index", "question_index BETWEEN 0 AND 2");
+                        });
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingEvaluation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AttemptId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("attempt_id");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at_utc");
+
+                    b.Property<DateTimeOffset>("ConsentAcceptedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consent_accepted_at_utc");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<int?>("EstimatedScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("estimated_score");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("failure_code");
+
+                    b.Property<string>("FailureMessage")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("failure_message");
+
+                    b.Property<string>("ImprovementsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("improvements_json");
+
+                    b.Property<string>("LanguageModel")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("language_model");
+
+                    b.Property<string>("LanguageProvider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("language_provider");
+
+                    b.Property<DateTimeOffset?>("LeaseExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lease_expires_at_utc");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at_utc");
+
+                    b.Property<DateTimeOffset?>("QueuedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("queued_at_utc");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("retry_count");
+
+                    b.Property<string>("RubricVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("rubric_version");
+
+                    b.Property<string>("SpeechLocale")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("speech_locale");
+
+                    b.Property<string>("SpeechProvider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("speech_provider");
+
+                    b.Property<DateTimeOffset?>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("StrengthsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("strengths_json");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("summary");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttemptId")
+                        .IsUnique();
+
+                    b.HasIndex("LeaseExpiresAtUtc");
+
+                    b.HasIndex("Status", "NextAttemptAtUtc");
+
+                    b.ToTable("speaking_evaluations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_speaking_evaluations_estimated_score", "estimated_score IS NULL OR (estimated_score BETWEEN 0 AND 200 AND estimated_score % 10 = 0)");
+
+                            t.HasCheckConstraint("ck_speaking_evaluations_retry_count", "retry_count >= 0");
+
+                            t.HasCheckConstraint("ck_speaking_evaluations_status", "status IN ('QUEUED', 'PROCESSING', 'RETRYING', 'COMPLETED', 'FAILED')");
+                        });
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingEvaluationItem", b =>
+                {
+                    b.Property<Guid>("EvaluationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("evaluation_id");
+
+                    b.Property<short>("Position")
+                        .HasColumnType("smallint")
+                        .HasColumnName("position");
+
+                    b.Property<double>("AccuracyScore")
+                        .HasColumnType("double precision")
+                        .HasColumnName("accuracy_score");
+
+                    b.Property<double>("AudioSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("audio_seconds");
+
+                    b.Property<double?>("CompletenessScore")
+                        .HasColumnType("double precision")
+                        .HasColumnName("completeness_score");
+
+                    b.Property<string>("Feedback")
+                        .HasMaxLength(1500)
+                        .HasColumnType("character varying(1500)")
+                        .HasColumnName("feedback");
+
+                    b.Property<double>("FluencyScore")
+                        .HasColumnType("double precision")
+                        .HasColumnName("fluency_score");
+
+                    b.Property<short?>("GrammarScore")
+                        .HasColumnType("smallint")
+                        .HasColumnName("grammar_score");
+
+                    b.Property<short>("MaxRawScore")
+                        .HasColumnType("smallint")
+                        .HasColumnName("max_raw_score");
+
+                    b.Property<short>("Part")
+                        .HasColumnType("smallint")
+                        .HasColumnName("part");
+
+                    b.Property<double>("PronunciationScore")
+                        .HasColumnType("double precision")
+                        .HasColumnName("pronunciation_score");
+
+                    b.Property<double?>("ProsodyScore")
+                        .HasColumnType("double precision")
+                        .HasColumnName("prosody_score");
+
+                    b.Property<short?>("RawScore")
+                        .HasColumnType("smallint")
+                        .HasColumnName("raw_score");
+
+                    b.Property<string>("RecognitionStatus")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("recognition_status");
+
+                    b.Property<short?>("RelevanceScore")
+                        .HasColumnType("smallint")
+                        .HasColumnName("relevance_score");
+
+                    b.Property<string>("SuggestedResponse")
+                        .HasMaxLength(1500)
+                        .HasColumnType("character varying(1500)")
+                        .HasColumnName("suggested_response");
+
+                    b.Property<string>("Transcript")
+                        .IsRequired()
+                        .HasMaxLength(5000)
+                        .HasColumnType("character varying(5000)")
+                        .HasColumnName("transcript");
+
+                    b.Property<short?>("VocabularyScore")
+                        .HasColumnType("smallint")
+                        .HasColumnName("vocabulary_score");
+
+                    b.Property<string>("WordIssuesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("word_issues_json");
+
+                    b.HasKey("EvaluationId", "Position");
+
+                    b.ToTable("speaking_evaluation_items", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_speaking_evaluation_items_language_scores", "(grammar_score IS NULL OR grammar_score BETWEEN 0 AND 100) AND (vocabulary_score IS NULL OR vocabulary_score BETWEEN 0 AND 100) AND (relevance_score IS NULL OR relevance_score BETWEEN 0 AND 100)");
+
+                            t.HasCheckConstraint("ck_speaking_evaluation_items_max_raw_score", "max_raw_score IN (3, 5)");
+
+                            t.HasCheckConstraint("ck_speaking_evaluation_items_part", "part BETWEEN 1 AND 5");
+
+                            t.HasCheckConstraint("ck_speaking_evaluation_items_raw_score", "raw_score IS NULL OR raw_score BETWEEN 0 AND max_raw_score");
+
+                            t.HasCheckConstraint("ck_speaking_evaluation_items_recognition_status", "recognition_status IN ('RECOGNIZED', 'NO_SPEECH', 'NO_RECORDING')");
                         });
                 });
 
@@ -1609,11 +1852,15 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingAttempt", b =>
                 {
+                    b.HasOne("TOEICMaster.Domain.Entities.SpeakingExercise", null)
+                        .WithMany()
+                        .HasForeignKey("ExerciseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("TOEICMaster.Domain.Entities.SpeakingTest", null)
                         .WithMany()
                         .HasForeignKey("TestId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingAttemptQuestion", b =>
@@ -1628,6 +1875,24 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("RecordingAssetId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingEvaluation", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.SpeakingAttempt", null)
+                        .WithOne()
+                        .HasForeignKey("TOEICMaster.Domain.Entities.SpeakingEvaluation", "AttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingEvaluationItem", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.SpeakingEvaluation", null)
+                        .WithMany("Items")
+                        .HasForeignKey("EvaluationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingExercise", b =>
@@ -1747,6 +2012,11 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingAttempt", b =>
                 {
                     b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.SpeakingEvaluation", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.WritingAttempt", b =>
