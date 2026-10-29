@@ -8,6 +8,7 @@ using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Email.Commands.SendEmail;
 using TOEICMaster.Application.Exams;
+using TOEICMaster.Application.ExerciseBank;
 using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.Speaking;
 using TOEICMaster.Application.Speaking.Admin;
@@ -43,6 +44,8 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<ISpeakingMediaStore>(speaking);
         services.AddSingleton<IExamRepository, EmptyExamRepository>();
         services.AddSingleton<IExamMediaStore, EmptyExamMediaStore>();
+        services.AddSingleton<ILrExerciseBankRepository, EmptyLrExerciseBankRepository>();
+        services.AddSingleton<ILrExerciseBankImportParser, EmptyLrExerciseBankImportParser>();
         services.AddSingleton<RecordingMailSender>();
         services.AddSingleton<IMailSender>(provider => provider.GetRequiredService<RecordingMailSender>());
         services.AddSingleton<IUserRegistrationRepository, FakeUserRegistrationRepository>();
@@ -198,5 +201,28 @@ public sealed class MediatorPipelineTests
         public Task UploadAsync(string objectKey, byte[] content, string contentType,
             CancellationToken cancellationToken) => Task.CompletedTask;
         public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class EmptyLrExerciseBankRepository : ILrExerciseBankRepository
+    {
+        public Task<LrExerciseItemPageDto> GetPageAsync(LrExerciseItemFilter filter, CancellationToken cancellationToken) =>
+            Task.FromResult(new LrExerciseItemPageDto([], filter.PageNumber, filter.PageSize, 0));
+
+        public Task<LrExerciseBankSummaryDto> GetSummaryAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(new LrExerciseBankSummaryDto(0, null, []));
+
+        public Task<bool> ItemCodeExistsAsync(string code, CancellationToken cancellationToken) =>
+            Task.FromResult(false);
+
+        public Task AddItemsAsync(IReadOnlyCollection<LrExerciseBankItem> items, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+    }
+
+    private sealed class EmptyLrExerciseBankImportParser : ILrExerciseBankImportParser
+    {
+        public IReadOnlyList<LrExerciseItemInput> Parse(int part, string fileName, byte[] content) => [];
     }
 }
