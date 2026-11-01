@@ -1,7 +1,5 @@
 # TOEICMaster Backend
 
-Task CNPMCS-18: [API danh sách tài khoản có phân trang](docs/account-list-api.md), dùng model và authentication của `dev`. Endpoint yêu cầu quyền Admin; token đăng nhập hiện chưa có role nên trả `403` cho đến khi tích hợp module phân quyền.
-
 API của phần mềm hỗ trợ học và luyện thi TOEIC, tổ chức theo Clean Architecture và CQRS trong một ứng dụng.
 
 **Công nghệ:** ASP.NET Core .NET 10, EF Core 10, Neon PostgreSQL, Redis, MinIO và SMTP. MediatR 14.2.0, FluentValidation 12.1.1 và AutoMapper 16.2.0 được cấu hình sẵn.
@@ -170,12 +168,10 @@ tests/
 docs/                         Kiến trúc
 ```
 
-[Chi tiết kiến trúc](docs/architecture.md) và [API contract](docs/api-contract.md). API đăng ký, đăng nhập local/Google,
+[Chi tiết kiến trúc](docs/foundations/architecture.md) và [API contract](docs/contracts/api-contract.md). Bản đồ toàn bộ tài liệu được mô tả tại [docs/README.md](docs/README.md). API đăng ký, đăng nhập local/Google,
 refresh và logout đã có; nghiệp vụ TOEIC được bổ sung theo backlog.
 
-API quản trị ngân hàng và đề Writing (Part 1/2/3) được mô tả trong [Writing Administration API](docs/writing-admin-api.md).
-Luồng làm bài, chấm AI và checklist UAT Writing nằm tại [Writing Attempt API](docs/writing-attempt-api.md),
-[AI evaluation](docs/writing-ai-evaluation.md) và [Writing UAT runbook](docs/writing-uat-runbook.md).
+Phân hệ TOEIC Writing (Part 1/2/3), luồng làm bài và chấm điểm AI được đặc tả chi tiết tại [Module TOEIC Writing](docs/features/writing/spec.md) và [Writing UAT runbook](docs/runbooks/writing-uat-runbook.md).
 
 Các endpoint auth có rate limit theo IP: gửi email 5 request/phút, kiểm tra credential 10 request/phút và thao tác
 session 30 request/phút. Request vượt giới hạn nhận `429` kèm `Retry-After`; xem chi tiết trong API contract.

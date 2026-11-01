@@ -128,5 +128,5 @@ Việc liên kết tự động với user có sẵn chỉ được phép cho Gm
 kết đã xác thực phiên local để tránh takeover. Repository xử lý unique constraint của email và `(provider, subject)` để
 hai lần đăng nhập Google đầu tiên chạy đồng thời vẫn hội tụ về một user.
 
-[API danh sách tài khoản](account-list-api.md) gọi `GetAccountsQuery` qua MediatR và đọc `users` qua `IAccountReader`.
+[API danh sách tài khoản](api-contract.md#quản-trị-danh-sách-tài-khoản-account-administration) gọi `GetAccountsQuery` qua MediatR và đọc `users` qua `IAccountReader`.
 Projection trả `DisplayName`, `CreatedAtUtc` cùng thông tin cơ bản; không đọc password hash hoặc truy cập bảng role.

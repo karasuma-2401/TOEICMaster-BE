@@ -45,8 +45,76 @@ server-side `API_BASE_URL`; không đưa URL backend hoặc credential vào brow
 
 Contract hồ sơ người dùng dùng backend prefix `/api/v1/profile`; BFF ánh xạ nhóm này thành `/api/profile` cho browser.
 Các route `/api/v1/users/me` vẫn có sẵn để tương thích với client cũ.
-Chi tiết request, response, validation, avatar và các alias tương thích nằm trong
-[báo cáo API profile](profile-api-implementation-report.md#contract-cho-frontend).
+
+## Hồ sơ người dùng (User Profile)
+
+Browser gọi các Next.js BFF route `/api/profile`, `/api/profile/password` và `/api/profile/avatar`. BFF chuyển tiếp đến backend qua prefix `/api/v1/profile`. Các route backend dưới `/api/v1/users/me` vẫn được giữ làm alias tương thích. Tất cả endpoint backend dưới đây yêu cầu `Authorization: Bearer <accessToken>`. Backend lấy user ID từ claim `sub` đã xác thực; client không gửi user ID.
+
+| Endpoint | Input | Thành công | Lỗi chính |
+| :--- | :--- | :--- | :--- |
+| `GET /api/v1/profile` | Không có body | `200` JSON profile | `401` khi không có phiên hợp lệ |
+| `PATCH /api/v1/profile` | JSON `{ "displayName": "Tên mới" }` | `200` JSON profile sau cập nhật | `400` khi tên trống hoặc quá 100 ký tự |
+| `PUT /api/v1/profile` | JSON `{ "displayName": "Tên", "phone": "0912345678", "targetScore": 750 }` | `200` JSON profile sau cập nhật | `400` khi dữ liệu không hợp lệ |
+| `PUT /api/v1/profile/avatar` | `multipart/form-data`, field `file` | `200` JSON profile sau cập nhật (hoặc `204`) | `400` khi file không hợp lệ, `413` khi vượt 2 MiB |
+| `GET /api/v1/profile/avatar` | Không có body | `200` binary PNG/JPEG/WebP | `404` khi chưa có ảnh |
+| `PUT /api/v1/profile/password` | JSON `{ "currentPassword": "...", "newPassword": "..." }` | `204 No Content` | `400` khi mật khẩu cũ sai hoặc dữ liệu không hợp lệ |
+
+JSON profile:
+
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000001",
+  "displayName": "Nguyen Van A",
+  "email": "learner@example.com",
+  "avatarUrl": "/api/v1/profile/avatar",
+  "phone": "0912345678",
+  "dateOfBirth": "2001-06-15",
+  "targetScore": 750,
+  "hasPassword": true
+}
+```
+
+- `avatarUrl`, `phone`, `targetScore` là `null` nếu chưa có.
+- `avatarUrl` là đường dẫn tương đối cần Bearer token.
+- Ảnh đại diện giới hạn 2 MiB, định dạng `image/png`, `image/jpeg` hoặc `image/webp`.
+- Đổi mật khẩu yêu cầu 8–128 ký tự và thu hồi toàn bộ refresh session cũ.
+
+## Quản trị danh sách tài khoản (Account Administration)
+
+Endpoint dành cho Admin xem danh sách tài khoản phân trang, yêu cầu policy `AccountAdministration` (role `Admin`).
+
+```http
+GET /api/v1/accounts?pageNumber=1&pageSize=20
+Authorization: Bearer <access-token-with-Admin-role>
+Accept: application/json
+```
+
+| Query | Mặc định | Điều kiện |
+| :--- | :--- | :--- |
+| `pageNumber` | 1 | Số nguyên từ 1 |
+| `pageSize` | 20 | Số nguyên từ 1 đến 100 |
+
+Response `200 OK`:
+
+```json
+{
+  "items": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "email": "learner@example.com",
+      "displayName": "Nguyen Van A",
+      "isActive": true,
+      "createdAtUtc": "2026-10-01T00:00:00+00:00"
+    }
+  ],
+  "pageNumber": 1,
+  "pageSize": 20,
+  "totalCount": 1,
+  "totalPages": 1,
+  "hasNextPage": false,
+  "hasPreviousPage": false
+}
+```
 
 ## Giới hạn request xác thực
 
