@@ -6,11 +6,14 @@ using TOEICMaster.Api.ExceptionHandling;
 using TOEICMaster.Application;
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Infrastructure;
+using TOEICMaster.Infrastructure.Persistence;
+using TOEICMaster.Infrastructure.Persistence.Seeders;
 
 var runAdminSeed = args.Any(argument => argument.Equals("--seed-admin", StringComparison.OrdinalIgnoreCase));
 var configurationArgs = args.Where(argument => !argument.Equals("--seed-admin", StringComparison.OrdinalIgnoreCase))
     .ToArray();
 var builder = WebApplication.CreateBuilder(configurationArgs);
+builder.Services.AddExceptionHandler<ExamAttemptExceptionHandler>();
 var dotEnvPath = DotEnvConfiguration.FindFile(Directory.GetCurrentDirectory(), builder.Environment.ContentRootPath);
 if (dotEnvPath is not null)
 {
@@ -52,6 +55,12 @@ builder.Services.AddCors(options => options.AddPolicy("Frontend", policy =>
 }));
 
 var app = builder.Build();
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ToeicDbContext>();
+    await ExamDataSeeder.SeedSampleExamAsync(db);
+}
 app.Use((context, next) =>
 {
     context.Response.OnStarting(() =>
