@@ -29,6 +29,7 @@ public sealed class ExamRevisionConfiguration : IEntityTypeConfiguration<ExamRev
         builder.Property(revision => revision.VersionNumber).IsRequired();
         builder.Property(revision => revision.Status).HasConversion<string>().HasMaxLength(16).IsRequired();
         builder.Property(revision => revision.MasterAudioObjectKey).HasMaxLength(256);
+        builder.Property(revision => revision.UsesMediaWorkspace).HasDefaultValue(false).IsRequired();
         builder.Property(revision => revision.CreatedAtUtc).IsRequired();
         builder.HasIndex(revision => new { revision.ExamId, revision.VersionNumber }).IsUnique();
         builder.HasIndex(revision => new { revision.ExamId, revision.Status });
@@ -48,6 +49,8 @@ public sealed class ExamBlockConfiguration : IEntityTypeConfiguration<ExamBlock>
         builder.HasKey(block => block.Id);
         builder.Property(block => block.Key).HasMaxLength(32).IsRequired();
         builder.Property(block => block.Type).HasConversion<string>().HasMaxLength(16).IsRequired();
+        builder.HasOne<ExamMediaAsset>().WithMany().HasForeignKey(block => block.AudioAssetId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(block => new { block.RevisionId, block.Key }).IsUnique();
         builder.HasIndex(block => new { block.RevisionId, block.FirstQuestionNumber }).IsUnique();
         builder.HasMany(block => block.Questions).WithOne().HasForeignKey(question => question.BlockId)
@@ -74,6 +77,7 @@ public sealed class ExamQuestionConfiguration : IEntityTypeConfiguration<ExamQue
         builder.Property(question => question.CorrectKey).HasMaxLength(1);
         builder.Property(question => question.Translation).HasColumnType("text");
         builder.Property(question => question.Explanation).HasColumnType("text");
+        builder.Property(question => question.ImageRequired).HasDefaultValue(false).IsRequired();
         builder.HasIndex(question => new { question.BlockId, question.Number }).IsUnique();
         builder.HasOne<ExamMediaAsset>().WithMany().HasForeignKey(question => question.ImageAssetId)
             .OnDelete(DeleteBehavior.Restrict);
@@ -89,6 +93,7 @@ public sealed class ExamContextBlockConfiguration : IEntityTypeConfiguration<Exa
         builder.Property(context => context.Type).HasConversion<string>().HasMaxLength(16).IsRequired();
         builder.Property(context => context.Text).HasColumnType("text");
         builder.Property(context => context.AltText).HasMaxLength(500);
+        builder.Property(context => context.ImageRequired).HasDefaultValue(false).IsRequired();
         builder.HasIndex(context => new { context.BlockId, context.Ordinal }).IsUnique();
         builder.HasOne<ExamMediaAsset>().WithMany().HasForeignKey(context => context.ImageAssetId)
             .OnDelete(DeleteBehavior.Restrict);
@@ -103,7 +108,28 @@ public sealed class ExamMediaAssetConfiguration : IEntityTypeConfiguration<ExamM
         builder.HasKey(asset => asset.Id);
         builder.Property(asset => asset.ObjectKey).HasMaxLength(256).IsRequired();
         builder.Property(asset => asset.ContentType).HasMaxLength(64).IsRequired();
+        builder.Property(asset => asset.Kind).HasConversion<string>().HasMaxLength(16).IsRequired();
+        builder.Property(asset => asset.ByteSize).IsRequired();
         builder.Property(asset => asset.CreatedAtUtc).IsRequired();
         builder.HasIndex(asset => asset.ObjectKey).IsUnique();
+    }
+}
+
+public sealed class ExamMediaUploadIntentConfiguration : IEntityTypeConfiguration<ExamMediaUploadIntent>
+{
+    public void Configure(EntityTypeBuilder<ExamMediaUploadIntent> builder)
+    {
+        builder.ToTable("exam_media_upload_intents");
+        builder.HasKey(intent => intent.Id);
+        builder.Property(intent => intent.OwnerKind).HasConversion<string>().HasMaxLength(24).IsRequired();
+        builder.Property(intent => intent.OwnerKey).HasMaxLength(128).IsRequired();
+        builder.Property(intent => intent.ObjectKey).HasMaxLength(256).IsRequired();
+        builder.Property(intent => intent.ContentType).HasMaxLength(64).IsRequired();
+        builder.Property(intent => intent.Status).HasConversion<string>().HasMaxLength(16).IsRequired();
+        builder.Property(intent => intent.ExpectedByteSize).IsRequired();
+        builder.Property(intent => intent.ExpiresAtUtc).IsRequired();
+        builder.Property(intent => intent.CreatedAtUtc).IsRequired();
+        builder.HasIndex(intent => intent.ObjectKey).IsUnique();
+        builder.HasIndex(intent => new { intent.RevisionId, intent.Status, intent.ExpiresAtUtc });
     }
 }

@@ -18,23 +18,34 @@ Trả `201` với Draft revision đã có đúng 200 slot. `GET /api/v1/admin/ex
 
 | Endpoint | Nội dung |
 | --- | --- |
-| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/questions/{questionNumber}` | JSON nội dung câu hỏi và đáp án; Part 2 chỉ nhận A–C, các Part khác A–D. `imageAssetId` phải là asset đã upload. |
+| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/questions/{questionNumber}` | JSON nội dung câu hỏi và đáp án; Part 2 chỉ nhận A–C, các Part khác A–D. Có thêm `imageRequired`; khi `true`, Publish chỉ thành công sau khi ảnh được gắn. |
 | `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/score-profile` | JSON `{ "scoreProfileId": "<uuid>" }`; chọn lại barem cho Draft. |
-| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/blocks/{blockKey}/contexts` | JSON `{ "contexts": [...] }`, với `ordinal` liên tiếp từ 1. Một context là `Text` hoặc `Image`; context ảnh phải tham chiếu asset đã upload. |
+| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/blocks/{blockKey}/contexts` | JSON `{ "contexts": [...] }`, với `ordinal` liên tiếp từ 1. Context có `imageRequired`; ảnh bắt buộc phải được gắn trước Publish. |
 | `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/master-audio` | `multipart/form-data`, field `file`; `.mp3`/`.wav`, tối đa 100 MiB. |
 | `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/publish` | Publish nếu revision đầy đủ. |
 | `POST /api/v1/admin/exams/{examId}/revisions` | JSON `{ "sourceRevisionId": "<published-revision-uuid>" }`; fork published revision thành Draft mới. |
 
 `POST /api/v1/admin/exam-media/images` nhận `multipart/form-data`, field `file`, chỉ PNG/JPEG/WebP tối đa 5 MiB. API kiểm tra signature file và trả asset UUID; client dùng UUID đó trong `ImageAssetId`, không dùng tên file hoặc URL.
 
+### Media workspace cho đề mới
+
+Draft mới và import chỉ có `workbook` dùng media workspace riêng. `GET revision` trả `usesMediaWorkspace`, `audioAssetId` của block và `imageRequired` của question/context. Revision cũ giữ `usesMediaWorkspace=false`, tiếp tục dùng UI/API master-audio cũ và không được migration trong phạm vi này.
+
+1. `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents` nhận JSON `{ ownerKind, ownerKey, contentType, byteSize }`, trả `201` với `{ intentId, uploadUrl, expiresAtUtc, requiredHeaders }`. `ownerKind` là `AudioGroup`, `QuestionImage` hoặc `ContextImage`. Server chỉ cấp URL cho Draft workspace, key do server tạo, audio MP3/WAV tối đa 100 MiB và image PNG/JPEG/WebP tối đa 5 MiB.
+2. Browser `PUT` bytes trực tiếp tới `uploadUrl` với `requiredHeaders`; không gửi credential storage qua FE.
+3. `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents/{intentId}/complete` xác minh object tồn tại, MIME và kích thước, rồi gắn `ExamMediaAsset` vào owner; trả `201`. Intent hết hạn, đã hoàn tất hoặc Draft không còn hợp lệ trả `409`.
+
+Publish workspace yêu cầu audio cho mọi block Listening Part 1–4 và mọi ảnh có `imageRequired=true`. Intent chưa hoàn tất được dọn sau khi hết hạn; bucket private và URL ký sẵn không được lưu vào database.
+
 ### Import một đề L&R hoàn chỉnh
 
-`POST /api/v1/admin/exams/import` nhận `multipart/form-data` với hai field bắt buộc:
+`POST /api/v1/admin/exams/import` nhận `multipart/form-data` với field bắt buộc:
 
 - `workbook`: XLSX, tối đa 10 MiB.
-- `masterAudio`: `.mp3` hoặc `.wav`, tối đa 100 MiB.
 
-Workbook có bốn sheet bắt buộc: `Manifest`, `Blocks`, `ContextBlocks`, `Questions`. `Manifest` có `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, `ScoreProfileId`. Importer đối chiếu chính xác 103 block và 200 câu theo `BlockKey` + `QuestionNumber`; không dựa vào thứ tự dòng. Lỗi workbook trả `400 ValidationProblemDetails` với key `workbook`; lỗi Master Audio trả `400 ProblemDetails`. Cả hai trường hợp đều không tạo Draft. Lỗi ghi DB sau upload thực hiện cleanup object audio tốt nhất có thể.
+`masterAudio` vẫn được chấp nhận tùy chọn để giữ tương thích import legacy; import chỉ có `workbook` tạo Draft media workspace mới.
+
+Workbook có bốn sheet bắt buộc: `Manifest`, `Blocks`, `ContextBlocks`, `Questions`. `Manifest` có `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, `ScoreProfileId`. `ContextBlocks` và `Questions` hỗ trợ cột `ImageRequired` (true/false; cột cũ không có vẫn hợp lệ). Importer đối chiếu chính xác 103 block và 200 câu theo `BlockKey` + `QuestionNumber`; không dựa vào thứ tự dòng. Lỗi workbook trả `400 ValidationProblemDetails` với key `workbook`; lỗi Master Audio trả `400 ProblemDetails`. Cả hai trường hợp đều không tạo Draft. Lỗi ghi DB sau upload thực hiện cleanup object audio tốt nhất có thể.
 
 Thay toàn bộ placeholder nội dung, `ScoreProfileId` và `ImageAssetId` trước khi import; template cố ý không thể publish nguyên trạng.
 

@@ -5,7 +5,7 @@ using TOEICMaster.Application.Exams.Importing;
 
 namespace TOEICMaster.Application.Exams.Commands.ImportExam;
 
-public sealed record ImportExamCommand(byte[] WorkbookContent, byte[] MasterAudioContent, string MasterAudioContentType)
+public sealed record ImportExamCommand(byte[] WorkbookContent, byte[]? MasterAudioContent, string? MasterAudioContentType)
     : IRequest<ExamDraftDto>;
 
 public sealed class ImportExamCommandValidator : AbstractValidator<ImportExamCommand>
@@ -13,9 +13,12 @@ public sealed class ImportExamCommandValidator : AbstractValidator<ImportExamCom
     public ImportExamCommandValidator()
     {
         RuleFor(command => command.WorkbookContent).NotEmpty().Must(content => content.Length <= XlsxExamWorkbookReader.MaxBytes);
-        RuleFor(command => command.MasterAudioContent).NotEmpty()
-            .Must(content => content.Length <= UploadMasterAudio.UploadMasterAudioCommandHandler.MaxBytes);
-        RuleFor(command => command.MasterAudioContentType).NotEmpty().MaximumLength(64);
+        When(command => command.MasterAudioContent is not null, () =>
+        {
+            RuleFor(command => command.MasterAudioContent!).NotEmpty()
+                .Must(content => content.Length <= UploadMasterAudio.UploadMasterAudioCommandHandler.MaxBytes);
+            RuleFor(command => command.MasterAudioContentType).NotEmpty().MaximumLength(64);
+        });
     }
 }
 
@@ -33,10 +36,18 @@ public sealed class ImportExamCommandHandler(IExamRepository repository, IExamMe
                 cancellationToken))
             throw new ExamWorkbookFormatException(["Workbook tham chiếu ImageAssetId chưa tồn tại."]);
 
+        if (request.MasterAudioContent is null)
+        {
+            var mediaWorkspaceExam = ImportedExamDraftBuilder.Build(workbook, timeProvider.GetUtcNow());
+            await repository.AddExamAsync(mediaWorkspaceExam, cancellationToken);
+            await repository.SaveChangesAsync(cancellationToken);
+            return ExamDraftDto.From(mediaWorkspaceExam, mediaWorkspaceExam.Revisions.Single());
+        }
+
         var media = ExamMediaInspector.DetectMasterAudio(request.MasterAudioContent);
         if (request.MasterAudioContent.Length == 0 ||
             request.MasterAudioContent.Length > UploadMasterAudio.UploadMasterAudioCommandHandler.MaxBytes || media is null ||
-            !ExamMediaInspector.MatchesClaimedContentType(request.MasterAudioContentType, media.Value.ContentType))
+            !ExamMediaInspector.MatchesClaimedContentType(request.MasterAudioContentType!, media.Value.ContentType))
             throw new InvalidExamMediaException();
 
         var pendingAudioKey = $"exam-audio/pending/{Guid.NewGuid():N}.{media.Value.Extension}";

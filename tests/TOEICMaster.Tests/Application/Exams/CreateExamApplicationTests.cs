@@ -21,6 +21,7 @@ public sealed class CreateExamApplicationTests
         Assert.Equal(exam.Id, result.ExamId);
         Assert.Equal(revision.Id, result.RevisionId);
         Assert.Equal(ExamRevisionStatus.Draft, result.Status);
+        Assert.True(revision.UsesMediaWorkspace);
         Assert.Equal(200, result.QuestionCount);
         Assert.True(repository.Saved);
     }
