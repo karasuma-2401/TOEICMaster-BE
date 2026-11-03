@@ -340,3 +340,66 @@ Khi đăng nhập lần đầu:
 Nếu FE dùng popup/callback rồi gọi Next.js BFF thì BFF gửi JSON như trên. Nếu sau này chuyển sang redirect mode trực tiếp
 từ Google, endpoint callback phải bổ sung kiểm tra CSRF double-submit token theo hướng dẫn Google; không dùng endpoint JSON
 này làm callback redirect trực tiếp.
+
+---
+
+## Quản trị đề TOEIC Writing & Ngân hàng câu hỏi
+
+Nhóm endpoint `/api/v1/admin/writing/*` yêu cầu policy `AccountAdministration` (role `Admin`). Phạm vi này bao gồm:
+1. **Ngân hàng bài tập lẻ độc lập (`/exercises`):** Phục vụ cho học sinh luyện tập theo từng Part.
+2. **Quản trị Đề thi Writing (`/tests`):** Tạo đề thi mới hoàn toàn với 8 câu hỏi trực tiếp hoặc import đề thi trọn gói từ file Excel.
+3. **Media Assets (`/media/images`):** Tải lên hình ảnh cho Part 1.
+
+### 1. Quản lý Ảnh (Media Assets)
+
+`POST /api/v1/admin/writing/media/images` nhận `multipart/form-data`, field `file`: chỉ chấp nhận JPEG/PNG/WebP, tối đa 5 MiB. API kiểm tra magic bytes và trả asset UUID; client dùng UUID đó trong `ImageAssetId`.
+
+### 2. Ngân hàng bài tập lẻ (Exercise Bank - Độc lập)
+
+| Endpoint | Thao tác | Mô tả |
+| :--- | :--- | :--- |
+| `GET /api/v1/admin/writing/exercises` | Query phân trang | Query params: `part` (1-3), `query`, `difficulty` (EASY/MEDIUM/HARD), `status` (DRAFT/PUBLISHED/ARCHIVED), `pageNumber`, `pageSize`. |
+| `POST /api/v1/admin/writing/exercises` | Tạo bài tập lẻ | Body: `part`, `code`, `topic`, `difficulty`, `status`, `rubricNotes`, `modelAnswer` kèm các trường đặc thù của từng Part. |
+| `GET /api/v1/admin/writing/exercises/{id}` | Chi tiết | Lấy chi tiết bài tập lẻ. |
+| `PUT /api/v1/admin/writing/exercises/{id}` | Cập nhật | Body: `{ "version": 1, "exercise": { ... } }`. |
+| `DELETE /api/v1/admin/writing/exercises/{id}` | Lưu trữ | Query `?version=1`, chuyển trạng thái `ARCHIVED`. |
+| `POST /api/v1/admin/writing/exercises/imports/validate?part={1\|2\|3}` | Kiểm tra Excel | Nhận file `.xlsx`, kiểm tra tính hợp lệ và trả preview dòng hợp lệ/lỗi. |
+
+### 3. Quản trị Đề thi Writing (Writing Tests)
+
+Đề thi Writing được tạo độc lập hoàn toàn, không liên kết phụ thuộc cứng với ngân hàng bài tập lẻ. Mỗi đề thi gồm đúng 8 câu hỏi chuẩn ETS (Part 1: 5 câu ảnh/từ khóa, Part 2: 2 câu email, Part 3: 1 câu essay).
+
+| Endpoint | Thao tác | Mô tả |
+| :--- | :--- | :--- |
+| `GET /api/v1/admin/writing/tests` | Danh sách đề thi | Query params: `query`, `status` (DRAFT/PUBLISHED/ARCHIVED), `pageNumber`, `pageSize`. |
+| `POST /api/v1/admin/writing/tests` | Tạo đề thi trực tiếp | Body: `code`, `title`, `description`, `questions: [...]` (8 câu hỏi trực tiếp). Trả về `201 Created` với Draft test. |
+| `GET /api/v1/admin/writing/tests/{id}` | Chi tiết đề thi | Trả thông tin đề thi và đầy đủ 8 câu hỏi. |
+| `PUT /api/v1/admin/writing/tests/{id}` | Cập nhật Draft | Body: `{ "version": 1, "test": { ... } }`. Chỉ áp dụng khi đề ở trạng thái `DRAFT`. |
+| `POST /api/v1/admin/writing/tests/{id}/publish` | Xuất bản đề thi | Body: `{ "version": 1 }`. Đòi hỏi đúng 8 câu (5 P1, 2 P2, 1 P3), đầy đủ model answer. Sau khi xuất bản, đề trở thành bất biến (snapshot JSON). |
+| `GET /api/v1/admin/writing/tests/import-template` | Tải mẫu Excel | Tải về template `.xlsx` gồm 4 sheets: `Manifest`, `Part1`, `Part2`, `Part3`. |
+| `POST /api/v1/admin/writing/tests/imports/validate` | Kiểm tra Excel đề | Nhận file `.xlsx`, preview cấu trúc 8 câu và trả về danh sách lỗi/cảnh báo. |
+| `POST /api/v1/admin/writing/tests/import` | Import trọn gói đề thi | Nhận file `.xlsx`, tạo ngay đề thi `DRAFT` với đầy đủ 8 câu hỏi (All-or-Nothing transaction). |
+
+---
+
+## Thi thử & Luyện tập TOEIC Writing (Learner Flow & AI Evaluation)
+
+Các endpoint dưới đây dùng prefix `/api/v1/writing` hỗ trợ cả thành viên đã đăng nhập (`Authorization: Bearer <token>`) và khách vãng lai thông qua header `X-Writing-Anonymous-Session: <uuid>` (backend băm SHA-256 trước khi lưu).
+
+### 1. Danh sách đề & Lấy đề thi
+
+- `GET /api/v1/writing/tests?pageNumber=1&pageSize=20`: Trả danh sách các đề thi đã `PUBLISHED`.
+- `GET /api/v1/writing/tests/{id}`: Trả thông tin tổng quan của đề thi (mã đề, tên đề, mô tả, cấu trúc timing). Không trả câu hỏi hay đáp án trước khi tạo attempt.
+- `POST /api/v1/writing/tests/{id}/attempts`: Bắt đầu một lượt thi mới, trả về `attemptId` và khởi tạo phiên làm bài.
+- `GET /api/v1/writing/attempts/{attemptId}`: Lấy nội dung đề thi của phiên làm bài (8 câu hỏi). Tuyệt đối **không trả model answer** hay rubric.
+- `PUT /api/v1/writing/attempts/{attemptId}/answers/{sequenceNumber}`: Autosave câu trả lời của thí sinh (debounce 800ms).
+- `POST /api/v1/writing/attempts/{attemptId}/submit`: Nộp bài thi. Trạng thái evaluation ban đầu là `CONSENT_REQUIRED`.
+
+### 2. Quy trình Chấm điểm AI với Google Gemini
+
+- `POST /api/v1/writing/evaluations/{id}/consent`: Người dùng xác nhận đồng ý gửi bài cho Google Gemini chấm điểm. Chuyển trạng thái evaluation sang `QUEUED`.
+  - Giới hạn: Khách vãng lai tối đa 1 lượt chấm mới mỗi 24 giờ.
+- `GET /api/v1/writing/evaluations/{id}`: Polling kết quả chấm điểm (mỗi 5s).
+  - Trạng thái: `CONSENT_REQUIRED` -> `QUEUED` -> `PROCESSING` -> `COMPLETED` / `FAILED`.
+  - Khi `COMPLETED`: Trả về điểm ước tính tổng thể (0–200, thang điểm chuẩn ETS), điểm thô theo Part, nhận xét chi tiết cho từng câu, gợi ý sửa lỗi ngữ pháp/từ vựng và **Model Answer** chuẩn ETS.
+- `POST /api/v1/writing/evaluations/{id}/retry`: Thử lại lượt chấm bị lỗi (FAILED) mà không tính vào hạn mức quota mới.
