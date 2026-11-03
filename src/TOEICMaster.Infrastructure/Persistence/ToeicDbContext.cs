@@ -30,6 +30,7 @@ public sealed class ToeicDbContext(DbContextOptions<ToeicDbContext> options) : D
     public DbSet<ExamQuestion> ExamQuestions => Set<ExamQuestion>();
     public DbSet<ExamContextBlock> ExamContextBlocks => Set<ExamContextBlock>();
     public DbSet<ExamMediaAsset> ExamMediaAssets => Set<ExamMediaAsset>();
+    public DbSet<ExamMediaUploadIntent> ExamMediaUploadIntents => Set<ExamMediaUploadIntent>();
     public DbSet<ScoreProfile> ScoreProfiles => Set<ScoreProfile>();
     public DbSet<ScoreConversion> ScoreConversions => Set<ScoreConversion>();
     public DbSet<LrExerciseBankItem> LrExerciseBankItems => Set<LrExerciseBankItem>();

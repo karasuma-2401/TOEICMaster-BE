@@ -3,7 +3,9 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TOEICMaster.Application.Exams;
+using TOEICMaster.Application.Exams.Commands.CompleteMediaUploadIntent;
 using TOEICMaster.Application.Exams.Commands.CreateExam;
+using TOEICMaster.Application.Exams.Commands.CreateMediaUploadIntent;
 using TOEICMaster.Application.Exams.Commands.ForkExamRevision;
 using TOEICMaster.Application.Exams.Commands.ImportExam;
 using TOEICMaster.Application.Exams.Commands.PublishExamRevision;
@@ -68,20 +70,25 @@ public sealed class AdminExamsController(ISender sender, IWebHostEnvironment env
     [ProducesResponseType<ExamDraftResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ExamDraftResponse>> Import([FromForm] IFormFile workbook,
-        [FromForm] IFormFile masterAudio, CancellationToken cancellationToken)
+        [FromForm] IFormFile? masterAudio, CancellationToken cancellationToken)
     {
         if (workbook is null || workbook.Length == 0 || workbook.Length > XlsxExamWorkbookReader.MaxBytes)
             throw new ExamWorkbookFormatException(["Workbook phải là tệp XLSX không rỗng, tối đa 10 MiB."]);
-        if (masterAudio is null || masterAudio.Length == 0 ||
-            masterAudio.Length > UploadMasterAudioCommandHandler.MaxBytes)
+        if (masterAudio is not null && (masterAudio.Length == 0 ||
+            masterAudio.Length > UploadMasterAudioCommandHandler.MaxBytes))
             throw new InvalidExamMediaException();
 
         await using var workbookStream = new MemoryStream();
         await workbook.CopyToAsync(workbookStream, cancellationToken);
-        await using var audioStream = new MemoryStream();
-        await masterAudio.CopyToAsync(audioStream, cancellationToken);
-        var draft = await sender.Send(new ImportExamCommand(workbookStream.ToArray(), audioStream.ToArray(),
-            masterAudio.ContentType), cancellationToken);
+        byte[]? masterAudioContent = null;
+        if (masterAudio is not null)
+        {
+            await using var audioStream = new MemoryStream();
+            await masterAudio.CopyToAsync(audioStream, cancellationToken);
+            masterAudioContent = audioStream.ToArray();
+        }
+        var draft = await sender.Send(new ImportExamCommand(workbookStream.ToArray(), masterAudioContent,
+            masterAudio?.ContentType), cancellationToken);
         return Created($"/api/v1/admin/exams/{draft.ExamId}/revisions/{draft.RevisionId}", ExamDraftResponse.From(draft));
     }
 
@@ -94,7 +101,7 @@ public sealed class AdminExamsController(ISender sender, IWebHostEnvironment env
     {
         var content = new ExamQuestionContent(request.Code, request.Stem, request.OptionA, request.OptionB,
             request.OptionC, request.OptionD, request.CorrectKey, request.Translation, request.Explanation,
-            request.ImageAssetId);
+            request.ImageAssetId, request.ImageRequired);
         await sender.Send(new UpdateExamQuestionCommand(examId, revisionId, questionNumber, content), cancellationToken);
         return NoContent();
     }
@@ -116,7 +123,7 @@ public sealed class AdminExamsController(ISender sender, IWebHostEnvironment env
         ReplaceExamContextBlocksRequest request, CancellationToken cancellationToken)
     {
         var contexts = request.Contexts.Select(context => new ExamContextContent(context.Ordinal, context.Type,
-            context.Text, context.ImageAssetId, context.AltText)).ToArray();
+            context.Text, context.ImageAssetId, context.AltText, context.ImageRequired)).ToArray();
         await sender.Send(new ReplaceExamContextBlocksCommand(examId, revisionId, blockKey, contexts), cancellationToken);
         return NoContent();
     }
@@ -137,6 +144,26 @@ public sealed class AdminExamsController(ISender sender, IWebHostEnvironment env
     public async Task<ActionResult<ExamDraftResponse>> Publish(Guid examId, Guid revisionId,
         CancellationToken cancellationToken) => Ok(ExamDraftResponse.From(await sender.Send(
         new PublishExamRevisionCommand(examId, revisionId), cancellationToken)));
+
+    [HttpPost("{examId:guid}/revisions/{revisionId:guid}/media-upload-intents")]
+    [ProducesResponseType<ExamMediaUploadIntentDto>(StatusCodes.Status201Created)]
+    public async Task<ActionResult<ExamMediaUploadIntentDto>> CreateMediaUploadIntent(Guid examId, Guid revisionId,
+        CreateMediaUploadIntentRequest request, CancellationToken cancellationToken)
+    {
+        var intent = await sender.Send(new CreateMediaUploadIntentCommand(examId, revisionId, request.OwnerKind,
+            request.OwnerKey, request.ContentType, request.ByteSize), cancellationToken);
+        return Created($"/api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents/{intent.IntentId}", intent);
+    }
+
+    [HttpPost("{examId:guid}/revisions/{revisionId:guid}/media-upload-intents/{intentId:guid}/complete")]
+    [ProducesResponseType<ExamMediaAssetDto>(StatusCodes.Status201Created)]
+    public async Task<ActionResult<ExamMediaAssetDto>> CompleteMediaUploadIntent(Guid examId, Guid revisionId,
+        Guid intentId, CancellationToken cancellationToken)
+    {
+        var asset = await sender.Send(new CompleteMediaUploadIntentCommand(examId, revisionId, intentId),
+            cancellationToken);
+        return Created($"/api/v1/admin/exam-media/assets/{asset.Id}", asset);
+    }
 
     [HttpPut("{examId:guid}/revisions/{revisionId:guid}/master-audio")]
     [Consumes("multipart/form-data")]
@@ -165,10 +192,14 @@ public sealed record ExamDraftResponse(Guid ExamId, Guid RevisionId, string Code
 }
 
 public sealed record UpdateExamQuestionRequest(string Code, string Stem, string OptionA, string OptionB, string OptionC,
-    string? OptionD, string CorrectKey, string? Translation, string? Explanation, Guid? ImageAssetId);
+    string? OptionD, string CorrectKey, string? Translation, string? Explanation, Guid? ImageAssetId,
+    bool ImageRequired = false);
 public sealed record UpdateExamScoreProfileRequest(Guid ScoreProfileId);
 public sealed record ReplaceExamContextBlocksRequest(IReadOnlyList<ExamContextBlockRequest> Contexts);
 public sealed record ExamContextBlockRequest(int Ordinal,
     [property: JsonConverter(typeof(JsonStringEnumConverter<ExamContextType>))] ExamContextType Type, string? Text,
-    Guid? ImageAssetId, string? AltText);
+    Guid? ImageAssetId, string? AltText, bool ImageRequired = false);
 public sealed record ForkExamRevisionRequest(Guid SourceRevisionId);
+public sealed record CreateMediaUploadIntentRequest(
+    [property: JsonConverter(typeof(JsonStringEnumConverter<ExamMediaOwnerKind>))] ExamMediaOwnerKind OwnerKind,
+    string OwnerKey, string ContentType, long ByteSize);

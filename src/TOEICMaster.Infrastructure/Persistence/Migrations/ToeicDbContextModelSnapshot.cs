@@ -80,6 +80,9 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("AudioAssetId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("FirstQuestionNumber")
                         .HasColumnType("integer");
 
@@ -100,6 +103,8 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(16)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AudioAssetId");
 
                     b.HasIndex("RevisionId", "FirstQuestionNumber")
                         .IsUnique();
@@ -125,6 +130,11 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("ImageAssetId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("ImageRequired")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<int>("Ordinal")
                         .HasColumnType("integer");
@@ -158,6 +168,9 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<long>("ByteSize")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -166,12 +179,73 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ObjectKey")
                         .IsUnique();
 
                     b.ToTable("exam_media_assets", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamMediaUploadIntent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ExamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ExpectedByteSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("OwnerKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("OwnerKind")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<Guid>("RevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ObjectKey")
+                        .IsUnique();
+
+                    b.HasIndex("RevisionId", "Status", "ExpiresAtUtc");
+
+                    b.ToTable("exam_media_upload_intents", (string)null);
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamQuestion", b =>
@@ -196,6 +270,11 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("ImageAssetId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("ImageRequired")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<int>("Number")
                         .HasColumnType("integer");
@@ -251,6 +330,11 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
+
+                    b.Property<bool>("UsesMediaWorkspace")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<int>("VersionNumber")
                         .HasColumnType("integer");
@@ -1764,6 +1848,11 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamBlock", b =>
                 {
+                    b.HasOne("TOEICMaster.Domain.Entities.ExamMediaAsset", null)
+                        .WithMany()
+                        .HasForeignKey("AudioAssetId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("TOEICMaster.Domain.Entities.ExamRevision", null)
                         .WithMany("Blocks")
                         .HasForeignKey("RevisionId")

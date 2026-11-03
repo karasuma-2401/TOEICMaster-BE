@@ -20,10 +20,11 @@ public enum ExamContextType
 }
 
 public sealed record ExamQuestionContent(string Code, string Stem, string OptionA, string OptionB, string OptionC,
-    string? OptionD, string CorrectKey, string? Translation, string? Explanation, Guid? ImageAssetId);
+    string? OptionD, string CorrectKey, string? Translation, string? Explanation, Guid? ImageAssetId,
+    bool ImageRequired = false);
 
 public sealed record ExamContextContent(int Ordinal, ExamContextType Type, string? Text, Guid? ImageAssetId,
-    string? AltText);
+    string? AltText, bool ImageRequired = false);
 
 public sealed class Exam
 {
@@ -106,6 +107,7 @@ public sealed class ExamRevision
     public ExamRevisionStatus Status { get; private set; }
     public Guid ScoreProfileId { get; private set; }
     public string? MasterAudioObjectKey { get; private set; }
+    public bool UsesMediaWorkspace { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public IReadOnlyCollection<ExamBlock> Blocks => _blocks.AsReadOnly();
 
@@ -120,7 +122,8 @@ public sealed class ExamRevision
     {
         var clone = new ExamRevision(id, ExamId, versionNumber, ExamRevisionStatus.Draft, ScoreProfileId, createdAtUtc)
         {
-            MasterAudioObjectKey = MasterAudioObjectKey
+            MasterAudioObjectKey = MasterAudioObjectKey,
+            UsesMediaWorkspace = UsesMediaWorkspace
         };
         clone._blocks.AddRange(_blocks.Select(block => block.Clone(id)));
         return clone;
@@ -149,7 +152,7 @@ public sealed class ExamRevision
             ?? throw new ArgumentException("Unknown block key.", nameof(blockKey));
         if (!block.IsGrouped)
             throw new ArgumentException("Only grouped blocks can have shared contexts.", nameof(blockKey));
-        block.ReplaceContextBlocks(contexts);
+        block.ReplaceContextBlocks(contexts, allowMissingImages: UsesMediaWorkspace);
     }
 
     public void SetMasterAudioObjectKey(string objectKey)
@@ -157,6 +160,49 @@ public sealed class ExamRevision
         EnsureDraft();
         ArgumentException.ThrowIfNullOrWhiteSpace(objectKey);
         MasterAudioObjectKey = objectKey;
+    }
+
+    public void EnableMediaWorkspace()
+    {
+        EnsureDraft();
+        UsesMediaWorkspace = true;
+        MasterAudioObjectKey = null;
+    }
+
+    public void ConfigureQuestionImageRequirement(int questionNumber, bool imageRequired)
+    {
+        EnsureDraft();
+        FindQuestion(questionNumber).SetImageRequired(imageRequired);
+    }
+
+    public void ConfigureContextImageRequirement(string blockKey, int ordinal, bool imageRequired)
+    {
+        EnsureDraft();
+        FindBlock(blockKey).SetContextImageRequired(ordinal, imageRequired);
+    }
+
+    public void AttachAudioAsset(string blockKey, Guid assetId)
+    {
+        EnsureDraft();
+        ArgumentOutOfRangeException.ThrowIfEqual(assetId, Guid.Empty);
+        var block = FindBlock(blockKey);
+        if (block.Part is < 1 or > 4)
+            throw new ArgumentException("Audio can only be attached to Listening groups.", nameof(blockKey));
+        block.SetAudioAsset(assetId);
+    }
+
+    public void AttachQuestionImageAsset(int questionNumber, Guid assetId)
+    {
+        EnsureDraft();
+        ArgumentOutOfRangeException.ThrowIfEqual(assetId, Guid.Empty);
+        FindQuestion(questionNumber).SetImageAsset(assetId);
+    }
+
+    public void AttachContextImageAsset(string blockKey, int ordinal, Guid assetId)
+    {
+        EnsureDraft();
+        ArgumentOutOfRangeException.ThrowIfEqual(assetId, Guid.Empty);
+        FindBlock(blockKey).SetContextImageAsset(ordinal, assetId);
     }
 
     public void SetScoreProfile(Guid scoreProfileId)
@@ -169,20 +215,26 @@ public sealed class ExamRevision
     public IReadOnlyList<string> GetPublicationErrors(bool scoreProfileIsComplete)
     {
         var errors = new List<string>();
-        if (string.IsNullOrWhiteSpace(MasterAudioObjectKey))
+        if (!UsesMediaWorkspace && string.IsNullOrWhiteSpace(MasterAudioObjectKey))
             errors.Add("Master Audio is required.");
         if (!scoreProfileIsComplete)
             errors.Add("Barem điểm chưa đủ 101 mốc cho Listening và Reading.");
 
         foreach (var block in _blocks)
         {
+            if (UsesMediaWorkspace && block.Part is >= 1 and <= 4 && block.AudioAssetId is null)
+                errors.Add($"Audio group {block.Key} requires an audio asset.");
             if (block.IsGrouped && block.ContextBlocks.Count == 0)
                 errors.Add($"Block {block.Key} requires at least one shared context.");
+            foreach (var context in block.ContextBlocks.Where(context => context.ImageRequired && context.ImageAssetId is null))
+                errors.Add($"Context {block.Key}/{context.Ordinal} requires an image asset.");
             foreach (var question in block.Questions)
             {
                 if (!IsQuestionComplete(block.Part, question))
                     errors.Add($"Question {question.Number} is incomplete.");
-                if (block.Part == 1 && (question.ImageAssetId is null || question.ImageAssetId == Guid.Empty))
+                if (!UsesMediaWorkspace && block.Part == 1 && (question.ImageAssetId is null || question.ImageAssetId == Guid.Empty))
+                    errors.Add($"Question {question.Number} requires an image asset.");
+                if (question.ImageRequired && question.ImageAssetId is null)
                     errors.Add($"Question {question.Number} requires an image asset.");
             }
         }
@@ -215,6 +267,13 @@ public sealed class ExamRevision
         if (Status != ExamRevisionStatus.Draft)
             throw new InvalidOperationException("Only a draft revision can be edited.");
     }
+
+    private ExamBlock FindBlock(string blockKey) => _blocks.SingleOrDefault(candidate => candidate.Key == blockKey)
+        ?? throw new ArgumentException("Unknown block key.", nameof(blockKey));
+
+    private ExamQuestion FindQuestion(int questionNumber) => _blocks.SelectMany(block => block.Questions)
+        .SingleOrDefault(question => question.Number == questionNumber)
+        ?? throw new ArgumentOutOfRangeException(nameof(questionNumber));
 
     private static void ValidateQuestionContent(int part, ExamQuestionContent content)
     {
@@ -291,6 +350,7 @@ public sealed class ExamBlock
     public int Part { get; private set; }
     public ExamBlockType Type { get; private set; }
     public int FirstQuestionNumber { get; private set; }
+    public Guid? AudioAssetId { get; private set; }
     public bool IsGrouped => Type == ExamBlockType.Group;
     public IReadOnlyCollection<ExamQuestion> Questions => _questions.AsReadOnly();
     public IReadOnlyCollection<ExamContextBlock> ContextBlocks => _contextBlocks.AsReadOnly();
@@ -307,12 +367,13 @@ public sealed class ExamBlock
     internal ExamBlock Clone(Guid revisionId)
     {
         var clone = new ExamBlock(Guid.NewGuid(), revisionId, Key, Part, Type, FirstQuestionNumber);
+        clone.AudioAssetId = AudioAssetId;
         clone._questions.AddRange(_questions.Select(question => question.Clone(clone.Id)));
         clone._contextBlocks.AddRange(_contextBlocks.Select(context => context.Clone(clone.Id)));
         return clone;
     }
 
-    internal void ReplaceContextBlocks(IReadOnlyCollection<ExamContextContent> contexts)
+    internal void ReplaceContextBlocks(IReadOnlyCollection<ExamContextContent> contexts, bool allowMissingImages = false)
     {
         ArgumentNullException.ThrowIfNull(contexts);
         if (contexts.Count == 0)
@@ -325,13 +386,29 @@ public sealed class ExamBlock
         {
             if (context.Type == ExamContextType.Text && string.IsNullOrWhiteSpace(context.Text))
                 throw new ArgumentException("A text context requires text.", nameof(contexts));
-            if (context.Type == ExamContextType.Image &&
+            if (context.Type == ExamContextType.Image && !allowMissingImages &&
                 (context.ImageAssetId is null || context.ImageAssetId == Guid.Empty))
                 throw new ArgumentException("An image context requires an image asset.", nameof(contexts));
         }
 
         _contextBlocks.Clear();
         _contextBlocks.AddRange(ordered.Select(context => ExamContextBlock.Create(Id, context)));
+    }
+
+    internal void SetAudioAsset(Guid assetId) => AudioAssetId = assetId;
+
+    internal void SetContextImageRequired(int ordinal, bool imageRequired)
+    {
+        var context = _contextBlocks.SingleOrDefault(candidate => candidate.Ordinal == ordinal)
+            ?? throw new ArgumentOutOfRangeException(nameof(ordinal));
+        context.SetImageRequired(imageRequired);
+    }
+
+    internal void SetContextImageAsset(int ordinal, Guid assetId)
+    {
+        var context = _contextBlocks.SingleOrDefault(candidate => candidate.Ordinal == ordinal)
+            ?? throw new ArgumentOutOfRangeException(nameof(ordinal));
+        context.SetImageAsset(assetId);
     }
 }
 
@@ -361,6 +438,7 @@ public sealed class ExamQuestion
     public string? Translation { get; private set; }
     public string? Explanation { get; private set; }
     public Guid? ImageAssetId { get; private set; }
+    public bool ImageRequired { get; private set; }
 
     internal static ExamQuestion Create(Guid blockId, int number) => new(Guid.NewGuid(), blockId, number);
 
@@ -369,7 +447,7 @@ public sealed class ExamQuestion
         var clone = new ExamQuestion(Guid.NewGuid(), blockId, Number);
         if (Code is not null)
             clone.Configure(new ExamQuestionContent(Code, Stem!, OptionA!, OptionB!, OptionC!, OptionD, CorrectKey!,
-                Translation, Explanation, ImageAssetId));
+                Translation, Explanation, ImageAssetId, ImageRequired));
         return clone;
     }
 
@@ -385,7 +463,11 @@ public sealed class ExamQuestion
         Translation = string.IsNullOrWhiteSpace(content.Translation) ? null : content.Translation.Trim();
         Explanation = string.IsNullOrWhiteSpace(content.Explanation) ? null : content.Explanation.Trim();
         ImageAssetId = content.ImageAssetId;
+        ImageRequired = content.ImageRequired;
     }
+
+    internal void SetImageRequired(bool imageRequired) => ImageRequired = imageRequired;
+    internal void SetImageAsset(Guid assetId) => ImageAssetId = assetId;
 }
 
 public sealed class ExamContextBlock
@@ -395,7 +477,7 @@ public sealed class ExamContextBlock
     }
 
     private ExamContextBlock(Guid id, Guid blockId, int ordinal, ExamContextType type, string? text,
-        Guid? imageAssetId, string? altText)
+        Guid? imageAssetId, string? altText, bool imageRequired)
     {
         Id = id;
         BlockId = blockId;
@@ -404,6 +486,7 @@ public sealed class ExamContextBlock
         Text = text;
         ImageAssetId = imageAssetId;
         AltText = altText;
+        ImageRequired = imageRequired;
     }
 
     public Guid Id { get; private set; }
@@ -413,11 +496,16 @@ public sealed class ExamContextBlock
     public string? Text { get; private set; }
     public Guid? ImageAssetId { get; private set; }
     public string? AltText { get; private set; }
+    public bool ImageRequired { get; private set; }
 
     internal static ExamContextBlock Create(Guid blockId, ExamContextContent content) => new(Guid.NewGuid(), blockId,
         content.Ordinal, content.Type, string.IsNullOrWhiteSpace(content.Text) ? null : content.Text.Trim(),
-        content.ImageAssetId, string.IsNullOrWhiteSpace(content.AltText) ? null : content.AltText.Trim());
+        content.ImageAssetId, string.IsNullOrWhiteSpace(content.AltText) ? null : content.AltText.Trim(),
+        content.ImageRequired);
 
     internal ExamContextBlock Clone(Guid blockId) => new(Guid.NewGuid(), blockId, Ordinal, Type, Text, ImageAssetId,
-        AltText);
+        AltText, ImageRequired);
+
+    internal void SetImageRequired(bool imageRequired) => ImageRequired = imageRequired;
+    internal void SetImageAsset(Guid assetId) => ImageAssetId = assetId;
 }

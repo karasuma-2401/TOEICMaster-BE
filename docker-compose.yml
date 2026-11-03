@@ -17,6 +17,7 @@ services:
       - Cors__AllowedOrigins__0=http://localhost:3000
       - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD:-local-redis-only},abortConnect=false,connectTimeout=3000,syncTimeout=3000
       - Minio__Endpoint=minio:9000
+      - Minio__PublicEndpoint=localhost:9000
       - Minio__AccessKey=${MINIO_ROOT_USER:-toeicmaster-local}
       - Minio__SecretKey=${MINIO_ROOT_PASSWORD:-local-minio-only}
       - Minio__UseSsl=false
@@ -42,6 +43,8 @@ services:
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-toeicmaster-local}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-local-minio-only}
+      - MINIO_API_CORS_ALLOW_ORIGIN=http://localhost:3000
+      - MINIO_API_CORS_ALLOW_CREDENTIALS_WITH_WILDCARD=off
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"

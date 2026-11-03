@@ -39,6 +39,11 @@ public sealed class ExamExceptionHandler(IProblemDetailsService problemDetailsSe
                 Status = StatusCodes.Status400BadRequest,
                 Title = "Tệp media không hợp lệ hoặc vượt quá giới hạn cho phép."
             },
+            ExamMediaUploadIntentConflictException conflict => new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = conflict.Message
+            },
             _ => null
         };
         if (problem is null)

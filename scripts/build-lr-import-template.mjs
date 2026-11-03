@@ -9,7 +9,6 @@ const outputDir = path.resolve(scriptDir, "../outputs/admin-lr-exam-import-templ
 const outputPath = path.join(outputDir, "toeic-lr-exam-import-template.xlsx");
 const previewDir = path.join(os.tmpdir(), "toeic-lr-exam-import-template-preview");
 const placeholderScoreProfileId = "00000000-0000-4000-8000-000000000001";
-const placeholderImageAssetId = "00000000-0000-4000-8000-000000000002";
 const colors = { ink: "#1F2937", navy: "#1E3A5F", blue: "#EAF2F8", input: "#FFF7D6", border: "#CBD5E1", note: "#475569" };
 
 const blocks = [];
@@ -30,7 +29,8 @@ function addQuestion(blockKey, part, number) {
     "A",
     "Bản dịch mẫu. Thay bằng nội dung được biên soạn.",
     "Giải thích mẫu. Thay bằng nội dung được biên soạn.",
-    part === 1 ? placeholderImageAssetId : "",
+    "",
+    part === 1,
   ]);
 }
 
@@ -54,6 +54,7 @@ function addGroups(part, firstQuestionNumber, groupSizes) {
       `Shared context for Part ${part}, questions ${nextQuestionNumber}-${nextQuestionNumber + count - 1}. Replace with the approved transcript, reading passage, or add IMAGE rows with uploaded ImageAssetId values.`,
       "",
       "",
+      false,
     ]);
     for (let number = nextQuestionNumber; number < nextQuestionNumber + count; number += 1)
       addQuestion(blockKey, part, number);
@@ -128,7 +129,7 @@ styleTitle(manifest, "A1:D1", "Manifest import");
 manifest.getRange("A3:B8").values = [
   ["Field", "Value"],
   ["SchemaVersion", "1"],
-  ["TestCode", "LR-YYYY-001"],
+  ["TestCode", "LR-DEMO-001"],
   ["Title", "TOEIC Listening & Reading practice test"],
   ["Scope", "LISTENING_READING"],
   ["ScoreProfileId", placeholderScoreProfileId],
@@ -146,24 +147,26 @@ blocksSheet.freezePanes.freezeRows(3);
 blocksSheet.dataValidations.add({ range: `C4:C${blocks.length + 3}`, rule: { type: "list", values: ["SINGLE", "GROUP"] } });
 setWidths(blocksSheet, { A: 18, B: 9, C: 14, D: 21, E: 15 });
 
-styleTitle(contextSheet, "A1:H1", "ContextBlocks: ordered text or image blocks for every GROUP");
-contextSheet.getRange("A3:F3").values = [["BlockKey", "Ordinal", "Type", "Text", "ImageAssetId", "AltText"]];
-contextSheet.getRange(`A4:F${contexts.length + 3}`).values = contexts;
-styleHeader(contextSheet, "A3:F3");
-styleInputs(contextSheet, `A4:F${contexts.length + 3}`);
+styleTitle(contextSheet, "A1:G1", "ContextBlocks: ordered text or image blocks for every GROUP");
+contextSheet.getRange("A3:G3").values = [["BlockKey", "Ordinal", "Type", "Text", "ImageAssetId", "AltText", "ImageRequired"]];
+contextSheet.getRange(`A4:G${contexts.length + 3}`).values = contexts;
+styleHeader(contextSheet, "A3:G3");
+styleInputs(contextSheet, `A4:G${contexts.length + 3}`);
 contextSheet.freezePanes.freezeRows(3);
 contextSheet.dataValidations.add({ range: `C4:C${contexts.length + 103}`, rule: { type: "list", values: ["TEXT", "IMAGE"] } });
-setWidths(contextSheet, { A: 18, B: 10, C: 12, D: 100, E: 40, F: 32 });
+contextSheet.dataValidations.add({ range: `G4:G${contexts.length + 3}`, rule: { type: "list", values: ["true", "false"] } });
+setWidths(contextSheet, { A: 18, B: 10, C: 12, D: 100, E: 40, F: 32, G: 18 });
 
-styleTitle(questionsSheet, "A1:L1", "Questions: one row per fixed question slot");
-questionsSheet.getRange("A3:L3").values = [["BlockKey", "QuestionNumber", "QuestionCode", "Stem", "OptionA", "OptionB", "OptionC", "OptionD", "CorrectKey", "Translation", "Explanation", "ImageAssetId"]];
-questionsSheet.getRange(`A4:L${questions.length + 3}`).values = questions;
-styleHeader(questionsSheet, "A3:L3");
-styleInputs(questionsSheet, `A4:L${questions.length + 3}`);
+styleTitle(questionsSheet, "A1:M1", "Questions: one row per fixed question slot");
+questionsSheet.getRange("A3:M3").values = [["BlockKey", "QuestionNumber", "QuestionCode", "Stem", "OptionA", "OptionB", "OptionC", "OptionD", "CorrectKey", "Translation", "Explanation", "ImageAssetId", "ImageRequired"]];
+questionsSheet.getRange(`A4:M${questions.length + 3}`).values = questions;
+styleHeader(questionsSheet, "A3:M3");
+styleInputs(questionsSheet, `A4:M${questions.length + 3}`);
 questionsSheet.freezePanes.freezeRows(3);
 questionsSheet.freezePanes.freezeColumns(3);
 questionsSheet.dataValidations.add({ range: `I4:I${questions.length + 3}`, rule: { type: "list", values: ["A", "B", "C", "D"] } });
-setWidths(questionsSheet, { A: 18, B: 16, C: 20, D: 60, E: 28, F: 28, G: 28, H: 28, I: 12, J: 38, K: 52, L: 40 });
+questionsSheet.dataValidations.add({ range: `M4:M${questions.length + 3}`, rule: { type: "list", values: ["true", "false"] } });
+setWidths(questionsSheet, { A: 18, B: 16, C: 20, D: 60, E: 28, F: 28, G: 28, H: 28, I: 12, J: 38, K: 52, L: 40, M: 18 });
 
 workbook.recalculate();
 await fs.mkdir(outputDir, { recursive: true });
@@ -172,15 +175,15 @@ for (const [sheetName, range, fileName] of [
   ["ReadMe", "A1:B11", "readme.png"],
   ["Manifest", "A1:B8", "manifest.png"],
   ["Blocks", "A1:E16", "blocks.png"],
-  ["ContextBlocks", "A1:F16", "contexts.png"],
-  ["Questions", "A1:L15", "questions.png"],
+  ["ContextBlocks", "A1:G16", "contexts.png"],
+  ["Questions", "A1:M15", "questions.png"],
 ]) {
   const preview = await workbook.render({ sheetName, range, scale: 1.25, format: "png" });
   await fs.writeFile(path.join(previewDir, fileName), new Uint8Array(await preview.arrayBuffer()));
 }
 const exported = await SpreadsheetFile.exportXlsx(workbook);
 await exported.save(outputPath);
-const check = await workbook.inspect({ kind: "table", range: "Questions!A3:L8", include: "values,formulas", tableMaxRows: 8, tableMaxCols: 12 });
+const check = await workbook.inspect({ kind: "table", range: "Questions!A3:M8", include: "values,formulas", tableMaxRows: 8, tableMaxCols: 13 });
 const errors = await workbook.inspect({ kind: "match", searchTerm: "#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A|#NUM!|#NULL!|#SPILL!|#CALC!", options: { useRegex: true, maxResults: 50 }, summary: "formula error scan" });
 console.log(check.ndjson);
 console.log(errors.ndjson);

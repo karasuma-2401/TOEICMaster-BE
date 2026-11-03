@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<ILrExerciseBankRepository, EfLrExerciseBankRepository>();
         services.AddSingleton<ILrExerciseBankImportParser, XlsxLrExerciseBankImportParser>();
         services.AddScoped<IExamMediaStore, MinioExamMediaStore>();
+        services.AddHostedService<ExamMediaUploadIntentRetentionWorker>();
         services.AddScoped<IProfileRepository, EfProfileRepository>();
         services.AddScoped<IAvatarStore, MinioAvatarStore>();
         services.AddScoped<IWritingAdminRepository, EfWritingAdminRepository>();

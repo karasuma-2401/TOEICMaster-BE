@@ -22,5 +22,7 @@ public sealed class CompleteExamWorkbookTemplateTests
         Assert.Equal(30, workbook.Questions.Count(question => question.QuestionNumber is >= 101 and <= 130));
         Assert.Equal(16, workbook.Questions.Count(question => question.QuestionNumber is >= 131 and <= 146));
         Assert.Equal(54, workbook.Questions.Count(question => question.QuestionNumber is >= 147 and <= 200));
+        Assert.All(workbook.Questions.Where(question => question.QuestionNumber is >= 1 and <= 6), question =>
+            Assert.True(question.Content.ImageRequired));
     }
 }

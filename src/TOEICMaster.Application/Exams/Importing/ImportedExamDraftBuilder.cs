@@ -5,10 +5,18 @@ namespace TOEICMaster.Application.Exams.Importing;
 
 public static partial class ImportedExamDraftBuilder
 {
+    public static Exam Build(ImportedExamWorkbook workbook, DateTimeOffset createdAtUtc) =>
+        BuildCore(workbook, masterAudioObjectKey: null, createdAtUtc);
+
     public static Exam Build(ImportedExamWorkbook workbook, string masterAudioObjectKey, DateTimeOffset createdAtUtc)
     {
-        ArgumentNullException.ThrowIfNull(workbook);
         ArgumentException.ThrowIfNullOrWhiteSpace(masterAudioObjectKey);
+        return BuildCore(workbook, masterAudioObjectKey, createdAtUtc);
+    }
+
+    private static Exam BuildCore(ImportedExamWorkbook workbook, string? masterAudioObjectKey, DateTimeOffset createdAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(workbook);
 
         var errors = new List<string>();
         ValidateIdentity(workbook, errors);
@@ -17,6 +25,8 @@ public static partial class ImportedExamDraftBuilder
 
         var exam = Exam.Create(workbook.TestCode, workbook.Title, workbook.ScoreProfileId, createdAtUtc);
         var revision = exam.Revisions.Single();
+        if (masterAudioObjectKey is null)
+            revision.EnableMediaWorkspace();
         var expectedBlocks = revision.Blocks.ToDictionary(block => block.Key, StringComparer.Ordinal);
         ValidateBlocks(workbook.Blocks, expectedBlocks, errors);
         ValidateQuestions(workbook.Questions, expectedBlocks, errors);
@@ -30,21 +40,25 @@ public static partial class ImportedExamDraftBuilder
             {
                 var contexts = workbook.Contexts.Where(context => context.BlockKey == block.Key)
                     .OrderBy(context => context.Ordinal).Select(context => new ExamContextContent(context.Ordinal,
-                        context.Type, context.Text, context.ImageAssetId, context.AltText)).ToArray();
+                        context.Type, context.Text, context.ImageAssetId, context.AltText, context.ImageRequired)).ToArray();
                 revision.ReplaceContextBlocks(block.Key, contexts);
             }
 
             foreach (var question in workbook.Questions)
                 revision.UpdateQuestion(question.QuestionNumber, question.Content);
-            revision.SetMasterAudioObjectKey(masterAudioObjectKey);
+            if (masterAudioObjectKey is not null)
+                revision.SetMasterAudioObjectKey(masterAudioObjectKey);
         }
         catch (ArgumentException exception)
         {
             throw new ExamWorkbookFormatException([$"Workbook không đúng cấu trúc đề L&R: {exception.Message}"]);
         }
 
-        var publicationErrors = revision.GetPublicationErrors(scoreProfileIsComplete: true);
-        if (publicationErrors.Count > 0)
+        var publicationErrors = revision.GetPublicationErrors(scoreProfileIsComplete: true)
+            .Where(error => !revision.UsesMediaWorkspace ||
+                (!error.StartsWith("Audio group ", StringComparison.Ordinal) && !error.Contains("requires an image asset", StringComparison.Ordinal)))
+            .ToArray();
+        if (publicationErrors.Length > 0)
             throw new ExamWorkbookFormatException(publicationErrors);
         return exam;
     }

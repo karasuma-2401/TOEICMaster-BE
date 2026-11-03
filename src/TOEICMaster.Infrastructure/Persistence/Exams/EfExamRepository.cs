@@ -77,6 +77,20 @@ public sealed class EfExamRepository(ToeicDbContext context) : IExamRepository
         return Task.CompletedTask;
     }
 
+    public Task AddExamMediaUploadIntentAsync(ExamMediaUploadIntent intent, CancellationToken cancellationToken)
+    {
+        context.ExamMediaUploadIntents.Add(intent);
+        return Task.CompletedTask;
+    }
+
+    public Task<ExamMediaUploadIntent?> FindExamMediaUploadIntentAsync(Guid intentId, CancellationToken cancellationToken) =>
+        context.ExamMediaUploadIntents.SingleOrDefaultAsync(intent => intent.Id == intentId, cancellationToken);
+
+    public async Task<IReadOnlyList<ExamMediaUploadIntent>> GetExpiredPendingExamMediaUploadIntentsAsync(
+        DateTimeOffset now, CancellationToken cancellationToken) => await context.ExamMediaUploadIntents
+        .Where(intent => intent.Status == ExamMediaUploadIntentStatus.Pending && intent.ExpiresAtUtc <= now)
+        .OrderBy(intent => intent.ExpiresAtUtc).Take(100).ToArrayAsync(cancellationToken);
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken) =>
         await context.SaveChangesAsync(cancellationToken);
 }

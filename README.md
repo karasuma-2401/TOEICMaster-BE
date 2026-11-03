@@ -124,6 +124,40 @@ Nếu network đã tồn tại, bỏ qua lệnh tạo. Frontend sẽ gọi API q
 | MinIO console | http://localhost:9001 | Xem object storage        |
 | PostgreSQL    | Neon                  | Database bên ngoài Docker |
 
+## MinIO local cho media L&R
+
+Media workspace của đề L&R mới dùng bucket private `exam-media`. Browser không nhận access key/secret key: API chỉ cấp presigned PUT ngắn hạn, browser upload trực tiếp, rồi API xác nhận object trước khi gắn asset vào revision.
+
+1. Cài và mở Docker Desktop, sau đó xác nhận daemon hoạt động:
+
+   ```sh
+   docker version
+   ```
+
+2. Tạo file `.env` từ `.env.example` nếu chưa có. Đặt `MINIO_ROOT_USER` và `MINIO_ROOT_PASSWORD` là credential local riêng; không commit `.env`.
+
+3. Khởi động riêng MinIO và kiểm tra health:
+
+   ```sh
+   docker compose up -d minio
+   docker compose ps minio
+   curl http://localhost:9000/minio/health/live
+   ```
+
+   Console local là `http://localhost:9001`. Dùng credential trong `.env` để xem bucket; không cần tạo public bucket hoặc policy public.
+
+4. Khi chạy API bằng `dotnet run`, `appsettings.Development.json` dùng cả `Minio:Endpoint` và `Minio:PublicEndpoint` là `localhost:9000`.
+
+   Khi chạy API trong Docker Compose, `Minio__Endpoint=minio:9000` là hostname nội bộ giữa containers, còn `Minio__PublicEndpoint=localhost:9000` là hostname được nhúng vào URL ký sẵn cho browser. Giữ hai giá trị này khác nhau là cần thiết để upload trực tiếp hoạt động trên máy local.
+
+5. Chạy migration chỉ sau khi kiểm tra chuỗi kết nối đang trỏ đúng database phát triển. Migration `AddAdminLrMediaWorkspace` chỉ thêm metadata/intents; không chuyển object media cũ:
+
+   ```sh
+   dotnet ef database update --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api
+   ```
+
+Với môi trường cloud sau này, cấu hình `Minio__Endpoint`, `Minio__PublicEndpoint`, `Minio__AccessKey`, `Minio__SecretKey` và `Minio__UseSsl=true` bằng endpoint/credential của MinIO self-hosted, S3-compatible storage hoặc R2. Bucket phải private và public endpoint phải là hostname browser truy cập được.
+
 Backend kết nối trực tiếp đến nhà cung cấp SMTP bên ngoài đã cấu hình. Vì vậy email do ứng dụng gửi sẽ được chuyển tới
 hộp thư thật; không còn dịch vụ mail giả chạy trong Docker Compose.
 
