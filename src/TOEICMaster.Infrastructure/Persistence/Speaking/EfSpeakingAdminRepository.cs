@@ -71,6 +71,29 @@ public sealed class EfSpeakingAdminRepository(ToeicDbContext context) : ISpeakin
 
     public void AddExercise(SpeakingExercise exercise) => context.SpeakingExercises.Add(exercise);
 
+    public async Task<IReadOnlyList<SpeakingExerciseContentSource>> GetExerciseContentSourcesAsync(
+        CancellationToken cancellationToken) =>
+        await (from exercise in context.SpeakingExercises.AsNoTracking()
+               join asset in context.SpeakingMediaAssets.AsNoTracking()
+                   on exercise.ImageAssetId equals asset.Id into images
+               from image in images.DefaultIfEmpty()
+               select new SpeakingExerciseContentSource(exercise.Id, exercise.Code, exercise.ContentJson,
+                   image == null ? null : image.Sha256)).ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyDictionary<Guid, string>> FindOtherTestCodesAsync(
+        IReadOnlyCollection<Guid> exerciseIds, Guid? excludingTestId, CancellationToken cancellationToken)
+    {
+        if (exerciseIds.Count == 0)
+            return new Dictionary<Guid, string>();
+        var used = await (from slot in context.SpeakingTestExercises.AsNoTracking()
+                          join test in context.SpeakingTests.AsNoTracking() on slot.TestId equals test.Id
+                          where exerciseIds.Contains(slot.ExerciseId) &&
+                                (excludingTestId == null || slot.TestId != excludingTestId)
+                          orderby test.Code
+                          select new { slot.ExerciseId, test.Code }).ToListAsync(cancellationToken);
+        return used.GroupBy(item => item.ExerciseId).ToDictionary(group => group.Key, group => group.First().Code);
+    }
+
     public Task<SpeakingMediaAsset?> FindMediaAssetAsync(Guid id, CancellationToken cancellationToken) =>
         context.SpeakingMediaAssets.AsNoTracking().SingleOrDefaultAsync(asset => asset.Id == id, cancellationToken);
 

@@ -120,15 +120,22 @@ public sealed class SpeakingApiTests : IDisposable
         foreach (var part in Enumerable.Range(1, 5))
             for (var sequence = 1; sequence <= TOEICMaster.Domain.Entities.SpeakingTiming.SlotsPerPart(part); sequence++)
             {
+                var slotImageId = imageId;
+                if (part == 2 && sequence == 2)
+                {
+                    using var secondImage = await UploadAsync(admin, $"{Admin}/media/images",
+                        SpeakingSamples.PngVariant(2), "image/png");
+                    slotImageId = Guid.Parse((await JsonAsync(secondImage))["id"]!.GetValue<string>());
+                }
                 using var created = await admin.PostAsJsonAsync($"{Admin}/exercises",
-                    SpeakingSamples.Exercise(part, $"SP{part}-00{sequence}", imageId));
+                    SpeakingSamples.Exercise(part, $"SP{part}-00{sequence}", slotImageId));
                 Assert.Equal(HttpStatusCode.Created, created.StatusCode);
                 var exercise = await JsonAsync(created);
                 Assert.Equal(part, exercise["part"]!.GetValue<int>());
                 Assert.Null(exercise["content"]);
                 Assert.NotNull(exercise["updatedAtUtc"]);
                 if (part == 2)
-                    Assert.Equal(imageId.ToString(), exercise["imageAssetId"]!.GetValue<string>());
+                    Assert.Equal(slotImageId.ToString(), exercise["imageAssetId"]!.GetValue<string>());
                 if (part == 4)
                     Assert.Equal("Registration", exercise["documentRows"]![0]!["value"]!.GetValue<string>());
                 slots.Add(new SpeakingTestSlotInput(Guid.Parse(exercise["id"]!.GetValue<string>()), part, sequence));
@@ -137,8 +144,10 @@ public sealed class SpeakingApiTests : IDisposable
         Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
 
         // Tests: draft, publish requirements (422), publish, list.
+        using var extra = await admin.PostAsJsonAsync($"{Admin}/exercises", SpeakingSamples.Exercise(1, "SP1-DRAFT"));
+        var extraId = Guid.Parse((await JsonAsync(extra))["id"]!.GetValue<string>());
         using var incomplete = await admin.PostAsJsonAsync($"{Admin}/tests",
-            new SpeakingTestInput("SPK-DRAFT", "Draft", "", slots.Take(1).ToArray()));
+            new SpeakingTestInput("SPK-DRAFT", "Draft", "", [new SpeakingTestSlotInput(extraId, 1, 1)]));
         var draft = await JsonAsync(incomplete);
         using var notReady = await admin.PostAsJsonAsync(
             $"{Admin}/tests/{draft["id"]}/publish", new { version = draft["version"]!.GetValue<int>() });
@@ -272,6 +281,30 @@ public sealed class SpeakingApiTests : IDisposable
         var summary = (await JsonAsync(history))["items"]![0]!;
         Assert.Equal(("COMPLETED", 160), (summary["evaluationStatus"]!.GetValue<string>(),
             summary["estimatedScore"]!.GetValue<int>()));
+    }
+
+    [Fact]
+    public async Task Admin_imports_a_test_from_excel_and_gets_row_errors_on_a_repeat()
+    {
+        using var admin = AdminClient();
+        var workbook = TOEICMaster.Tests.Application.Speaking.SpeakingTestImportTests.WorkbookBuilder.Valid().Build();
+        const string excel = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+        using var created = await UploadAsync(admin, $"{Admin}/tests/import", workbook, excel);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var test = await JsonAsync(created);
+        Assert.Equal(("IMP-01", "DRAFT", 7), (test["code"]!.GetValue<string>(), test["status"]!.GetValue<string>(),
+            test["exercises"]!.AsArray().Count));
+
+        using var repeated = await UploadAsync(admin, $"{Admin}/tests/import", workbook, excel);
+        Assert.Equal(HttpStatusCode.BadRequest, repeated.StatusCode);
+        Assert.NotNull((await JsonAsync(repeated))["errors"]!["Rows[2].Code"]);
+
+        using var notExcel = await UploadAsync(admin, $"{Admin}/tests/import", [1, 2, 3, 4], excel);
+        Assert.Equal(HttpStatusCode.BadRequest, notExcel.StatusCode);
+        using var guest = GuestClient();
+        using var denied = await UploadAsync(guest, $"{Admin}/tests/import", workbook, excel);
+        Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
     }
 
     [Fact]

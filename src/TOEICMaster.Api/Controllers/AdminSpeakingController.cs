@@ -116,6 +116,26 @@ public sealed class AdminSpeakingController(ISender sender) : ControllerBase
         return CreatedAtAction(nameof(GetTest), new { testId = created.Id }, created);
     }
 
+    [HttpPost("tests/import")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(SpeakingWorkbookReader.MaxBytes + 64 * 1024)]
+    [ProducesResponseType<SpeakingTestDetailDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status413PayloadTooLarge)]
+    public async Task<ActionResult<SpeakingTestDetailDto>> ImportTest(IFormFile? file,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Cần chọn một file Excel .xlsx.");
+        if (file.Length > SpeakingWorkbookReader.MaxBytes)
+            return Problem(statusCode: StatusCodes.Status413PayloadTooLarge,
+                title: "File Excel không được vượt quá 16 MiB.");
+        var created = await sender.Send(new ImportSpeakingTestCommand(CurrentUserId(),
+            await ReadAsync(file, cancellationToken)), cancellationToken);
+        return CreatedAtAction(nameof(GetTest), new { testId = created.Id }, created);
+    }
+
     [HttpPut("tests/{testId:guid}")]
     [ProducesResponseType<SpeakingTestDetailDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]

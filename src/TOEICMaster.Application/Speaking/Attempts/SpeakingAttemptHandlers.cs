@@ -69,7 +69,7 @@ public sealed class StartSpeakingAttemptCommandValidator : AbstractValidator<Sta
                                                        (input.ExerciseId is { } exerciseId && exerciseId != Guid.Empty))
             .OverridePropertyName("TestId").WithMessage("Cần chọn một đề hoặc một bài tập Speaking.");
         RuleFor(command => command.Input.Mode).Must(mode => SpeakingCodes.TryParseMode(mode, out _))
-            .When(command => command.Input.ExerciseId is null)
+            .When(command => command.Input.ExerciseId is null || command.Input.ExerciseId == Guid.Empty)
             .OverridePropertyName("Mode").WithMessage("Chế độ làm bài phải là FULL hoặc PART_1 đến PART_5.");
     }
 }
@@ -150,7 +150,7 @@ public sealed class StartSpeakingAttemptCommandHandler(ISpeakingAttemptRepositor
     public async Task<SpeakingAttemptDto> Handle(StartSpeakingAttemptCommand request,
         CancellationToken cancellationToken)
     {
-        if (request.Input.ExerciseId is { } exerciseId)
+        if (request.Input.ExerciseId is { } exerciseId && exerciseId != Guid.Empty)
             return await StartExercisePracticeAsync(request.Owner, exerciseId, cancellationToken);
         var loaded = await repository.FindPublishedTestAsync(request.Input.TestId!.Value, cancellationToken)
             ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
