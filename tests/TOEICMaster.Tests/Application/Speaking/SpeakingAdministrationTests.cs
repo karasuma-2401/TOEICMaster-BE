@@ -233,90 +233,6 @@ public sealed class SpeakingAdministrationTests
     {
     }
 
-    [Theory]
-    [InlineData("How often do you read?", "how   often do you read")]
-    [InlineData("Ｗhat time?", "what time")]
-    public async Task Questions_of_one_exercise_must_differ_after_normalizing(string first, string second)
-    {
-        var error = await Assert.ThrowsAsync<ValidationException>(() => CreateAsync(
-            SpeakingSamples.Exercise(3, "SP3-X") with { Questions = [first, second, "Another one?"] }));
-
-        Assert.Contains(error.Errors, failure => failure.PropertyName == "Questions");
-    }
-
-    [Fact]
-    public async Task New_exercises_cannot_repeat_text_or_pictures_of_the_bank()
-    {
-        var passage = await CreateAsync(SpeakingSamples.Exercise(1, "SP1-001"));
-        await CreateAsync(SpeakingSamples.Exercise(3, "SP3-001"));
-        var image = await UploadImageAsync(1);
-        await CreateAsync(SpeakingSamples.Exercise(2, "SP2-001", image.Id));
-        var sameBytes = await UploadImageAsync(1);
-
-        var copiedText = await Assert.ThrowsAsync<ValidationException>(() => CreateAsync(
-            SpeakingSamples.Exercise(1, "SP1-COPY") with { Passage = "ATTENTION shoppers: the store closes in thirty minutes" }));
-        var copiedQuestion = await Assert.ThrowsAsync<ValidationException>(() => CreateAsync(
-            SpeakingSamples.Exercise(4, "SP4-COPY") with { Questions = ["How often do you read", "B?", "C?"] }));
-        var copiedImage = await Assert.ThrowsAsync<ValidationException>(() =>
-            CreateAsync(SpeakingSamples.Exercise(2, "SP2-COPY", sameBytes.Id)));
-
-        Assert.Contains(copiedText.Errors, failure => failure.PropertyName == "Passage" && failure.ErrorMessage.Contains("SP1-001"));
-        Assert.Contains(copiedQuestion.Errors, failure => failure.PropertyName == "Questions[0]");
-        Assert.Contains(copiedImage.Errors, failure => failure.PropertyName == "ImageAssetId");
-        await new UpdateSpeakingExerciseCommandHandler(_store, _clock).Handle(new UpdateSpeakingExerciseCommand(Admin,
-            passage.Id, passage.Version, SpeakingSamples.Exercise(1, "SP1-001") with { Topic = "Đổi chủ đề" }),
-            CancellationToken.None);
-    }
-
-    [Fact]
-    public async Task An_exercise_belongs_to_only_one_test()
-    {
-        var first = await CreateAsync(SpeakingSamples.Exercise(1, "SP1-001"));
-        var second = await CreateAsync(SpeakingSamples.Exercise(1, "SP1-002"));
-        var create = new CreateSpeakingTestCommandHandler(_store, _clock);
-        var taken = await create.Handle(new CreateSpeakingTestCommand(Admin, new SpeakingTestInput("SPK-A", "A", "",
-            [new(first.Id, 1, 1)])), CancellationToken.None);
-        var other = await create.Handle(new CreateSpeakingTestCommand(Admin, new SpeakingTestInput("SPK-B", "B", "",
-            [new(second.Id, 1, 1)])), CancellationToken.None);
-
-        var onCreate = await Assert.ThrowsAsync<ValidationException>(() => create.Handle(new CreateSpeakingTestCommand(
-            Admin, new SpeakingTestInput("SPK-C", "C", "", [new(first.Id, 1, 1)])), CancellationToken.None));
-        var onUpdate = await Assert.ThrowsAsync<ValidationException>(() => new UpdateSpeakingTestCommandHandler(_store, _clock)
-            .Handle(new UpdateSpeakingTestCommand(Admin, other.Id, other.Version,
-                new SpeakingTestInput("SPK-B", "B", "", [new(first.Id, 1, 1)])), CancellationToken.None));
-
-        Assert.Contains(onCreate.Errors, failure => failure.PropertyName == "Exercises" && failure.ErrorMessage.Contains("SPK-A"));
-        Assert.Contains(onUpdate.Errors, failure => failure.PropertyName == "Exercises");
-        await new UpdateSpeakingTestCommandHandler(_store, _clock).Handle(new UpdateSpeakingTestCommand(Admin, taken.Id,
-            taken.Version, new SpeakingTestInput("SPK-A", "A sửa", "", [new(first.Id, 1, 1)])), CancellationToken.None);
-    }
-
-    [Fact]
-    public async Task Publishing_rejects_older_data_that_breaks_the_uniqueness_rules()
-    {
-        var test = await FullTestAsync();
-        var image = _store.Exercises.Single(exercise => exercise.Code == "SP2-001");
-        var copy = _store.Exercises.Single(exercise => exercise.Code == "SP2-002");
-        var sourceText = _store.Exercises.Single(exercise => exercise.Code == "SP1-001");
-        var duplicate = _store.Exercises.Single(exercise => exercise.Code == "SP1-002");
-        duplicate.Update(duplicate.Code, duplicate.Topic, duplicate.Difficulty, duplicate.Status,
-            sourceText.ContentJson, null, duplicate.RubricNotes, duplicate.ModelAnswer, Admin, _clock.GetUtcNow());
-        copy.Update(copy.Code, copy.Topic, copy.Difficulty, copy.Status, image.ContentJson, image.ImageAssetId,
-            copy.RubricNotes, copy.ModelAnswer, Admin, _clock.GetUtcNow());
-        var older = SpeakingTest.Create("SPK-OLD", "Old", "", Admin, _clock.GetUtcNow());
-        _store.AddTest(older, [SpeakingTestExercise.Create(older.Id, 5, 1, _store.Exercises.Single(e => e.Part == 5).Id)]);
-
-        var error = await Assert.ThrowsAsync<SpeakingPublishRequirementsException>(() => Publish(test.Id, test.Version));
-
-        Assert.Equal(2, error.Errors["Content"].Length);
-        Assert.Contains(error.Errors["Exercises"], message => message.Contains("SPK-OLD"));
-        Assert.Equal(SpeakingTestStatus.Draft, _store.Tests.Single(item => item.Id == test.Id).Status);
-    }
-
-    private Task<SpeakingImageDto> UploadImageAsync(byte variant) =>
-        new UploadSpeakingImageCommandHandler(_store, _store, _clock).Handle(
-            new UploadSpeakingImageCommand(Admin, SpeakingSamples.PngVariant(variant), "image/png"), CancellationToken.None);
-
     private Task<SpeakingExerciseDto> CreateAsync(SpeakingExerciseInput input) =>
         new CreateSpeakingExerciseCommandHandler(_store, _clock).Handle(new CreateSpeakingExerciseCommand(Admin, input),
             CancellationToken.None);
@@ -327,12 +243,13 @@ public sealed class SpeakingAdministrationTests
 
     private async Task<SpeakingTestDetailDto> FullTestAsync()
     {
+        var image = await new UploadSpeakingImageCommandHandler(_store, _store, _clock).Handle(
+            new UploadSpeakingImageCommand(Admin, SpeakingSamples.Png, "image/png"), CancellationToken.None);
         var slots = new List<SpeakingTestSlotInput>();
         foreach (var part in Enumerable.Range(1, 5))
             for (var sequence = 1; sequence <= SpeakingTiming.SlotsPerPart(part); sequence++)
             {
-                var image = part == 2 ? await UploadImageAsync((byte)sequence) : null;
-                var exercise = await CreateAsync(SpeakingSamples.Exercise(part, $"SP{part}-00{sequence}", image?.Id));
+                var exercise = await CreateAsync(SpeakingSamples.Exercise(part, $"SP{part}-00{sequence}", image.Id));
                 slots.Add(new SpeakingTestSlotInput(exercise.Id, part, sequence));
             }
         return await new CreateSpeakingTestCommandHandler(_store, _clock).Handle(new CreateSpeakingTestCommand(Admin,

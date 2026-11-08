@@ -52,8 +52,6 @@ public sealed class GrantSpeakingEvaluationConsentCommandHandler(ISpeakingAttemp
         var evaluation = await evaluations.FindForUpdateByAttemptIdAsync(attempt.Id, cancellationToken);
         if (evaluation is not null)
         {
-            if (evaluation.Status == SpeakingEvaluationStatus.Failed && !settings.IsConfigured)
-                throw new SpeakingConflictException("Dịch vụ chấm AI Speaking chưa được cấu hình. Bài làm vẫn được lưu.");
             if (evaluation.Requeue(now))
                 await evaluations.SaveChangesAsync(cancellationToken);
             return await SpeakingAttemptAccess.ToDtoAsync(attempts, attempt, now, cancellationToken, evaluation);

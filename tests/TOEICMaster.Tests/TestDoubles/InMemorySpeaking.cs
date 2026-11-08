@@ -59,19 +59,6 @@ public sealed class InMemorySpeaking : ISpeakingAdminRepository, ISpeakingAttemp
 
     public void AddExercise(SpeakingExercise exercise) => Exercises.Add(exercise);
 
-    public Task<IReadOnlyList<SpeakingExerciseContentSource>> GetExerciseContentSourcesAsync(
-        CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<SpeakingExerciseContentSource>>(Exercises.Select(exercise =>
-            new SpeakingExerciseContentSource(exercise.Id, exercise.Code, exercise.ContentJson,
-                Assets.SingleOrDefault(asset => asset.Id == exercise.ImageAssetId)?.Sha256)).ToArray());
-
-    public Task<IReadOnlyDictionary<Guid, string>> FindOtherTestCodesAsync(IReadOnlyCollection<Guid> exerciseIds,
-        Guid? excludingTestId, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyDictionary<Guid, string>>(Slots
-            .Where(slot => exerciseIds.Contains(slot.ExerciseId) && slot.TestId != excludingTestId)
-            .GroupBy(slot => slot.ExerciseId)
-            .ToDictionary(group => group.Key, group => Tests.Single(test => test.Id == group.First().TestId).Code));
-
     public Task<SpeakingMediaAsset?> FindMediaAssetAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult(Assets.SingleOrDefault(asset => asset.Id == id));
 
@@ -215,22 +202,10 @@ public static class SpeakingSamples
 
     public static readonly byte[] WebmAudio = [0x1a, 0x45, 0xdf, 0xa3, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06];
 
-    /// <summary>A valid PNG with different bytes; the signature check only reads the header and the IEND chunk.</summary>
-    public static byte[] PngVariant(byte variant)
-    {
-        var bytes = (byte[])Png.Clone();
-        bytes[42] = variant;
-        return bytes;
-    }
-
-    /// <summary>Bank content must be unique, so every code except the "-001" samples gets its own wording.</summary>
     public static SpeakingExerciseInput Exercise(int part, string code, Guid? imageAssetId = null,
-        string status = "PUBLISHED")
-    {
-        var unique = code.Trim().EndsWith("001", StringComparison.OrdinalIgnoreCase) ? string.Empty : $" {code.Trim()}";
-        return part switch
+        string status = "PUBLISHED") => part switch
         {
-            1 => Common(part, code, status) with { Passage = $"Attention, shoppers. The store closes in thirty minutes.{unique}" },
+            1 => Common(part, code, status) with { Passage = "Attention, shoppers. The store closes in thirty minutes." },
             2 => Common(part, code, status) with
             {
                 ImageAssetId = imageAssetId,
@@ -239,19 +214,18 @@ public static class SpeakingSamples
             3 => Common(part, code, status) with
             {
                 Context = "Imagine a marketing firm is interviewing you about reading habits.",
-                Questions = [$"How often do you read?{unique}", $"Printed or e-books?{unique}", $"Recommend a book.{unique}"]
+                Questions = ["How often do you read?", "Printed or e-books?", "Recommend a book."]
             },
             4 => Common(part, code, status) with
             {
                 DocumentTitle = "Marketing Conference · May 14",
                 DocumentRows = [new("9:00", "Registration"), new("9:30", "Keynote")],
                 CallerIntro = "Hi, I lost my schedule.",
-                Questions = [$"Where is it held?{unique}", $"Is lunch in the main hall?{unique}", $"Sessions after lunch?{unique}"]
+                Questions = ["Where is it held?", "Is lunch in the main hall?", "Sessions after lunch?"]
             },
-            5 => Common(part, code, status) with { Prompt = $"Should employees work from home? Give reasons.{unique}" },
+            5 => Common(part, code, status) with { Prompt = "Should employees work from home? Give reasons." },
             _ => throw new ArgumentOutOfRangeException(nameof(part))
         };
-    }
 
     private static SpeakingExerciseInput Common(int part, string code, string status) =>
         new(part, code, "Công việc", "MEDIUM", status, "Rõ ràng, đúng trọng tâm.", $"Model answer {code}.");

@@ -70,7 +70,7 @@ public sealed class SpeakingPartPracticeTests
 
         var reloaded = await new GetSpeakingAttemptQueryHandler(_store, new InMemorySpeakingEvaluations(_store), _clock)
             .Handle(new GetSpeakingAttemptQuery(Learner, attempt.Id), CancellationToken.None);
-        Assert.Equal(SpeakingSamples.Exercise(1, "SP1-SNAP").Passage, reloaded.Questions[0].Content.Passage);
+        Assert.Equal("Attention, shoppers. The store closes in thirty minutes.", reloaded.Questions[0].Content.Passage);
     }
 
     [Fact]

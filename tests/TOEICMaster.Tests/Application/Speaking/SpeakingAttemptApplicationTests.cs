@@ -206,7 +206,7 @@ public sealed class SpeakingAttemptApplicationTests
     public async Task Published_images_are_served_only_through_a_published_snapshot()
     {
         var test = await PublishAsync();
-        var imageId = _store.Assets.First(asset => asset.Kind == SpeakingMediaKind.Image).Id;
+        var imageId = _store.Assets.Single(asset => asset.Kind == SpeakingMediaKind.Image).Id;
         var handler = new GetPublishedSpeakingImageQueryHandler(_store, _store);
 
         var image = await handler.Handle(new GetPublishedSpeakingImageQuery(imageId), CancellationToken.None);

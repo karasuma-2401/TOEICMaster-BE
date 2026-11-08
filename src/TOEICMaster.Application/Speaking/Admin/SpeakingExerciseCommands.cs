@@ -28,8 +28,7 @@ public sealed class CreateSpeakingExerciseCommandHandler(ISpeakingAdminRepositor
         var input = await SpeakingExerciseInputs.ValidateAsync(request.Input, cancellationToken);
         if (await repository.ExerciseCodeExistsAsync(input.Code!, null, cancellationToken))
             throw new SpeakingConflictException("Mã bài Speaking đã tồn tại.");
-        var imageSha256 = await SpeakingExerciseInputs.EnsureImageExistsAsync(input, repository, cancellationToken);
-        await SpeakingExerciseInputs.EnsureNotInBankAsync(input, imageSha256, null, repository, cancellationToken);
+        await SpeakingExerciseInputs.EnsureImageExistsAsync(input, repository, cancellationToken);
         var exercise = SpeakingExercise.Create(input.Part, input.Code!, input.Topic!, input.ParseDifficulty(),
             input.ParseStatus(), input.ToContentJson(), input.ImageAssetId, input.RubricNotes ?? string.Empty,
             input.ModelAnswer!, request.ActorUserId, timeProvider.GetUtcNow());
@@ -54,9 +53,7 @@ public sealed class UpdateSpeakingExerciseCommandHandler(ISpeakingAdminRepositor
             throw new SpeakingConflictException("Không thể đổi Part của bài tập đã tạo.");
         if (await repository.ExerciseCodeExistsAsync(input.Code!, exercise.Id, cancellationToken))
             throw new SpeakingConflictException("Mã bài Speaking đã tồn tại.");
-        var imageSha256 = await SpeakingExerciseInputs.EnsureImageExistsAsync(input, repository, cancellationToken);
-        await SpeakingExerciseInputs.EnsureNotInBankAsync(input, imageSha256, exercise.Id, repository,
-            cancellationToken);
+        await SpeakingExerciseInputs.EnsureImageExistsAsync(input, repository, cancellationToken);
         exercise.Update(input.Code!, input.Topic!, input.ParseDifficulty(), input.ParseStatus(),
             input.ToContentJson(), input.ImageAssetId, input.RubricNotes ?? string.Empty, input.ModelAnswer!,
             request.ActorUserId, timeProvider.GetUtcNow());
@@ -134,12 +131,6 @@ internal static class SpeakingExerciseInputs
         CancellationToken cancellationToken)
     {
         await Validator.ValidateAndThrowAsync(input, cancellationToken);
-        return Normalize(input);
-    }
-
-    /// <summary>Trims an input that has already passed validation.</summary>
-    public static SpeakingExerciseInput Normalize(SpeakingExerciseInput input)
-    {
         var trimmedQuestions = input.Questions?.Select(question => question?.Trim()).ToArray();
         return input with
         {
@@ -160,30 +151,15 @@ internal static class SpeakingExerciseInputs
         };
     }
 
-    /// <summary>Returns the SHA-256 of a Part 2 picture, or null for the Parts that have none.</summary>
-    public static async Task<string?> EnsureImageExistsAsync(SpeakingExerciseInput input,
-        ISpeakingAdminRepository repository, CancellationToken cancellationToken)
+    public static async Task EnsureImageExistsAsync(SpeakingExerciseInput input, ISpeakingAdminRepository repository,
+        CancellationToken cancellationToken)
     {
         if (input.Part != 2)
-            return null;
+            return;
         var asset = await repository.FindMediaAssetAsync(input.ImageAssetId!.Value, cancellationToken);
         if (asset is not { Kind: SpeakingMediaKind.Image })
             throw new ValidationException([new ValidationFailure(nameof(SpeakingExerciseInput.ImageAssetId),
                 "Ảnh đề bài không tồn tại. Hãy tải ảnh lên lại.")]);
-        return asset.Sha256;
-    }
-
-    /// <summary>Rejects text or a picture that another exercise in the bank already has.</summary>
-    public static async Task EnsureNotInBankAsync(SpeakingExerciseInput input, string? imageSha256,
-        Guid? excludingExerciseId, ISpeakingAdminRepository repository, CancellationToken cancellationToken)
-    {
-        var bank = await repository.GetExerciseContentSourcesAsync(cancellationToken);
-        var failures = SpeakingTestContentRules.FindBankDuplicates(
-            SpeakingJson.Deserialize<SpeakingContentDto>(input.ToContentJson()), imageSha256, bank,
-            excludingExerciseId);
-        if (failures.Count > 0)
-            throw new ValidationException(failures.Select(failure =>
-                new ValidationFailure(failure.Field, failure.Message)));
     }
 
     public static SpeakingDifficulty ParseDifficulty(this SpeakingExerciseInput input) =>
