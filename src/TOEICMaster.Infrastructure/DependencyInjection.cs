@@ -61,6 +61,7 @@ public static class DependencyInjection
         services.AddScoped<IWritingEvaluationRepository, EfWritingEvaluationRepository>();
         services.AddScoped<IWritingImageStore, MinioWritingImageStore>();
         services.AddSingleton<IWritingExerciseImportParser, XlsxWritingExerciseImportParser>();
+        services.AddSingleton<IWritingTestImportParser, XlsxWritingTestImportParser>();
         services.AddScoped<ISpeakingAdminRepository, EfSpeakingAdminRepository>();
         services.AddScoped<ISpeakingAttemptRepository, EfSpeakingAttemptRepository>();
         services.AddScoped<ISpeakingMediaStore, MinioSpeakingMediaStore>();

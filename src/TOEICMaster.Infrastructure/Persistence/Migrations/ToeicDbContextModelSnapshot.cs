@@ -163,26 +163,26 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<long>("ByteSize")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<long>("ByteSize")
-                        .HasColumnType("bigint");
-
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ObjectKey")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
 
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
 
@@ -198,6 +198,11 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -209,11 +214,6 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTimeOffset>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("ObjectKey")
                         .IsRequired()
@@ -1379,6 +1379,9 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.Property<int>("CurrentQuestionIndex")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("IsPractice")
+                        .HasColumnType("boolean");
+
                     b.Property<short>("Mode")
                         .HasColumnType("smallint");
 
@@ -1410,7 +1413,10 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("WritingTestId")
+                    b.Property<Guid?>("WritingExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("WritingTestId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
@@ -1469,7 +1475,7 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("WritingAttemptId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("WritingTestQuestionId")
+                    b.Property<Guid?>("WritingTestQuestionId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
@@ -1812,7 +1818,10 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ExerciseId")
+                    b.Property<Guid?>("ExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ImageAssetId")
                         .HasColumnType("uuid");
 
                     b.Property<short>("Part")
@@ -1830,6 +1839,8 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ExerciseId");
+
+                    b.HasIndex("ImageAssetId");
 
                     b.HasIndex("WritingTestId", "Part", "SequenceNumber")
                         .IsUnique();
@@ -2061,8 +2072,7 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.HasOne("TOEICMaster.Domain.Entities.WritingExercise", null)
                         .WithMany()
                         .HasForeignKey("ExerciseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("TOEICMaster.Domain.Entities.WritingTest", null)
                         .WithMany("Questions")

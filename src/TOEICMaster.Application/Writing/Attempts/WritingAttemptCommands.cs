@@ -1,5 +1,7 @@
+using System.Text.Json;
 using FluentValidation;
 using MediatR;
+using TOEICMaster.Application.Writing.Admin;
 using TOEICMaster.Application.Writing.Evaluations;
 using TOEICMaster.Domain.Entities;
 
@@ -7,6 +9,37 @@ namespace TOEICMaster.Application.Writing.Attempts;
 
 public sealed record StartWritingAttemptCommand(WritingAttemptOwner Owner, StartWritingAttemptInput Input)
     : IRequest<WritingAttemptDto>;
+
+public sealed record StartWritingPracticeCommand(WritingAttemptOwner Owner, Guid ExerciseId) : IRequest<WritingAttemptDto>;
+
+public sealed class StartWritingPracticeCommandValidator : AbstractValidator<StartWritingPracticeCommand>
+{
+    public StartWritingPracticeCommandValidator()
+    {
+        RuleFor(command => command.Owner).SetValidator(new WritingAttemptOwnerValidator());
+        RuleFor(command => command.ExerciseId).NotEmpty();
+    }
+}
+
+public sealed class StartWritingPracticeCommandHandler(IWritingAttemptRepository repository, TimeProvider timeProvider)
+    : IRequestHandler<StartWritingPracticeCommand, WritingAttemptDto>
+{
+    public async Task<WritingAttemptDto> Handle(StartWritingPracticeCommand request, CancellationToken cancellationToken)
+    {
+        var exercise = await repository.FindPublishedExerciseAsync(request.ExerciseId, cancellationToken)
+            ?? throw new WritingAttemptNotFoundException();
+        var attemptId = Guid.NewGuid();
+        var snapshot = JsonSerializer.Serialize(exercise.ToSnapshot());
+        var question = WritingAttemptQuestion.CreatePractice(attemptId, exercise.Part,
+            WritingAttemptMapping.ToPromptSnapshotJson(snapshot), WritingAttemptMapping.ToReviewSnapshotJson(snapshot));
+        var now = timeProvider.GetUtcNow();
+        var attempt = WritingAttempt.CreatePractice(attemptId, exercise, request.Owner.UserId,
+            request.Owner.AnonymousSessionHash, question, now);
+        await repository.AddAttemptAsync(attempt, cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
+        return attempt.ToDto(now);
+    }
+}
 
 public sealed record SaveWritingAnswerCommand(WritingAttemptOwner Owner, Guid AttemptId, int Position,
     SaveWritingAnswerInput Input) : IRequest<WritingAttemptDto>;
@@ -212,7 +245,8 @@ public sealed class GrantWritingEvaluationConsentCommandHandler(IWritingAttemptR
                 evaluationSettings.RubricVersion, now);
             await evaluationRepository.AddAsync(evaluation, cancellationToken);
         }
-        evaluation.GrantConsentAndQueue(now);
+        evaluation.GrantConsentAndQueue(now, evaluationSettings.Provider, evaluationSettings.Model,
+            evaluationSettings.RubricVersion);
         await evaluationRepository.SaveChangesAsync(cancellationToken);
         return attempt.ToDto(now, evaluation);
     }

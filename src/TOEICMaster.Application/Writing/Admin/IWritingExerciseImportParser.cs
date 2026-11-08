@@ -5,7 +5,8 @@ public interface IWritingExerciseImportParser
     WritingExerciseImportPreviewDto Preview(int part, string fileName, byte[] content);
 }
 
-public sealed record WritingExerciseImportRowDto(int RowNumber, string? Code, IReadOnlyList<string> Errors)
+public sealed record WritingExerciseImportRowDto(int RowNumber, string? Code, IReadOnlyList<string> Errors,
+    WritingExerciseInput? Input = null)
 {
     public bool IsValid => Errors.Count == 0;
 }

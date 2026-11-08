@@ -41,6 +41,10 @@ public sealed class EfWritingEvaluationRepository(ToeicDbContext context) : IWri
         return Task.CompletedTask;
     }
 
+    // Feedback already has a client-generated ID; explicitly mark it as new, not an update.
+    public void AddFeedback(IReadOnlyCollection<WritingEvaluationFeedback> feedback) =>
+        context.WritingEvaluationFeedback.AddRange(feedback);
+
     public async Task<WritingEvaluationWork?> ClaimNextAsync(DateTimeOffset now, DateTimeOffset leaseExpiresAtUtc,
         CancellationToken cancellationToken)
     {

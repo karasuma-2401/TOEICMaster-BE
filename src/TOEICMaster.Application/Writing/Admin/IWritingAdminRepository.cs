@@ -20,5 +20,6 @@ public interface IWritingAdminRepository
     Task<IReadOnlyList<WritingExercise>> FindExercisesAsync(IReadOnlyCollection<Guid> ids,
         CancellationToken cancellationToken);
     Task AddTestAsync(WritingTest test, CancellationToken cancellationToken);
+    void RemoveTest(WritingTest test);
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

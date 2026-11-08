@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,5 +37,19 @@ public sealed class WritingAdministrationAuthorizationTests(AccountsApiFactory f
         using var response = await client.GetAsync("/api/v1/admin/writing/exercises");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("DELETE", "/api/v1/admin/writing/tests/10000000-0000-0000-0000-000000000001?version=1")]
+    [InlineData("POST", "/api/v1/admin/writing/tests/10000000-0000-0000-0000-000000000001/archive")]
+    [InlineData("POST", "/api/v1/admin/writing/tests/10000000-0000-0000-0000-000000000001/restore")]
+    public async Task Test_lifecycle_operations_require_admin(string method, string path)
+    {
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-Role", "User");
+        using var request = new HttpRequestMessage(new HttpMethod(method), path);
+        if (method == "POST") request.Content = JsonContent.Create(new { version = 1 });
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 }

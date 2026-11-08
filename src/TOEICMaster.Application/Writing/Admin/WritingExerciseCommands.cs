@@ -25,8 +25,8 @@ public sealed class WritingExerciseInputValidator : AbstractValidator<WritingExe
         RuleFor(input => input.Difficulty).Must(IsDifficulty).WithMessage("Độ khó không hợp lệ.");
         RuleFor(input => input.Status).Must(IsExerciseStatus).WithMessage("Trạng thái không hợp lệ.");
         RuleFor(input => input.RubricNotes).Must(value => value is null || value.Trim().Length <= 4_000);
-        RuleFor(input => input.ModelAnswer).Cascade(CascadeMode.Stop).NotEmpty()
-            .Must(value => value is not null && value.Trim().Length <= 12_000).WithMessage("Bài mẫu không hợp lệ.");
+        RuleFor(input => input.ModelAnswer).Must(value => value is null || value.Trim().Length <= 12_000)
+            .WithMessage("Bài mẫu không hợp lệ.");
         RuleFor(input => input.ImageAlt).Must(value => value is null || value.Trim().Length <= 300);
         RuleFor(input => input.KeywordOne).Must(value => value is null || value.Trim().Length <= 100);
         RuleFor(input => input.KeywordTwo).Must(value => value is null || value.Trim().Length <= 100);
@@ -142,7 +142,7 @@ public sealed class UpdateWritingExerciseCommandHandler(IWritingAdminRepository 
         await CreateWritingExerciseCommandHandler.EnsureImageExistsAsync(input, repository, cancellationToken);
         exercise.Update(input.Code, input.Topic, WritingAdminMapping.ParseDifficulty(input.Difficulty),
             WritingAdminMapping.ParseExerciseStatus(input.Status), input.RubricNotes ?? string.Empty,
-            input.ModelAnswer!, input.ImageAssetId, input.ImageAlt, input.KeywordOne, input.KeywordTwo,
+            input.ModelAnswer ?? string.Empty, input.ImageAssetId, input.ImageAlt, input.KeywordOne, input.KeywordTwo,
             input.Sender, input.Recipient, input.Subject, input.EmailBody, input.Directions, input.Prompt,
             input.MinimumWordCount, input.Outline, request.ActorUserId, timeProvider.GetUtcNow());
         await repository.SaveChangesAsync(cancellationToken);
@@ -189,7 +189,7 @@ internal static class WritingExerciseInputExtensions
     public static WritingExercise ToEntity(this WritingExerciseInput input, Guid actorUserId, DateTimeOffset now) =>
         WritingExercise.Create(WritingAdminMapping.ParsePart(input.Part), input.Code, input.Topic,
             WritingAdminMapping.ParseDifficulty(input.Difficulty), WritingAdminMapping.ParseExerciseStatus(input.Status),
-            input.RubricNotes ?? string.Empty, input.ModelAnswer!, input.ImageAssetId, input.ImageAlt,
+            input.RubricNotes ?? string.Empty, input.ModelAnswer ?? string.Empty, input.ImageAssetId, input.ImageAlt,
             input.KeywordOne, input.KeywordTwo, input.Sender, input.Recipient, input.Subject, input.EmailBody,
             input.Directions, input.Prompt, input.MinimumWordCount, input.Outline, actorUserId, now);
 

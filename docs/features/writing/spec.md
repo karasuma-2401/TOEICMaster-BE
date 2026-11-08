@@ -1,6 +1,6 @@
 # Feature Specification: TOEIC Writing Module
 
-> **Trạng thái:** Production Ready / In Use (Đang nâng cấp tính năng Tạo đề độc lập & Import Excel)  
+> **Trạng thái:** Cần kiểm thử tích hợp và UAT sau migration
 > **Phạm vi kỹ năng:** TOEIC Writing (Part 1: 5 câu, Part 2: 2 câu, Part 3: 1 câu)  
 > **Ánh xạ Figma & Routes Frontend:**
 > - `/admin/content/writing` (Figma Màn hình 38, 39) — Ngân hàng câu hỏi lẻ theo Part
@@ -8,7 +8,8 @@
 > - `/writing` (Figma Màn hình 11, 14) — Thư viện đề thi Writing & Luyện tập
 > - `/writing/tests/[id]` (Figma Màn hình 24) — Hướng dẫn thi & Cấu trúc Timing
 > - `/writing/attempts/[id]` (Figma Màn hình 25) — Phòng thi ảo 2-Phase (Chuẩn bị ➜ Làm bài)
-> - `/writing/attempts/[id]/result` (Figma Màn hình 26, 27) — Kết quả thi, Báo cáo chấm AI & Bài mẫu
+> - `/writing/attempts/[id]/result` (Figma Màn hình 26, 27) — Kết quả và báo cáo chấm AI
+> - `/writing/practice/[part]` — Luyện bài tập lẻ theo Part
 > - `/history/writing` (Figma Màn hình 06) — Lịch sử làm bài thi Writing
 >
 > **Tài liệu chi tiết liên quan:**
@@ -23,17 +24,17 @@
 ## 1. Mục tiêu & Phạm vi (Goal & Scope)
 
 ### Mục tiêu chính
-Cung cấp phân hệ luyện thi và thi thử TOEIC Writing chuẩn cấu trúc ETS gồm 8 câu hỏi, hỗ trợ chấm điểm tự động bằng mô hình AI Gemini (0–200 điểm, ước tính theo rubric ETS), kèm giải thích và bài mẫu.
+Cung cấp phân hệ luyện thi và thi thử TOEIC Writing gồm 8 câu hỏi, hỗ trợ chấm điểm tự động bằng Gemini và phản hồi theo rubric. Điểm bài thi 0–200 chỉ là ước tính luyện tập; bài tập lẻ hiển thị điểm thô theo Part.
 
 ### Phạm vi triển khai (In-scope)
 - [x] **Ngân hàng bài tập lẻ độc lập (`/api/v1/admin/writing/exercises` / UI: `/admin/content/writing`):** 
-  - Hoạt động độc lập với Đề thi, phục vụ riêng cho tính năng học viên Luyện tập theo từng Part (`/practice/writing/[partId]`).
+  - Bài tập lẻ phục vụ luyện theo Part (`/writing/practice/[part]`) và độc lập với đề thi nhập trực tiếp.
   - Quản lý câu hỏi Part 1 (Write sentence based on picture), Part 2 (Respond to written request), Part 3 (Write an opinion essay).
   - Hỗ trợ Import câu hỏi lẻ theo Part bằng file Excel (`POST /exercises/imports/validate?part={1|2|3}`).
 - [x] **Quản lý Đề thi Writing độc lập (`/api/v1/admin/writing/tests` / UI: `/admin/tests/writing`):**
   - **Tạo đề thi mới hoàn toàn (Direct Exam Creation):** Nhập trực tiếp trọn gói 8 câu hỏi trong đề thi (5 câu Part 1, 2 câu Part 2, 1 câu Part 3) mà không cần nhặt câu hỏi từ Ngân hàng bài tập lẻ.
   - **Import đề thi bằng file Excel trọn gói:** Bổ sung cơ chế import toàn bộ 8 câu hỏi kèm metadata của một đề thi hoàn chỉnh từ file `.xlsx` (`POST /api/v1/admin/writing/tests/import`).
-  - **Vòng đời đề thi an toàn:** Đề tạo ở trạng thái `DRAFT` ➜ Soạn thảo/Chỉnh sửa ➜ Kiểm tra điều kiện đủ 8 câu đúng cấu trúc (5/2/1) ➜ `PUBLISHED` ➜ Nội dung đóng băng bất biến (Immutable snapshot).
+  - **Vòng đời đề thi an toàn:** Đề tạo ở trạng thái `DRAFT` có thể chỉnh sửa hoặc xóa; đủ 8 câu đúng cấu trúc (5/2/1) thì được công bố `PUBLISHED` và đóng băng nội dung. Admin có thể lưu trữ `ARCHIVED` hoặc khôi phục về `PUBLISHED`; lịch sử và lượt làm đã bắt đầu được giữ.
 - [x] **Luồng làm bài học viên (`/api/v1/writing`):** 
   - Đề thi chỉ trả câu hỏi đã `PUBLISHED`, tuyệt đối không lộ đáp án mẫu (model answer) hay rubric chấm điểm.
   - Hỗ trợ cả thành viên đăng nhập (JWT `sub`) và khách vãng lai qua Header `X-Writing-Anonymous-Session` (server lưu SHA-256).
@@ -62,17 +63,17 @@ sequenceDiagram
     participant Gemini as Google Gemini AI
 
     User->>FE: Bấm nộp bài Writing
-    FE->>API: POST /api/v1/writing/tests/{id}/submit
+    FE->>API: POST /api/v1/writing/attempts/{id}/submit
     API->>API: Lưu Attempt & tạo Evaluation (CONSENT_REQUIRED)
     API-->>FE: Trả về trạng thái CONSENT_REQUIRED
     User->>FE: Đọc thông báo & Bấm "Đồng ý chấm AI"
-    FE->>API: POST /api/v1/writing/evaluations/{id}/consent
+    FE->>API: POST /api/v1/writing/attempts/{id}/evaluation-consent
     API->>API: Chuyển Job sang QUEUED
     Worker->>API: Lấy Job QUEUED -> Chuyển sang PROCESSING
-    Worker->>Gemini: Gửi Prompt + Bài làm của thí sinh
+    Worker->>Gemini: Gửi đề, ảnh Part 1 và bài làm sau consent
     Gemini-->>Worker: Trả về JSON Feedback & Điểm số (0-200)
     Worker->>API: Lưu kết quả & Đánh dấu COMPLETED
-    FE->>API: Polling GET /evaluations/{id} (mỗi 5s)
+    FE->>API: Polling GET /attempts/{id} (mỗi 5s)
     API-->>FE: Trả về kết quả đánh giá chi tiết
 ```
 
@@ -81,7 +82,7 @@ sequenceDiagram
 ## 3. Ràng buộc Kỹ thuật & Bảo mật cốt lõi (Guardrails)
 
 1. **Bảo mật đề thi & Model Answer:**
-   - Client không bao giờ nhận được model answer trước khi hoàn thành bài thi và có kết quả đánh giá.
+   - `modelAnswer` là thông tin tham khảo tùy chọn của Admin; API học viên không trả bài mẫu.
 2. **Phiên ẩn danh an toàn (Anonymous Ownership):**
    - Định danh khách vãng lai thông qua header `X-Writing-Anonymous-Session`. Backend chỉ lưu hash SHA-256, không bao giờ lưu UUID thô.
    - Một attempt chỉ thuộc về một chủ sở hữu duy nhất. Người khác truy cập sẽ nhận `404 Not Found` (không trả `403` để tránh rò rỉ sự tồn tại của attempt).
@@ -90,7 +91,7 @@ sequenceDiagram
    - Thao tác Retry của **cùng một attempt** bị lỗi không bị tính vào hạn mức mới.
 4. **Tính toàn vẹn & Bất biến của Đề thi (Exam Immutability):**
    - Đề thi Writing sau khi `PUBLISHED` là bất biến. Không cho phép sửa đổi câu hỏi của đề đã xuất bản để đảm bảo kết quả làm bài của học viên trong quá khứ không bị sai lệch.
-   - Ngân hàng bài tập lẻ (`WritingExercise`) và Đề thi (`WritingTest`) độc lập hoàn toàn, không có ràng buộc khóa ngoại cứng gây xóa theo dòng (cascade delete/update).
+   - Đề nhập trực tiếp độc lập với ngân hàng; đề cũ dùng `exerciseId` vẫn được hỗ trợ để bảo toàn tương thích.
 
 ---
 

@@ -14,6 +14,22 @@ public sealed class WritingAttemptsController(ISender sender) : ControllerBase
 {
     private const string AnonymousSessionHeader = "X-Writing-Anonymous-Session";
 
+    [HttpGet("exercises")]
+    [ProducesResponseType<WritingPracticeExercisePageDto>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<WritingPracticeExercisePageDto>> GetExercises([FromQuery] int part,
+        [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default) =>
+        Ok(await sender.Send(new GetPublishedWritingExercisesQuery(part, pageNumber, pageSize), cancellationToken));
+
+    [HttpPost("exercises/{exerciseId:guid}/attempts")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [ProducesResponseType<WritingAttemptDto>(StatusCodes.Status201Created)]
+    public async Task<ActionResult<WritingAttemptDto>> StartPractice(Guid exerciseId, CancellationToken cancellationToken)
+    {
+        var created = await sender.Send(new StartWritingPracticeCommand(CurrentOwner(), exerciseId), cancellationToken);
+        return CreatedAtAction(nameof(GetAttempt), new { attemptId = created.Id }, created);
+    }
+
     [HttpGet("tests")]
     [ProducesResponseType<WritingPublicTestPageDto>(StatusCodes.Status200OK)]
     public async Task<ActionResult<WritingPublicTestPageDto>> GetTests([FromQuery] string? query,
@@ -59,6 +75,15 @@ public sealed class WritingAttemptsController(ISender sender) : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<WritingAttemptDto>> GetAttempt(Guid attemptId, CancellationToken cancellationToken) =>
         Ok(await sender.Send(new GetWritingAttemptQuery(CurrentOwner(), attemptId), cancellationToken));
+
+    [HttpGet("attempts/{attemptId:guid}/media/{assetId:guid}")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> GetAttemptImage(Guid attemptId, Guid assetId, CancellationToken cancellationToken)
+    {
+        var image = await sender.Send(new GetWritingAttemptImageQuery(CurrentOwner(), attemptId, assetId), cancellationToken);
+        Response.Headers.XContentTypeOptions = "nosniff";
+        return File(image.Data, image.ContentType);
+    }
 
     [HttpPut("attempts/{attemptId:guid}/answers/{position:int}")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]

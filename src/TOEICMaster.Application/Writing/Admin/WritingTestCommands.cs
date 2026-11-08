@@ -14,6 +14,10 @@ public sealed record UpdateWritingTestDraftCommand(Guid ActorUserId, Guid TestId
 public sealed record PublishWritingTestCommand(Guid ActorUserId, Guid TestId, int ExpectedVersion)
     : IRequest<WritingTestDto>;
 
+public sealed record DeleteWritingTestDraftCommand(Guid ActorUserId, Guid TestId, int ExpectedVersion) : IRequest;
+public sealed record ArchiveWritingTestCommand(Guid ActorUserId, Guid TestId, int ExpectedVersion) : IRequest<WritingTestDto>;
+public sealed record RestoreWritingTestCommand(Guid ActorUserId, Guid TestId, int ExpectedVersion) : IRequest<WritingTestDto>;
+
 public sealed class WritingTestInputValidator : AbstractValidator<WritingTestInput>
 {
     public WritingTestInputValidator()
@@ -24,11 +28,14 @@ public sealed class WritingTestInputValidator : AbstractValidator<WritingTestInp
             .Must(value => value is not null && value.Trim().Length <= 200);
         RuleFor(input => input.Description).Must(value => value is null || value.Trim().Length <= 2_000);
         RuleFor(input => input.Questions).NotNull();
-        RuleForEach(input => input.Questions).SetValidator(new WritingTestQuestionInputValidator());
-        RuleFor(input => input.Questions).Must(questions => questions.Select(question => question.ExerciseId).Distinct().Count() == questions.Count)
-            .WithMessage("Một bài tập không thể xuất hiện hai lần trong cùng một đề.");
+        RuleForEach(input => input.Questions).NotNull().SetValidator(new WritingTestQuestionInputValidator());
+        RuleFor(input => input.Questions).Must(questions => questions.Where(question => question.ExerciseId.HasValue)
+            .Select(question => question.ExerciseId).Distinct().Count() == questions.Count(question => question.ExerciseId.HasValue))
+            .WithMessage("Một bài tập không thể xuất hiện hai lần trong cùng một đề.")
+            .When(input => input.Questions is not null && input.Questions.All(question => question is not null));
         RuleFor(input => input.Questions).Must(questions => questions.Select(question => (question.Part, question.SequenceNumber)).Distinct().Count() == questions.Count)
-            .WithMessage("Thứ tự câu hỏi trong mỗi Part không được trùng nhau.");
+            .WithMessage("Thứ tự câu hỏi trong mỗi Part không được trùng nhau.")
+            .When(input => input.Questions is not null && input.Questions.All(question => question is not null));
     }
 }
 
@@ -36,9 +43,15 @@ public sealed class WritingTestQuestionInputValidator : AbstractValidator<Writin
 {
     public WritingTestQuestionInputValidator()
     {
-        RuleFor(question => question.ExerciseId).NotEmpty();
+        RuleFor(question => question).Must(question => question.ExerciseId.HasValue != (question.Content is not null))
+            .WithMessage("Chọn một bài tập hoặc nhập nội dung câu hỏi trực tiếp.");
+        RuleFor(question => question.ExerciseId).NotEmpty().When(question => question.ExerciseId.HasValue);
         RuleFor(question => question.Part).InclusiveBetween(1, 3);
         RuleFor(question => question.SequenceNumber).GreaterThan(0);
+        RuleFor(question => question.Content).SetValidator(new WritingExerciseInputValidator()!)
+            .When(question => question.Content is not null);
+        RuleFor(question => question.Content!.Part).Equal(question => question.Part)
+            .When(question => question.Content is not null);
     }
 }
 
@@ -72,6 +85,90 @@ public sealed class PublishWritingTestCommandValidator : AbstractValidator<Publi
     }
 }
 
+public sealed class DeleteWritingTestDraftCommandValidator : AbstractValidator<DeleteWritingTestDraftCommand>
+{
+    public DeleteWritingTestDraftCommandValidator()
+    {
+        RuleFor(command => command.ActorUserId).NotEmpty();
+        RuleFor(command => command.TestId).NotEmpty();
+        RuleFor(command => command.ExpectedVersion).GreaterThan(0);
+    }
+}
+
+public sealed class ArchiveWritingTestCommandValidator : AbstractValidator<ArchiveWritingTestCommand>
+{
+    public ArchiveWritingTestCommandValidator()
+    {
+        RuleFor(command => command.ActorUserId).NotEmpty();
+        RuleFor(command => command.TestId).NotEmpty();
+        RuleFor(command => command.ExpectedVersion).GreaterThan(0);
+    }
+}
+
+public sealed class RestoreWritingTestCommandValidator : AbstractValidator<RestoreWritingTestCommand>
+{
+    public RestoreWritingTestCommandValidator()
+    {
+        RuleFor(command => command.ActorUserId).NotEmpty();
+        RuleFor(command => command.TestId).NotEmpty();
+        RuleFor(command => command.ExpectedVersion).GreaterThan(0);
+    }
+}
+
+internal static class WritingTestMutation
+{
+    public static async Task<WritingTest> FindAsync(IWritingAdminRepository repository, Guid id, int version,
+        CancellationToken cancellationToken)
+    {
+        var test = await repository.FindTestForUpdateAsync(id, cancellationToken)
+            ?? throw new WritingResourceNotFoundException();
+        if (test.Version != version)
+            throw new WritingConflictException("Đề đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
+        return test;
+    }
+}
+
+public sealed class DeleteWritingTestDraftCommandHandler(IWritingAdminRepository repository)
+    : IRequestHandler<DeleteWritingTestDraftCommand>
+{
+    public async Task Handle(DeleteWritingTestDraftCommand request, CancellationToken cancellationToken)
+    {
+        var test = await WritingTestMutation.FindAsync(repository, request.TestId, request.ExpectedVersion, cancellationToken);
+        if (!test.IsDraft)
+            throw new WritingConflictException("Chỉ có thể xóa đề nháp. Hãy lưu trữ đề đã công bố.");
+        repository.RemoveTest(test);
+        await repository.SaveChangesAsync(cancellationToken);
+    }
+}
+
+public sealed class ArchiveWritingTestCommandHandler(IWritingAdminRepository repository, TimeProvider timeProvider)
+    : IRequestHandler<ArchiveWritingTestCommand, WritingTestDto>
+{
+    public async Task<WritingTestDto> Handle(ArchiveWritingTestCommand request, CancellationToken cancellationToken)
+    {
+        var test = await WritingTestMutation.FindAsync(repository, request.TestId, request.ExpectedVersion, cancellationToken);
+        if (test.Status != WritingTestStatus.Published)
+            throw new WritingConflictException("Chỉ có thể lưu trữ đề đã công bố.");
+        test.Archive(request.ActorUserId, timeProvider.GetUtcNow());
+        await repository.SaveChangesAsync(cancellationToken);
+        return test.ToDto();
+    }
+}
+
+public sealed class RestoreWritingTestCommandHandler(IWritingAdminRepository repository, TimeProvider timeProvider)
+    : IRequestHandler<RestoreWritingTestCommand, WritingTestDto>
+{
+    public async Task<WritingTestDto> Handle(RestoreWritingTestCommand request, CancellationToken cancellationToken)
+    {
+        var test = await WritingTestMutation.FindAsync(repository, request.TestId, request.ExpectedVersion, cancellationToken);
+        if (test.Status != WritingTestStatus.Archived)
+            throw new WritingConflictException("Chỉ có thể khôi phục đề đã lưu trữ.");
+        test.Restore(request.ActorUserId, timeProvider.GetUtcNow());
+        await repository.SaveChangesAsync(cancellationToken);
+        return test.ToDto();
+    }
+}
+
 public sealed class CreateWritingTestCommandHandler(IWritingAdminRepository repository, TimeProvider timeProvider)
     : IRequestHandler<CreateWritingTestCommand, WritingTestDto>
 {
@@ -93,20 +190,33 @@ public sealed class CreateWritingTestCommandHandler(IWritingAdminRepository repo
         IReadOnlyList<WritingTestQuestionInput> inputs, IWritingAdminRepository repository,
         CancellationToken cancellationToken)
     {
-        var ids = inputs.Select(input => input.ExerciseId).Distinct().ToArray();
+        var ids = inputs.Where(input => input.ExerciseId.HasValue).Select(input => input.ExerciseId!.Value).Distinct().ToArray();
         var exercises = await repository.FindExercisesAsync(ids, cancellationToken);
         if (exercises.Count != ids.Length)
             throw new WritingConflictException("Một hoặc nhiều bài tập không tồn tại.");
         var exercisesById = exercises.ToDictionary(exercise => exercise.Id);
-        foreach (var input in inputs)
+        foreach (var input in inputs.Where(input => input.ExerciseId.HasValue))
         {
-            var exercise = exercisesById[input.ExerciseId];
+            var exercise = exercisesById[input.ExerciseId!.Value];
             if (exercise.Status != WritingExerciseStatus.Published || exercise.Part != WritingAdminMapping.ParsePart(input.Part))
                 throw new WritingConflictException("Đề chỉ có thể chọn bài tập đã công bố và đúng Part.");
         }
-        return inputs.OrderBy(input => input.Part).ThenBy(input => input.SequenceNumber)
-            .Select(input => WritingTestQuestion.Create(testId, input.ExerciseId,
-                WritingAdminMapping.ParsePart(input.Part), input.SequenceNumber)).ToArray();
+        var questions = new List<WritingTestQuestion>();
+        foreach (var input in inputs.OrderBy(input => input.Part).ThenBy(input => input.SequenceNumber))
+        {
+            var part = WritingAdminMapping.ParsePart(input.Part);
+            if (input.ExerciseId is Guid exerciseId)
+            {
+                questions.Add(WritingTestQuestion.Create(testId, exerciseId, part, input.SequenceNumber));
+                continue;
+            }
+            var content = input.Content!.Normalize();
+            await CreateWritingExerciseCommandHandler.EnsureImageExistsAsync(content, repository, cancellationToken);
+            var snapshot = content.ToEntity(Guid.Empty, DateTimeOffset.UnixEpoch).ToSnapshot();
+            questions.Add(WritingTestQuestion.CreateInline(testId, part, input.SequenceNumber,
+                JsonSerializer.Serialize(snapshot), content.ImageAssetId));
+        }
+        return questions;
     }
 }
 
@@ -154,14 +264,21 @@ public sealed class PublishWritingTestCommandHandler(IWritingAdminRepository rep
             throw new WritingConflictException("Đề đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
         ValidateQuestionShape(test.Questions);
 
-        var exerciseIds = test.Questions.Select(question => question.ExerciseId).ToArray();
+        var exerciseIds = test.Questions.Where(question => question.ExerciseId.HasValue)
+            .Select(question => question.ExerciseId!.Value).ToArray();
         var exercises = await repository.FindExercisesAsync(exerciseIds, cancellationToken);
         if (exercises.Count != exerciseIds.Length)
             throw new WritingConflictException("Một hoặc nhiều bài tập của đề không còn tồn tại.");
         var exercisesById = exercises.ToDictionary(exercise => exercise.Id);
         foreach (var question in test.Questions)
         {
-            var exercise = exercisesById[question.ExerciseId];
+            if (question.ExerciseId is not Guid exerciseId)
+            {
+                if (string.IsNullOrWhiteSpace(question.SnapshotJson))
+                    throw new WritingConflictException("Câu hỏi trong đề chưa có nội dung.");
+                continue;
+            }
+            var exercise = exercisesById[exerciseId];
             if (exercise.Status != WritingExerciseStatus.Published || exercise.Part != question.Part)
                 throw new WritingConflictException("Đề có bài tập chưa công bố hoặc không đúng Part.");
             question.Freeze(JsonSerializer.Serialize(exercise.ToSnapshot()));
