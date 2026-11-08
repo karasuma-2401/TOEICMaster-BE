@@ -1,6 +1,6 @@
 namespace TOEICMaster.Application.Writing.Evaluations;
 
-/// <summary>Snapshot values stored with each job so later configuration changes do not rewrite its evaluation context.</summary>
+/// <summary>Values snapshotted when a job is queued; a user-requested retry uses the current settings.</summary>
 public interface IWritingEvaluationSettings
 {
     string Provider { get; }

@@ -38,6 +38,7 @@ public interface IWritingEvaluationRepository
     Task<bool> HasAnonymousConsentAfterAsync(string anonymousSessionHash, Guid excludingAttemptId,
         DateTimeOffset afterUtc, CancellationToken cancellationToken);
     Task AddAsync(WritingEvaluation evaluation, CancellationToken cancellationToken);
+    void AddFeedback(IReadOnlyCollection<WritingEvaluationFeedback> feedback);
     Task<WritingEvaluationWork?> ClaimNextAsync(DateTimeOffset now, DateTimeOffset leaseExpiresAtUtc,
         CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);

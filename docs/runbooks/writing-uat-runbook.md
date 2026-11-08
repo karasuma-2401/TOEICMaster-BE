@@ -29,7 +29,9 @@ Tài liệu này chốt phạm vi **Writing**: 5 câu Part 1, 2 câu Part 2 và 
 | Khóa câu | Next hoặc hết giờ khóa câu; không thể sửa/quay lại. Câu cuối tự nộp một lần. |
 | Consent | Nộp bài không tự gửi đến AI; chỉ gửi sau checkbox đồng ý. |
 | AI | Queued/processing/retry poll mỗi 5 giây; có thể rời trang rồi quay lại. Lỗi key/quota không làm mất attempt và có nút chấm lại. |
-| Kết quả | Có nhãn điểm AI ước tính 0–200, không phải ETS; feedback/rubric và bài mẫu chỉ xuất hiện sau `COMPLETED`. |
+| Kết quả | Có nhãn điểm AI ước tính 0–200, không phải ETS; feedback chỉ xuất hiện sau `COMPLETED`; bài mẫu nội bộ không được hiển thị. |
+| Luyện tập | Chọn bài lẻ đã công bố theo Part, làm không giới hạn thời gian, nộp và đồng ý chấm; kết quả hiển thị điểm thô theo Part. |
+| Ảnh Part 1 | Ảnh được gửi đến AI sau consent; xác minh nhận xét đối chiếu ảnh. File ảnh tổng cộng tối đa 12 MiB mỗi evaluation. |
 | Ownership | Guest chỉ thấy attempt từ cookie HttpOnly hiện tại; account chỉ thấy attempt của chính account. |
 
 ## 3. Checklist Admin/API
@@ -39,6 +41,7 @@ Tài liệu này chốt phạm vi **Writing**: 5 câu Part 1, 2 câu Part 2 và 
 | Question bank | CRUD Part 1/2/3, validation field errors, ảnh có MIME/magic-byte/size validation. |
 | Import | Excel preview báo đúng dòng/cột lỗi trước khi commit. |
 | Test | Draft không cho User bắt đầu; publish chỉ qua khi đủ 5/2/1 và snapshot không đổi attempt cũ. |
+| Vòng đời đề | Xác nhận trước khi xóa draft; lưu trữ đề công bố ẩn đề với User nhưng giữ attempt/ảnh/lịch sử; khôi phục để đề hiển thị trở lại. Thử phiên bản cũ nhận 409. |
 | Review AI | `GET /api/v1/admin/writing/evaluations/{attemptId}` yêu cầu policy Admin; không trả provider response hoặc API key. |
 | Security | API attempt/history có `Cache-Control: no-store`; responses có `X-Content-Type-Options`, `X-Frame-Options` và `Referrer-Policy`. |
 

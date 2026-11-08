@@ -33,6 +33,7 @@ public sealed class WritingTestQuestionConfiguration : IEntityTypeConfiguration<
         builder.Property(question => question.SnapshotJson).HasColumnType("jsonb");
         builder.HasIndex(question => new { question.WritingTestId, question.Part, question.SequenceNumber }).IsUnique();
         builder.HasIndex(question => question.ExerciseId);
+        builder.HasIndex(question => question.ImageAssetId);
         builder.HasOne<WritingExercise>().WithMany().HasForeignKey(question => question.ExerciseId)
             .OnDelete(DeleteBehavior.Restrict);
     }

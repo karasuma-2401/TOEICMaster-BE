@@ -20,6 +20,10 @@ public sealed record WritingAttemptOwner(Guid? UserId, string? AnonymousSessionH
 
 public sealed record StartWritingAttemptInput(Guid TestId, string Mode);
 
+public sealed record WritingPracticeExerciseDto(Guid Id, int Part, string Code, string Topic, string Difficulty);
+public sealed record WritingPracticeExercisePageDto(IReadOnlyList<WritingPracticeExerciseDto> Items, int PageNumber,
+    int PageSize, int TotalCount);
+
 public sealed record SaveWritingAnswerInput(string Answer);
 
 public sealed record WritingAttemptPartDto(int Part, int QuestionCount, int PreparationSeconds, int ResponseSeconds);
@@ -49,11 +53,11 @@ public sealed record WritingAttemptReviewSnapshot(string? ModelAnswer, string? R
 
 public sealed record WritingAttemptReviewQuestionDto(int Position, string ModelAnswer);
 
-public sealed record WritingAttemptDto(Guid Id, Guid TestId, string TestCode, string TestTitle, string Mode,
+public sealed record WritingAttemptDto(Guid Id, Guid? TestId, string TestCode, string TestTitle, string Mode,
     string Status, int? CurrentQuestionPosition, string? CurrentPhase, DateTimeOffset? PhaseEndsAtUtc,
     DateTimeOffset ServerNowUtc, DateTimeOffset CreatedAtUtc, DateTimeOffset? SubmittedAtUtc,
     IReadOnlyList<WritingAttemptQuestionDto> Questions, WritingEvaluationDto? Evaluation,
-    IReadOnlyList<WritingAttemptReviewQuestionDto> ReviewQuestions);
+    IReadOnlyList<WritingAttemptReviewQuestionDto> ReviewQuestions, bool IsPractice);
 
 public sealed record WritingEvaluationFeedbackDto(int QuestionPosition, int CriterionScore, string Feedback,
     string SuggestedRevision);
@@ -64,9 +68,10 @@ public sealed record WritingEvaluationDto(string Status, int? EstimatedScore, st
     DateTimeOffset? ConsentAcceptedAtUtc, DateTimeOffset? QueuedAtUtc, DateTimeOffset? CompletedAtUtc,
     int RetryCount, string? FailureMessage);
 
-public sealed record WritingAttemptSummaryDto(Guid Id, Guid TestId, string TestCode, string TestTitle, string Mode,
+public sealed record WritingAttemptSummaryDto(Guid Id, Guid? TestId, string TestCode, string TestTitle, string Mode,
     string Status, int QuestionCount, int? CurrentQuestionPosition, DateTimeOffset CreatedAtUtc,
-    DateTimeOffset? SubmittedAtUtc, DateTimeOffset UpdatedAtUtc, string? EvaluationStatus, int? EstimatedScore);
+    DateTimeOffset? SubmittedAtUtc, DateTimeOffset UpdatedAtUtc, string? EvaluationStatus, int? EstimatedScore,
+    bool IsPractice);
 
 public sealed record WritingAttemptPageDto(IReadOnlyList<WritingAttemptSummaryDto> Items);
 
@@ -144,7 +149,8 @@ public static class WritingAttemptMapping
         var snapshot = JsonSerializer.Deserialize<WritingAttemptPromptSnapshot>(question.PromptSnapshotJson)
             ?? throw new InvalidOperationException("Invalid Writing attempt question snapshot.");
         return new WritingAttemptQuestionDto(question.Position, (int)question.Part, question.PreparationSeconds,
-            question.ResponseSeconds, snapshot.ImageAssetId is null ? null : $"/api/v1/writing/media/{snapshot.ImageAssetId}",
+            question.ResponseSeconds, snapshot.ImageAssetId is null ? null :
+                $"/api/v1/writing/attempts/{question.WritingAttemptId}/media/{snapshot.ImageAssetId}",
             snapshot.ImageAlt, snapshot.KeywordOne, snapshot.KeywordTwo, snapshot.Sender, snapshot.Recipient,
             snapshot.Subject, snapshot.EmailBody, snapshot.Directions, snapshot.Prompt, snapshot.MinimumWordCount,
             snapshot.Outline, question.Answer, question.LastSavedAtUtc, question.LockedAtUtc);
@@ -180,19 +186,16 @@ public static class WritingAttemptMapping
         attempt.Status.ToApiValue(), attempt.Status == WritingAttemptStatus.InProgress
             ? attempt.CurrentQuestionIndex + 1
             : null, attempt.Status == WritingAttemptStatus.InProgress ? attempt.CurrentPhase.ToApiValue() : null,
-        attempt.Status == WritingAttemptStatus.InProgress ? attempt.PhaseEndsAtUtc : null, now, attempt.CreatedAtUtc,
+        attempt.Status == WritingAttemptStatus.InProgress && !attempt.IsPractice ? attempt.PhaseEndsAtUtc : null, now, attempt.CreatedAtUtc,
         attempt.SubmittedAtUtc, attempt.Questions.OrderBy(question => question.Position).Select(ToDto).ToArray(),
-        evaluation?.ToDto(), evaluation?.Status == WritingEvaluationStatus.Completed
-            ? attempt.Questions.OrderBy(question => question.Position).Select(ToReviewDto)
-                .Where(question => !string.IsNullOrWhiteSpace(question.ModelAnswer)).ToArray()
-            : []);
+        evaluation?.ToDto(), [], attempt.IsPractice);
 
     public static WritingAttemptSummaryDto ToSummaryDto(this WritingAttempt attempt, WritingEvaluation? evaluation = null) => new(attempt.Id,
         attempt.WritingTestId, attempt.TestCode, attempt.TestTitle, attempt.Mode.ToApiValue(),
         attempt.Status.ToApiValue(), attempt.Questions.Count,
         attempt.Status == WritingAttemptStatus.InProgress ? attempt.CurrentQuestionIndex + 1 : null,
         attempt.CreatedAtUtc, attempt.SubmittedAtUtc, attempt.UpdatedAtUtc, evaluation?.Status.ToApiValue(),
-        evaluation?.EstimatedScore);
+        evaluation?.EstimatedScore, attempt.IsPractice);
 
     private static IReadOnlyList<string> DeserializeStrings(string? json)
     {
@@ -208,10 +211,4 @@ public static class WritingAttemptMapping
         }
     }
 
-    private static WritingAttemptReviewQuestionDto ToReviewDto(WritingAttemptQuestion question)
-    {
-        var snapshot = JsonSerializer.Deserialize<WritingAttemptReviewSnapshot>(question.ReviewSnapshotJson)
-            ?? throw new InvalidOperationException("Invalid Writing attempt review snapshot.");
-        return new WritingAttemptReviewQuestionDto(question.Position, snapshot.ModelAnswer ?? string.Empty);
-    }
 }

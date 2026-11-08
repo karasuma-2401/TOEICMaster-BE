@@ -11,6 +11,95 @@ public sealed class WritingAdministrationApplicationTests
     private static readonly DateTimeOffset Now = new(2026, 10, 23, 5, 30, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task Only_a_current_draft_can_be_deleted()
+    {
+        var (test, exercises) = CreateDraftTest();
+        var repository = new FakeWritingAdminRepository(test, exercises);
+        var handler = new DeleteWritingTestDraftCommandHandler(repository);
+        await Assert.ThrowsAsync<WritingConflictException>(() => handler.Handle(
+            new DeleteWritingTestDraftCommand(AdministratorId, test.Id, test.Version - 1), CancellationToken.None));
+        Assert.Equal(0, repository.RemoveCount);
+        await handler.Handle(new DeleteWritingTestDraftCommand(AdministratorId, test.Id, test.Version), CancellationToken.None);
+        Assert.Equal(1, repository.RemoveCount);
+        Assert.Equal(1, repository.SaveCount);
+    }
+
+    [Fact]
+    public async Task Published_test_is_archived_and_restored_without_changing_the_snapshot()
+    {
+        var (test, exercises) = CreateDraftTest();
+        var repository = new FakeWritingAdminRepository(test, exercises);
+        var published = await new PublishWritingTestCommandHandler(repository, TimeProvider.System).Handle(
+            new PublishWritingTestCommand(AdministratorId, test.Id, test.Version), CancellationToken.None);
+        var snapshot = published.Questions.First().SnapshotJson;
+        var archive = new ArchiveWritingTestCommandHandler(repository, TimeProvider.System);
+        await Assert.ThrowsAsync<WritingConflictException>(() => archive.Handle(
+            new ArchiveWritingTestCommand(AdministratorId, test.Id, published.Version - 1), CancellationToken.None));
+        await Assert.ThrowsAsync<WritingConflictException>(() => new DeleteWritingTestDraftCommandHandler(repository).Handle(
+            new DeleteWritingTestDraftCommand(AdministratorId, test.Id, published.Version), CancellationToken.None));
+        var archived = await archive.Handle(new ArchiveWritingTestCommand(AdministratorId, test.Id, published.Version), CancellationToken.None);
+        Assert.Equal("ARCHIVED", archived.Status);
+        Assert.Equal(published.PublishedAtUtc, archived.PublishedAtUtc);
+        Assert.Equal(snapshot, archived.Questions.First().SnapshotJson);
+        Assert.Equal(0, repository.RemoveCount);
+        await Assert.ThrowsAsync<WritingConflictException>(() => archive.Handle(
+            new ArchiveWritingTestCommand(AdministratorId, test.Id, archived.Version), CancellationToken.None));
+        var restored = await new RestoreWritingTestCommandHandler(repository, TimeProvider.System).Handle(
+            new RestoreWritingTestCommand(AdministratorId, test.Id, archived.Version), CancellationToken.None);
+        Assert.Equal("PUBLISHED", restored.Status);
+        Assert.Equal(snapshot, restored.Questions.First().SnapshotJson);
+        Assert.Equal(published.PublishedAtUtc, restored.PublishedAtUtc);
+    }
+
+    [Fact]
+    public async Task Draft_cannot_be_archived_or_restored()
+    {
+        var (test, exercises) = CreateDraftTest();
+        var repository = new FakeWritingAdminRepository(test, exercises);
+        await Assert.ThrowsAsync<WritingConflictException>(() => new ArchiveWritingTestCommandHandler(repository, TimeProvider.System).Handle(
+            new ArchiveWritingTestCommand(AdministratorId, test.Id, test.Version), CancellationToken.None));
+        await Assert.ThrowsAsync<WritingConflictException>(() => new RestoreWritingTestCommandHandler(repository, TimeProvider.System).Handle(
+            new RestoreWritingTestCommand(AdministratorId, test.Id, test.Version), CancellationToken.None));
+        Assert.Equal(0, repository.SaveCount);
+    }
+
+    [Fact]
+    public async Task Exercise_import_does_not_save_any_rows_if_one_row_is_invalid()
+    {
+        var valid = new WritingExerciseInput(3, "WP3-1", "Work", "EASY", "DRAFT", null, null,
+            null, null, null, null, null, null, null, null, null, "Explain your opinion.", 300, null);
+        var preview = new WritingExerciseImportPreviewDto(3, "part3.xlsx",
+            [new WritingExerciseImportRowDto(2, "WP3-1", [], valid),
+             new WritingExerciseImportRowDto(3, null, ["Thiếu mã bài."])]);
+        var repository = new FakeWritingAdminRepository(null, []);
+        var handler = new ImportWritingExercisesCommandHandler(new FixedImportParser(preview), repository, TimeProvider.System);
+
+        await Assert.ThrowsAsync<InvalidWritingImportException>(() => handler.Handle(
+            new ImportWritingExercisesCommand(AdministratorId, 3, "part3.xlsx", [1]), CancellationToken.None));
+        Assert.Equal(0, repository.AddCount);
+        Assert.Equal(0, repository.SaveCount);
+    }
+
+    [Fact]
+    public async Task Draft_can_store_inline_question_without_a_bank_exercise()
+    {
+        var repository = new FakeWritingAdminRepository(null, []);
+        var handler = new CreateWritingTestCommandHandler(repository, TimeProvider.System);
+        var content = new WritingExerciseInput(3, "QUESTION-1", "Work", "EASY", "DRAFT", null, null,
+            null, null, null, null, null, null, null, null, null, "Explain your opinion.", 300, null);
+        var input = new WritingTestInput("TEST-1", "Test", null,
+            [new WritingTestQuestionInput(null, 3, 1, content)]);
+
+        Assert.True(new WritingTestInputValidator().Validate(input).IsValid);
+        var result = await handler.Handle(new CreateWritingTestCommand(AdministratorId, input), CancellationToken.None);
+
+        var question = Assert.Single(result.Questions);
+        Assert.Null(question.ExerciseId);
+        Assert.Contains("Explain your opinion.", question.SnapshotJson, StringComparison.Ordinal);
+        Assert.Equal(1, repository.SaveCount);
+    }
+
+    [Fact]
     public async Task Publish_requires_the_complete_5_2_1_question_shape()
     {
         var (test, exercises) = CreateDraftTest(part1Count: 4);
@@ -68,6 +157,18 @@ public sealed class WritingAdministrationApplicationTests
     }
 
     [Fact]
+    public void Part_three_input_accepts_a_missing_model_answer()
+    {
+        var result = new WritingExerciseInputValidator().Validate(new WritingExerciseInput(
+            Part: 3, Code: "WP3-001", Topic: "Work", Difficulty: "EASY", Status: "PUBLISHED",
+            RubricNotes: null, ModelAnswer: null, ImageAssetId: null, ImageAlt: null,
+            KeywordOne: null, KeywordTwo: null, Sender: null, Recipient: null, Subject: null, EmailBody: null,
+            Directions: null, Prompt: "Explain your opinion.", MinimumWordCount: 300, Outline: null));
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
     public void Part_one_input_requires_an_uploaded_image_and_two_keywords()
     {
         var result = new WritingExerciseInputValidator().Validate(new WritingExerciseInput(
@@ -109,6 +210,8 @@ public sealed class WritingAdministrationApplicationTests
         : IWritingAdminRepository
     {
         public int SaveCount { get; private set; }
+        public int AddCount { get; private set; }
+        public int RemoveCount { get; private set; }
 
         public Task<WritingExercisePageDto> GetExercisePageAsync(WritingExerciseFilter filter,
             CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -119,7 +222,11 @@ public sealed class WritingAdministrationApplicationTests
         public Task<bool> ExerciseCodeExistsAsync(string code, Guid? excludingId, CancellationToken cancellationToken) =>
             Task.FromResult(exercises.Any(exercise => exercise.Code == code && exercise.Id != excludingId));
         public Task<bool> MediaAssetExistsAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(true);
-        public Task AddExerciseAsync(WritingExercise exercise, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task AddExerciseAsync(WritingExercise exercise, CancellationToken cancellationToken)
+        {
+            AddCount++;
+            return Task.CompletedTask;
+        }
         public Task<WritingMediaAsset?> FindMediaAssetAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult<WritingMediaAsset?>(null);
         public Task AddMediaAssetAsync(WritingMediaAsset asset, CancellationToken cancellationToken) => Task.CompletedTask;
@@ -135,10 +242,16 @@ public sealed class WritingAdministrationApplicationTests
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<WritingExercise>>(exercises.Where(exercise => ids.Contains(exercise.Id)).ToArray());
         public Task AddTestAsync(WritingTest writingTest, CancellationToken cancellationToken) => Task.CompletedTask;
+        public void RemoveTest(WritingTest writingTest) => RemoveCount++;
         public Task SaveChangesAsync(CancellationToken cancellationToken)
         {
             SaveCount++;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FixedImportParser(WritingExerciseImportPreviewDto preview) : IWritingExerciseImportParser
+    {
+        public WritingExerciseImportPreviewDto Preview(int part, string fileName, byte[] content) => preview;
     }
 }

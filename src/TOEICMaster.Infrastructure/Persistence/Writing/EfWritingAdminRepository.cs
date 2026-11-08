@@ -116,6 +116,8 @@ public sealed class EfWritingAdminRepository(ToeicDbContext context) : IWritingA
         return Task.CompletedTask;
     }
 
+    public void RemoveTest(WritingTest test) => context.WritingTests.Remove(test);
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         try

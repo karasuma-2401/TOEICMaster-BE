@@ -28,7 +28,7 @@ public sealed class WritingAttempt
     {
     }
 
-    private WritingAttempt(Guid id, Guid writingTestId, string testCode, string testTitle, WritingAttemptMode mode,
+    private WritingAttempt(Guid id, Guid? writingTestId, string testCode, string testTitle, WritingAttemptMode mode,
         Guid? userId, string? anonymousSessionHash, DateTimeOffset now)
     {
         Id = id;
@@ -47,7 +47,9 @@ public sealed class WritingAttempt
     }
 
     public Guid Id { get; private set; }
-    public Guid WritingTestId { get; private set; }
+    public Guid? WritingTestId { get; private set; }
+    public Guid? WritingExerciseId { get; private set; }
+    public bool IsPractice { get; private set; }
     public string TestCode { get; private set; } = string.Empty;
     public string TestTitle { get; private set; } = string.Empty;
     public WritingAttemptMode Mode { get; private set; }
@@ -81,6 +83,29 @@ public sealed class WritingAttempt
             is false)
             throw new InvalidOperationException("Writing attempt question positions must be continuous.");
         attempt.PhaseEndsAtUtc = now.AddSeconds(attempt._questions[0].PreparationSeconds);
+        return attempt;
+    }
+
+    public static WritingAttempt CreatePractice(Guid id, WritingExercise exercise, Guid? userId,
+        string? anonymousSessionHash, WritingAttemptQuestion question, DateTimeOffset now)
+    {
+        if ((userId is not null) == !string.IsNullOrWhiteSpace(anonymousSessionHash))
+            throw new InvalidOperationException("A Writing attempt must have exactly one owner.");
+        var mode = exercise.Part switch
+        {
+            WritingPart.Part1 => WritingAttemptMode.Part1,
+            WritingPart.Part2 => WritingAttemptMode.Part2,
+            WritingPart.Part3 => WritingAttemptMode.Part3,
+            _ => throw new InvalidOperationException("Invalid Writing practice part.")
+        };
+        var attempt = new WritingAttempt(id, null, exercise.Code, exercise.Topic, mode, userId, anonymousSessionHash, now)
+        {
+            WritingExerciseId = exercise.Id,
+            IsPractice = true,
+            CurrentPhase = WritingAttemptPhase.Answering,
+            PhaseEndsAtUtc = DateTimeOffset.MaxValue
+        };
+        attempt._questions.Add(question);
         return attempt;
     }
 
@@ -122,6 +147,8 @@ public sealed class WritingAttempt
 
     public bool AdvanceExpired(DateTimeOffset now)
     {
+        if (IsPractice)
+            return false;
         if (Status != WritingAttemptStatus.InProgress)
             return false;
 
@@ -182,7 +209,7 @@ public sealed class WritingAttemptQuestion
     {
     }
 
-    private WritingAttemptQuestion(Guid id, Guid writingAttemptId, Guid writingTestQuestionId, int position,
+    private WritingAttemptQuestion(Guid id, Guid writingAttemptId, Guid? writingTestQuestionId, int position,
         WritingPart part, int preparationSeconds, int responseSeconds, string promptSnapshotJson,
         string reviewSnapshotJson)
     {
@@ -199,7 +226,7 @@ public sealed class WritingAttemptQuestion
 
     public Guid Id { get; private set; }
     public Guid WritingAttemptId { get; private set; }
-    public Guid WritingTestQuestionId { get; private set; }
+    public Guid? WritingTestQuestionId { get; private set; }
     public int Position { get; private set; }
     public WritingPart Part { get; private set; }
     public int PreparationSeconds { get; private set; }
@@ -221,6 +248,10 @@ public sealed class WritingAttemptQuestion
         string reviewSnapshotJson) =>
         new(Guid.NewGuid(), writingAttemptId, writingTestQuestionId, position, part, preparationSeconds,
             responseSeconds, promptSnapshotJson, reviewSnapshotJson);
+
+    public static WritingAttemptQuestion CreatePractice(Guid writingAttemptId, WritingPart part,
+        string promptSnapshotJson, string reviewSnapshotJson) =>
+        new(Guid.NewGuid(), writingAttemptId, null, 1, part, 0, 0, promptSnapshotJson, reviewSnapshotJson);
 
     public void SaveAnswer(string answer, DateTimeOffset now)
     {

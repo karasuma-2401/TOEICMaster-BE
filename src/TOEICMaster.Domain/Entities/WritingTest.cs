@@ -3,7 +3,8 @@ namespace TOEICMaster.Domain.Entities;
 public enum WritingTestStatus
 {
     Draft = 1,
-    Published = 2
+    Published = 2,
+    Archived = 3
 }
 
 public sealed class WritingTest
@@ -79,6 +80,26 @@ public sealed class WritingTest
         UpdatedAtUtc = now;
         Version++;
     }
+
+    public void Archive(Guid actorUserId, DateTimeOffset now)
+    {
+        if (Status != WritingTestStatus.Published)
+            throw new InvalidOperationException("Only a published Writing test can be archived.");
+        Status = WritingTestStatus.Archived;
+        UpdatedByUserId = actorUserId;
+        UpdatedAtUtc = now;
+        Version++;
+    }
+
+    public void Restore(Guid actorUserId, DateTimeOffset now)
+    {
+        if (Status != WritingTestStatus.Archived)
+            throw new InvalidOperationException("Only an archived Writing test can be restored.");
+        Status = WritingTestStatus.Published;
+        UpdatedByUserId = actorUserId;
+        UpdatedAtUtc = now;
+        Version++;
+    }
 }
 
 public sealed class WritingTestQuestion
@@ -87,7 +108,7 @@ public sealed class WritingTestQuestion
     {
     }
 
-    private WritingTestQuestion(Guid id, Guid writingTestId, Guid exerciseId, WritingPart part, int sequenceNumber)
+    private WritingTestQuestion(Guid id, Guid writingTestId, Guid? exerciseId, WritingPart part, int sequenceNumber)
     {
         Id = id;
         WritingTestId = writingTestId;
@@ -98,13 +119,18 @@ public sealed class WritingTestQuestion
 
     public Guid Id { get; private set; }
     public Guid WritingTestId { get; private set; }
-    public Guid ExerciseId { get; private set; }
+    public Guid? ExerciseId { get; private set; }
     public WritingPart Part { get; private set; }
     public int SequenceNumber { get; private set; }
+    public Guid? ImageAssetId { get; private set; }
     public string? SnapshotJson { get; private set; }
 
     public static WritingTestQuestion Create(Guid writingTestId, Guid exerciseId, WritingPart part,
         int sequenceNumber) => new(Guid.NewGuid(), writingTestId, exerciseId, part, sequenceNumber);
+
+    public static WritingTestQuestion CreateInline(Guid writingTestId, WritingPart part, int sequenceNumber,
+        string snapshotJson, Guid? imageAssetId) => new(Guid.NewGuid(), writingTestId, null, part, sequenceNumber)
+        { SnapshotJson = snapshotJson, ImageAssetId = imageAssetId };
 
     public void Freeze(string snapshotJson) => SnapshotJson = snapshotJson;
 }

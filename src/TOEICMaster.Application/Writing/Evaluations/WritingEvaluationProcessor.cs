@@ -19,22 +19,16 @@ public sealed class WritingEvaluationProcessor(IWritingEvaluationRepository repo
         if (work is null)
             return false;
 
+        WritingEvaluatorResult result;
         try
         {
-            var result = await evaluator.EvaluateAsync(work, cancellationToken);
+            result = await evaluator.EvaluateAsync(work, cancellationToken);
             ValidateResult(result, work);
-            var evaluation = await repository.FindForUpdateAsync(work.EvaluationId, cancellationToken);
-            if (evaluation is null || evaluation.Status != WritingEvaluationStatus.Processing)
-                return true;
-            var feedback = result.Feedback.Select(item => WritingEvaluationFeedback.Create(evaluation.Id,
-                item.QuestionPosition, item.CriterionScore, item.Feedback.Trim(), item.SuggestedRevision.Trim())).ToArray();
-            evaluation.Complete(ToEstimatedToeicScore(work, result), result.Summary.Trim(), result.Strengths.Select(item => item.Trim()).ToArray(),
-                result.Improvements.Select(item => item.Trim()).ToArray(), feedback, timeProvider.GetUtcNow());
-            await repository.SaveChangesAsync(cancellationToken);
         }
         catch (WritingEvaluatorException exception)
         {
             await RecordFailureAsync(work.EvaluationId, exception, cancellationToken);
+            return true;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -44,7 +38,18 @@ public sealed class WritingEvaluationProcessor(IWritingEvaluationRepository repo
         {
             await RecordFailureAsync(work.EvaluationId, new WritingEvaluatorException("UNEXPECTED_ERROR",
                 "Dịch vụ chấm AI đang gặp sự cố. Bài làm của bạn vẫn được lưu.", true), cancellationToken);
+            return true;
         }
+
+        var evaluation = await repository.FindForUpdateAsync(work.EvaluationId, cancellationToken);
+        if (evaluation is null || evaluation.Status != WritingEvaluationStatus.Processing)
+            return true;
+        var feedback = result.Feedback.Select(item => WritingEvaluationFeedback.Create(evaluation.Id,
+            item.QuestionPosition, item.CriterionScore, item.Feedback.Trim(), item.SuggestedRevision.Trim())).ToArray();
+        evaluation.Complete(ToEstimatedToeicScore(work, result), result.Summary.Trim(), result.Strengths.Select(item => item.Trim()).ToArray(),
+            result.Improvements.Select(item => item.Trim()).ToArray(), feedback, timeProvider.GetUtcNow());
+        repository.AddFeedback(feedback);
+        await repository.SaveChangesAsync(cancellationToken);
         return true;
     }
 

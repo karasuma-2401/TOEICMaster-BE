@@ -10,6 +10,12 @@ services:
       - ASPNETCORE_HTTP_PORTS=8080
       - MEDIATR_LICENSE_KEY=${MEDIATR_LICENSE_KEY:-}
       - AUTOMAPPER_LICENSE_KEY=${AUTOMAPPER_LICENSE_KEY:-}
+      - Gemini__Enabled=${GEMINI_ENABLED:-false}
+      - Gemini__ApiKey=${GEMINI_API_KEY:-}
+      - Gemini__Model=${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      - Gemini__RequestTimeoutSeconds=${GEMINI_REQUEST_TIMEOUT_SECONDS:-45}
+      - Gemini__RubricVersion=${GEMINI_RUBRIC_VERSION:-toeic-writing-v1}
+      - Gemini__UseWritingReferenceAnswers=${GEMINI_USE_WRITING_REFERENCE_ANSWERS:-false}
       - Jwt__SigningKey=${JWT_SIGNING_KEY:?Set a random JWT signing key with at least 32 characters in .env}
       - Google__ClientId=${GOOGLE_CLIENT_ID:?Set the Google Web client ID in .env}
       - EmailVerification__HashKey=${EMAIL_VERIFICATION_HASH_KEY:?Set a random email verification hash key with at least 32 characters in .env}
