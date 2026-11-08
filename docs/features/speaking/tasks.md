@@ -65,11 +65,9 @@ Làm theo các đợt dưới đây, không theo thứ tự chữ cái. Lý do n
 **Domain:** không đổi.
 
 **Application**
-- [x] Tạo `Speaking/Admin/SpeakingTestContentRules.cs`: chuẩn hóa văn bản, tạo đơn vị so sánh, trả danh sách vấn đề.
-- [x] `SpeakingExerciseInputValidator`: 3 câu hỏi Part 3–4 phải khác nhau sau chuẩn hóa.
-- [x] Công bố: thêm khóa `Content` cho lỗi mức chặn. Lấy `sha256` của ảnh bằng `FindMediaAssetAsync`.
-- [x] Không trùng nội dung toàn ngân hàng; mỗi bài chỉ thuộc một đề (sửa đổi ADR-002, 2026-11-08).
-- [x] Import đề từ Excel: `POST /tests/import`, kèm ảnh Part 2 nhúng trong file. Giao diện FE chưa làm.
+- [ ] Tạo `Speaking/Admin/SpeakingTestContentRules.cs`: chuẩn hóa văn bản, tạo đơn vị so sánh, trả danh sách vấn đề kèm mã, mức, vị trí câu.
+- [ ] `SpeakingExerciseInputValidator`: 3 câu hỏi Part 3–4 phải khác nhau sau chuẩn hóa.
+- [ ] `PublishRequirements`: thêm khóa `Content` cho lỗi mức chặn. Lấy `sha256` của ảnh bằng `FindMediaAssetAsync`.
 - [ ] (Để sau) Thêm query `CheckSpeakingTestPublishQuery`, truyền `CancellationToken` đầy đủ.
 
 **Infrastructure:** không cần migration ở phase này.

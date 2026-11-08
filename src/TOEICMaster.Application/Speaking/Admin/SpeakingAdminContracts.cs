@@ -134,8 +134,6 @@ public sealed partial class SpeakingExerciseInputValidator : AbstractValidator<S
             .WithMessage("Cần đúng 3 câu hỏi.");
         RuleForEach(input => input.Questions).Must(question => Length(question) is >= 1 and <= 300)
             .WithMessage("Mỗi câu hỏi cần 1–300 ký tự.");
-        RuleFor(input => input.Questions).Must(SpeakingTestContentRules.HasDistinctQuestions)
-            .WithMessage("Ba câu hỏi phải khác nhau.");
     }
 
     private void Text(Expression<Func<SpeakingExerciseInput, string?>> field, int min,

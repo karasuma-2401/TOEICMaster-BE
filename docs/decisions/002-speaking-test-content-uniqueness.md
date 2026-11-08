@@ -2,15 +2,7 @@
 
 ## Status
 
-Accepted (2026-11-08). Bước 1 đã triển khai và được mở rộng theo quyết định của chủ tính năng, xem mục "Sửa đổi 2026-11-08". Bước 2 (cảnh báo, `publish-check`) chưa làm.
-
-## Sửa đổi 2026-11-08
-
-Chủ tính năng yêu cầu đề thi không được trùng với các bài tập đã có. Quy tắc này **thay thế** câu "Dùng lại một bài ở đề khác thì được phép" ở mục 1:
-
-- **Mỗi bài chỉ thuộc một đề**, tính cả đề nháp và đề đã công bố. Kiểm tra khi tạo, sửa và công bố đề.
-- **Không trùng nội dung trong toàn ngân hàng.** Khi tạo, sửa hoặc import bài, đơn vị văn bản và `sha256` ảnh được so với mọi bài khác, kể cả bài đã lưu trữ. Khi sửa bài, phần nội dung vốn có của bài đó được bỏ qua, để dữ liệu cũ không chặn các thay đổi không liên quan.
-- **Chưa có ràng buộc ở database**, vì phạm vi lần này không đổi schema. Hai request đồng thời vẫn có thể lọt; bước công bố kiểm tra lại quy tắc "mỗi bài một đề" và trùng nội dung trong đề.
+Proposed (chờ chủ tính năng duyệt; chưa triển khai)
 
 ## Date
 

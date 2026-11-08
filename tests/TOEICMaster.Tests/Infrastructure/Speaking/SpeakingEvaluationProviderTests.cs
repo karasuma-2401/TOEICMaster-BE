@@ -201,40 +201,6 @@ public sealed class SpeakingEvaluationProviderTests
     }
 
     [Fact]
-    public async Task Gemini_times_out_and_retries_when_the_response_body_stalls()
-    {
-        var work = new SpeakingLanguageWork(Guid.NewGuid(), "gemini-test", "v1", []);
-        var evaluator = new GeminiSpeakingLanguageEvaluator(
-            new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StreamContent(new StallingStream())
-            }))
-            {
-                BaseAddress = new Uri("https://generativelanguage.googleapis.com/")
-            }, Options.Create(new GeminiOptions { Enabled = true, ApiKey = "k", RequestTimeoutSeconds = 1 }));
-
-        var error = await Assert.ThrowsAsync<SpeakingEvaluatorException>(() =>
-            evaluator.EvaluateAsync(work, CancellationToken.None));
-
-        Assert.Equal(("TIMEOUT", true), (error.FailureCode, error.IsTransient));
-    }
-
-    private sealed class StallingStream : MemoryStream
-    {
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
-        {
-            await Task.Delay(Timeout.Infinite, cancellationToken);
-            return 0;
-        }
-
-        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-        {
-            await Task.Delay(Timeout.Infinite, cancellationToken);
-            return 0;
-        }
-    }
-
-    [Fact]
     public async Task Gemini_quota_errors_are_retried_and_a_missing_key_is_not()
     {
         var work = new SpeakingLanguageWork(Guid.NewGuid(), "gemini-test", "v1", []);
