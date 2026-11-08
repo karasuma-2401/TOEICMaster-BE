@@ -111,6 +111,52 @@ public sealed class WritingAttemptApplicationTests
     }
 
     [Fact]
+    public void Unordered_loaded_questions_save_and_lock_by_position()
+    {
+        var attempt = CreateMultiQuestionAttempt();
+        var loadedQuestions = Assert.IsType<List<WritingAttemptQuestion>>(attempt.Questions);
+        loadedQuestions.Reverse();
+
+        attempt.AdvanceExpired(StartedAt.AddSeconds(10));
+        Assert.Equal(StartedAt.AddSeconds(30), attempt.PhaseEndsAtUtc);
+        attempt.SaveAnswer(1, "First answer", StartedAt.AddSeconds(11));
+        attempt.Next(StartedAt.AddSeconds(12));
+
+        var first = Assert.Single(attempt.Questions, question => question.Position == 1);
+        var second = Assert.Single(attempt.Questions, question => question.Position == 2);
+        var third = Assert.Single(attempt.Questions, question => question.Position == 3);
+        Assert.Equal("First answer", first.Answer);
+        Assert.NotNull(first.LockedAtUtc);
+        Assert.Null(second.LockedAtUtc);
+        Assert.Null(third.LockedAtUtc);
+        Assert.Equal(StartedAt.AddSeconds(42), attempt.PhaseEndsAtUtc);
+
+        attempt.AdvanceExpired(StartedAt.AddSeconds(42));
+        Assert.Equal(StartedAt.AddSeconds(82), attempt.PhaseEndsAtUtc);
+        attempt.SaveAnswer(2, "Second answer", StartedAt.AddSeconds(43));
+        attempt.Submit(StartedAt.AddSeconds(44));
+        Assert.Equal("Second answer", second.Answer);
+        Assert.NotNull(second.LockedAtUtc);
+        Assert.Null(third.LockedAtUtc);
+    }
+
+    [Fact]
+    public void Expired_unordered_questions_advance_with_the_correct_timing()
+    {
+        var attempt = CreateMultiQuestionAttempt();
+        Assert.IsType<List<WritingAttemptQuestion>>(attempt.Questions).Reverse();
+
+        attempt.AdvanceExpired(StartedAt.AddSeconds(100));
+
+        Assert.Equal(2, attempt.CurrentQuestionIndex);
+        Assert.Equal(WritingAttemptPhase.Preparing, attempt.CurrentPhase);
+        Assert.Equal(StartedAt.AddSeconds(150), attempt.PhaseEndsAtUtc);
+        Assert.All(attempt.Questions.Where(question => question.Position < 3),
+            question => Assert.NotNull(question.LockedAtUtc));
+        Assert.Null(Assert.Single(attempt.Questions, question => question.Position == 3).LockedAtUtc);
+    }
+
+    [Fact]
     public void Attempt_prompt_snapshot_excludes_admin_model_answer_and_rubric()
     {
         var promptSnapshot = WritingAttemptMapping.ToPromptSnapshotJson(FrozenAdminSnapshot());
@@ -202,6 +248,19 @@ public sealed class WritingAttemptApplicationTests
         Assert.Null(evaluation.FailureCode);
         Assert.False(evaluation.GrantConsentAndQueue(StartedAt.AddMinutes(2), "gemini", "other-model", "writing-v3"));
         Assert.Equal("new-model", evaluation.Model);
+    }
+
+    private static WritingAttempt CreateMultiQuestionAttempt()
+    {
+        var attemptId = Guid.NewGuid();
+        var questions = new[]
+        {
+            WritingAttemptQuestion.Create(attemptId, Guid.NewGuid(), 1, WritingPart.Part1, 10, 20, "{}"),
+            WritingAttemptQuestion.Create(attemptId, Guid.NewGuid(), 2, WritingPart.Part2, 30, 40, "{}"),
+            WritingAttemptQuestion.Create(attemptId, Guid.NewGuid(), 3, WritingPart.Part3, 50, 60, "{}")
+        };
+        return WritingAttempt.Create(attemptId, Guid.NewGuid(), "WRT-01", "Writing test", WritingAttemptMode.Full,
+            Guid.NewGuid(), null, questions, StartedAt);
     }
 
     private static WritingAttempt CreatePartOneAttempt(bool includeReviewSnapshot = false)

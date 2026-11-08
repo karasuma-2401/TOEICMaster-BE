@@ -118,7 +118,7 @@ public sealed class WritingAttempt
     {
         AdvanceExpired(now);
         EnsureActiveAnsweringQuestion(position);
-        var question = _questions[CurrentQuestionIndex];
+        var question = CurrentQuestion();
         question.SaveAnswer(answer, now);
         UpdatedAtUtc = now;
     }
@@ -139,7 +139,7 @@ public sealed class WritingAttempt
         if (Status != WritingAttemptStatus.InProgress)
             return;
         if (CurrentQuestionIndex < _questions.Count)
-            _questions[CurrentQuestionIndex].Lock(now);
+            CurrentQuestion().Lock(now);
         Status = WritingAttemptStatus.SubmittedAwaitingEvaluation;
         SubmittedAtUtc = now;
         UpdatedAtUtc = now;
@@ -160,7 +160,7 @@ public sealed class WritingAttempt
             {
                 CurrentPhase = WritingAttemptPhase.Answering;
                 PhaseStartedAtUtc = phaseEnd;
-                PhaseEndsAtUtc = phaseEnd.AddSeconds(_questions[CurrentQuestionIndex].ResponseSeconds);
+                PhaseEndsAtUtc = phaseEnd.AddSeconds(CurrentQuestion().ResponseSeconds);
             }
             else
             {
@@ -185,7 +185,7 @@ public sealed class WritingAttempt
 
     private void CompleteCurrentQuestion(DateTimeOffset completedAtUtc)
     {
-        _questions[CurrentQuestionIndex].Lock(completedAtUtc);
+        CurrentQuestion().Lock(completedAtUtc);
         var nextIndex = CurrentQuestionIndex + 1;
         if (nextIndex >= _questions.Count)
         {
@@ -198,9 +198,12 @@ public sealed class WritingAttempt
         CurrentQuestionIndex = nextIndex;
         CurrentPhase = WritingAttemptPhase.Preparing;
         PhaseStartedAtUtc = completedAtUtc;
-        PhaseEndsAtUtc = completedAtUtc.AddSeconds(_questions[CurrentQuestionIndex].PreparationSeconds);
+        PhaseEndsAtUtc = completedAtUtc.AddSeconds(CurrentQuestion().PreparationSeconds);
         UpdatedAtUtc = completedAtUtc;
     }
+
+    private WritingAttemptQuestion CurrentQuestion() =>
+        _questions.Single(question => question.Position == CurrentQuestionIndex + 1);
 }
 
 public sealed class WritingAttemptQuestion
