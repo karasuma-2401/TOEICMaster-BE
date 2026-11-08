@@ -160,6 +160,42 @@ public sealed class SpeakingEvaluationApplicationTests
     }
 
     [Fact]
+    public async Task Reading_completeness_uses_whichever_transcript_matches_the_passage_better()
+    {
+        _speech.Result = _ => FakeSpeechAssessor.Recognized("Attention, shoppers. The store closes in thirty minutes.",
+            lexical: "attention shoppers the store closes in 30 minutes");
+        var attemptId = await RecordAndSubmitAsync(Learner, "PART_1");
+        await ConsentAsync(Learner, attemptId);
+
+        await ProcessAsync();
+
+        Assert.Equal(100d, (await GetAsync(Learner, attemptId)).Evaluation!.Items[0].CompletenessScore);
+    }
+
+    [Fact]
+    public async Task A_failed_job_is_not_requeued_while_the_service_is_not_configured()
+    {
+        var attemptId = await RecordAndSubmitAsync(Learner, "PART_5");
+        await ConsentAsync(Learner, attemptId);
+        _speech.Failure = new SpeakingEvaluatorException("SPEECH_AUTHENTICATION", "Chưa cấu hình đúng.", false);
+        await ProcessAsync();
+        _settings.IsConfigured = false;
+
+        await Assert.ThrowsAsync<SpeakingConflictException>(() => ConsentAsync(Learner, attemptId));
+
+        Assert.Equal("FAILED", (await GetAsync(Learner, attemptId)).Evaluation!.Status);
+    }
+
+    [Fact]
+    public async Task A_test_attempt_with_an_empty_exercise_id_still_needs_a_valid_mode()
+    {
+        var result = await new StartSpeakingAttemptCommandValidator().ValidateAsync(new StartSpeakingAttemptCommand(
+            Learner, new StartSpeakingAttemptInput(Guid.NewGuid(), "NOPE", Guid.Empty)));
+
+        Assert.Contains(result.Errors, error => error.PropertyName == "Mode");
+    }
+
+    [Fact]
     public async Task A_permanent_failure_stops_until_the_learner_asks_again()
     {
         var attemptId = await RecordAndSubmitAsync(Learner, "PART_5");

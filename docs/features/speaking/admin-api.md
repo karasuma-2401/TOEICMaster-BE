@@ -40,7 +40,7 @@ Trường riêng theo Part:
 
 Server chỉ lưu các trường thuộc đúng Part, trong `content_json`. Lỗi `400` dùng tên trường không có tiền tố, ví dụ `Passage`, để form hiện lỗi đúng chỗ.
 
-**Đích (ADR-002):** `questions` của Part 3–4 phải khác nhau sau chuẩn hóa.
+`questions` của Part 3–4 phải khác nhau sau chuẩn hóa. Đoạn văn, từng câu hỏi, đề bài Part 5 và ảnh (theo `sha256`) không được trùng với bất kỳ bài nào khác trong ngân hàng, kể cả bài đã lưu trữ. Vi phạm trả `400` theo đúng trường, ví dụ `Passage` hoặc `Questions[1]`. Xem [ADR-002](../../decisions/002-speaking-test-content-uniqueness.md).
 
 ## Ảnh
 
@@ -70,7 +70,7 @@ Body đề:
 }
 ```
 
-Khi lưu: đề nháp được phép thiếu bài. Mỗi bài phải tồn tại và đúng Part; `sequenceNumber` từ 1 đến số bài của Part; không trùng `exerciseId` và không trùng vị trí.
+Khi lưu: đề nháp được phép thiếu bài. Mỗi bài phải tồn tại và đúng Part; `sequenceNumber` từ 1 đến số bài của Part; không trùng `exerciseId` và không trùng vị trí. Một bài chỉ thuộc một đề: bài đã nằm trong đề khác (nháp hoặc đã công bố) trả `400 errors.Exercises`.
 
 **Điều kiện công bố** (lỗi `422`, trả tất cả lỗi cùng lúc):
 
@@ -78,10 +78,32 @@ Khi lưu: đề nháp được phép thiếu bài. Mỗi bài phải tồn tại
 | --- | --- |
 | `Code`, `Title` | Không rỗng |
 | `Part1` … `Part5` | Đúng 2/2/1/1/1 bài, đánh số liên tục từ 1 |
-| `Exercises` | Không lặp bài; mọi bài tồn tại, đúng Part và `PUBLISHED` |
-| `Content` | **Đích (ADR-002):** không trùng nội dung |
+| `Exercises` | Không lặp bài; mọi bài tồn tại, đúng Part và `PUBLISHED`; không bài nào thuộc đề khác |
+| `Content` | Không trùng văn bản hoặc ảnh giữa các câu trong đề, kể cả khác Part |
 
 Khi công bố, server ghi `snapshot_json` cho từng vị trí, tăng `version` và khóa đề. Sửa hoặc lưu trữ bài sau đó không ảnh hưởng đề đã công bố. `snapshot_json` có chứa rubric và bài mẫu, chỉ dùng cho Admin và attempt snapshot.
+
+### Import đề từ Excel
+
+`POST /tests/import`, `multipart/form-data`, field `file` (`.xlsx`, tối đa 16 MiB). Tạo 7 bài mới và 1 đề `DRAFT`, trả `201` với chi tiết đề. Nếu có lỗi thì không tạo gì.
+
+Sheet `Test`: cột A là tên trường, cột B là giá trị, gồm `Code`, `Title`, `Description`.
+
+Sheet `Exercises`: dòng 1 là tiêu đề, không phân biệt hoa thường và khoảng trắng. Cần đúng 7 dòng, 2/2/1/1/1 bài cho Part 1–5.
+
+| Cột | Áp dụng | Ghi chú |
+| --- | --- | --- |
+| `Part`, `Sequence`, `Code`, `Topic`, `Difficulty`, `Model Answer` | Mọi bài | Bắt buộc |
+| `Status` | Mọi bài | Bỏ trống là `DRAFT`. Muốn công bố đề, các bài phải là `PUBLISHED` |
+| `Rubric Notes` | Mọi bài | Tùy chọn |
+| `Passage` | Part 1 | |
+| `Image Alt` và ảnh | Part 2 | Chèn bằng Insert > Pictures > **Place over Cells**, góc trên trái nằm trong dòng của bài. Ảnh "Place in Cell" bị từ chối. JPEG hoặc PNG, tối đa 5 MiB |
+| `Context` | Part 3 | |
+| `Question 1`, `Question 2`, `Question 3` | Part 3, 4 | |
+| `Document Title`, `Document Rows`, `Caller Intro` | Part 4 | `Document Rows`: mỗi dòng trong ô là `nhãn \| nội dung` |
+| `Prompt` | Part 5 | |
+
+Lỗi `400` có khóa theo số dòng Excel, ví dụ `Rows[5].Passage`, `Rows[4].Image`. Khóa khác gồm `Test.Code`, `Exercises`, `Content`. File không đọc được trả `400`, file quá cỡ trả `413`, trùng mã đề trả `409`.
 
 ## Lỗi
 

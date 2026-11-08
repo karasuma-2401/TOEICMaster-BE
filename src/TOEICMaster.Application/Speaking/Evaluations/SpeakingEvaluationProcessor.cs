@@ -145,13 +145,17 @@ public sealed class SpeakingEvaluationProcessor(ISpeakingEvaluationRepository re
 
     private static string Truncate(string text, int length) => text.Length <= length ? text : text[..length];
 
+    /// <summary>
+    /// The lexical transcript spells numbers out while the display transcript writes digits, and a passage can use
+    /// either form, so the better of the two comparisons counts.
+    /// </summary>
     private static double? ReadingCompleteness(SpeakingEvaluationQuestion question, SpeakingSpeechResult speech)
     {
         var passage = SpeakingJson.Deserialize<SpeakingContentDto>(question.ContentJson).Passage;
         return string.IsNullOrWhiteSpace(passage)
             ? null
-            : SpeakingEvaluationScoring.ReadingCompleteness(passage,
-                string.IsNullOrWhiteSpace(speech.LexicalTranscript) ? speech.Transcript : speech.LexicalTranscript);
+            : Math.Max(SpeakingEvaluationScoring.ReadingCompleteness(passage, speech.LexicalTranscript),
+                SpeakingEvaluationScoring.ReadingCompleteness(passage, speech.Transcript));
     }
 
     private static void Validate(SpeakingLanguageResult result, IReadOnlyCollection<SpeakingEvaluationItem> recognized)
