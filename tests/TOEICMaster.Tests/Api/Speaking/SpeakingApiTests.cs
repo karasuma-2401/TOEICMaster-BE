@@ -324,6 +324,28 @@ public sealed class SpeakingApiTests : IDisposable
         return attemptId;
     }
 
+    [Fact]
+    public async Task Draft_test_delete_requires_the_current_version()
+    {
+        using var admin = AdminClient();
+        using var created = await admin.PostAsJsonAsync($"{Admin}/tests",
+            new SpeakingTestInput("SPK-DEL", "Draft to delete", "", []));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var draft = await JsonAsync(created);
+        var url = $"{Admin}/tests/{draft["id"]!.GetValue<string>()}";
+        var version = draft["version"]!.GetValue<int>();
+
+        using var missingVersion = await admin.DeleteAsync(url);
+        Assert.Equal(HttpStatusCode.BadRequest, missingVersion.StatusCode);
+        using var stale = await admin.DeleteAsync($"{url}?version={version + 1}");
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+
+        using var deleted = await admin.DeleteAsync($"{url}?version={version}");
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        using var gone = await admin.GetAsync(url);
+        Assert.Equal(HttpStatusCode.NotFound, gone.StatusCode);
+    }
+
     private HttpClient AdminClient()
     {
         var client = _factory.CreateClient();

@@ -134,7 +134,8 @@ Chỉ sửa FE.
 **Cần BE**
 - [ ] UI-08: banner lỗi và sơ đồ 11 câu theo `publish-check` (cần Work Package A).
 - [ ] UI-04: thêm `code` vào ProblemDetails của `409`.
-- [ ] UI-09: `POST /tests/{id}/clone`, `DELETE /tests/{id}`.
+- [x] UI-09: `DELETE /tests/{id}?version=`.
+- [ ] UI-09: `POST /tests/{id}/clone`.
 - [ ] UI-12, DUP-05: thêm `usedInTestCount`.
 
 **Tests:** các scenario trong [admin-test-builder.md](./admin-test-builder.md#5-tiêu-chí-nghiệm-thu).

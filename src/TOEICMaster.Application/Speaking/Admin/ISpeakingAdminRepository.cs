@@ -23,6 +23,8 @@ public interface ISpeakingAdminRepository
     Task<SpeakingTestWithSlots?> FindTestForUpdateAsync(Guid id, CancellationToken cancellationToken);
     Task<bool> TestCodeExistsAsync(string code, Guid? excludingId, CancellationToken cancellationToken);
     void AddTest(SpeakingTest test, IReadOnlyList<SpeakingTestExercise> slots);
+    /// <summary>Marks a tracked test for deletion; its slots are removed with it on save.</summary>
+    void RemoveTest(SpeakingTest test);
     /// <summary>Atomically replaces the slots of a tracked draft test and saves the test.</summary>
     Task ReplaceDraftSlotsAndSaveAsync(SpeakingTest test, IReadOnlyList<SpeakingTestExercise> slots,
         CancellationToken cancellationToken);

@@ -14,6 +14,35 @@ public sealed record UpdateSpeakingTestCommand(Guid ActorUserId, Guid TestId, in
 public sealed record PublishSpeakingTestCommand(Guid ActorUserId, Guid TestId, int ExpectedVersion)
     : IRequest<SpeakingTestDetailDto>;
 
+public sealed record DeleteSpeakingTestDraftCommand(Guid ActorUserId, Guid TestId, int ExpectedVersion) : IRequest;
+
+public sealed class DeleteSpeakingTestDraftCommandValidator : AbstractValidator<DeleteSpeakingTestDraftCommand>
+{
+    public DeleteSpeakingTestDraftCommandValidator()
+    {
+        RuleFor(command => command.ActorUserId).NotEmpty();
+        RuleFor(command => command.TestId).NotEmpty();
+        RuleFor(command => command.ExpectedVersion).GreaterThan(0);
+    }
+}
+
+public sealed class DeleteSpeakingTestDraftCommandHandler(ISpeakingAdminRepository repository)
+    : IRequestHandler<DeleteSpeakingTestDraftCommand>
+{
+    public async Task Handle(DeleteSpeakingTestDraftCommand request, CancellationToken cancellationToken)
+    {
+        var loaded = await repository.FindTestForUpdateAsync(request.TestId, cancellationToken)
+            ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
+        var test = loaded.Test;
+        if (test.Version != request.ExpectedVersion)
+            throw new SpeakingConflictException("Đề đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.");
+        if (!test.IsDraft)
+            throw new SpeakingConflictException("Chỉ có thể xóa đề nháp. Đề đã công bố không thể xóa.");
+        repository.RemoveTest(test);
+        await repository.SaveChangesAsync(cancellationToken);
+    }
+}
+
 public sealed class CreateSpeakingTestCommandHandler(ISpeakingAdminRepository repository, TimeProvider timeProvider)
     : IRequestHandler<CreateSpeakingTestCommand, SpeakingTestDetailDto>
 {
