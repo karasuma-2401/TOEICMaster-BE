@@ -106,6 +106,12 @@ public sealed class InMemorySpeaking : ISpeakingAdminRepository, ISpeakingAttemp
         Slots.AddRange(slots);
     }
 
+    public void RemoveTest(SpeakingTest test)
+    {
+        Tests.Remove(test);
+        Slots.RemoveAll(slot => slot.TestId == test.Id);
+    }
+
     public Task ReplaceDraftSlotsAndSaveAsync(SpeakingTest test, IReadOnlyList<SpeakingTestExercise> slots,
         CancellationToken cancellationToken)
     {

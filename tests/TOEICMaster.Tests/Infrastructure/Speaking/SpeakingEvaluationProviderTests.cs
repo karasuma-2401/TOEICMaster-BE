@@ -139,6 +139,120 @@ public sealed class SpeakingEvaluationProviderTests
     }
 
     [Fact]
+    public async Task An_undecodable_recording_yields_no_chunks()
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+        using var ffmpeg = new FailingFfmpeg("input.webm: Invalid data found when processing input");
+
+        Assert.Empty(await ffmpeg.Converter.ToWavChunksAsync([1, 2, 3], "audio/webm", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Any_other_ffmpeg_failure_is_retried_instead_of_scoring_zero()
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+        using var ffmpeg = new FailingFfmpeg("No space left on device");
+        var converter = ffmpeg.Converter;
+
+        var error = await Assert.ThrowsAsync<SpeakingEvaluatorException>(() =>
+            converter.ToWavChunksAsync([1, 2, 3], "audio/webm", CancellationToken.None));
+
+        Assert.Equal(("AUDIO_CONVERSION_FAILED", true), (error.FailureCode, error.IsTransient));
+    }
+
+    /// <summary>A stand-in executable that prints one error line and exits with a failure code.</summary>
+    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    private sealed class FailingFfmpeg : IDisposable
+    {
+        private readonly DirectoryInfo _directory = Directory.CreateTempSubdirectory("toeicmaster-ffmpeg-stub-");
+
+        public FailingFfmpeg(string error)
+        {
+            var path = Path.Combine(_directory.FullName, "ffmpeg");
+            File.WriteAllText(path, $"#!/bin/sh\necho '{error}' >&2\nexit 1\n");
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Converter = new FfmpegSpeakingAudioConverter(Options.Create(new AzureSpeechOptions { FfmpegPath = path }));
+        }
+
+        public FfmpegSpeakingAudioConverter Converter { get; }
+
+        public void Dispose() => _directory.Delete(recursive: true);
+    }
+
+    private const int BytesPerSecond = 32_000;
+
+    /// <summary>16 kHz mono PCM that is loud everywhere except the given range of seconds.</summary>
+    private static byte[] SpeechWav(double seconds, double? silentFrom = null, double? silentTo = null)
+    {
+        var dataBytes = (int)(seconds * BytesPerSecond) & ~1;
+        var wav = new byte[44 + dataBytes];
+        "RIFF"u8.CopyTo(wav);
+        "WAVEfmt "u8.CopyTo(wav.AsSpan(8));
+        BitConverter.GetBytes(16).CopyTo(wav, 16);
+        BitConverter.GetBytes(BytesPerSecond).CopyTo(wav, 28);
+        "data"u8.CopyTo(wav.AsSpan(36));
+        BitConverter.GetBytes(dataBytes).CopyTo(wav, 40);
+        for (var offset = 0; offset < dataBytes; offset += 2)
+        {
+            var second = offset / (double)BytesPerSecond;
+            if (second < silentFrom || second >= silentTo || silentFrom is null)
+                BitConverter.GetBytes((short)8_000).CopyTo(wav, 44 + offset);
+        }
+        return wav;
+    }
+
+    [Fact]
+    public void Chunks_are_cut_inside_a_pause_near_the_limit()
+    {
+        var chunks = FfmpegSpeakingAudioConverter.SplitWav(SpeechWav(40, 22, 23), 25);
+
+        Assert.Equal(2, chunks.Count);
+        Assert.InRange(chunks[0].Seconds, 22, 23);
+        Assert.Equal(40, chunks.Sum(chunk => chunk.Seconds), 3);
+        Assert.All(chunks, chunk =>
+            Assert.Equal(chunk.Seconds, FfmpegSpeakingAudioConverter.WavSeconds(chunk.Wav), 3));
+    }
+
+    [Theory]
+    [InlineData(60)]
+    [InlineData(25.5)]
+    public void Audio_without_pauses_still_fits_the_chunk_limit(double seconds)
+    {
+        var chunks = FfmpegSpeakingAudioConverter.SplitWav(SpeechWav(seconds), 25);
+
+        Assert.All(chunks, chunk => Assert.InRange(chunk.Seconds, 0.3, 25));
+        Assert.Equal(seconds, chunks.Sum(chunk => chunk.Seconds), 3);
+    }
+
+    [Fact]
+    public void Short_or_invalid_audio_is_not_split()
+    {
+        Assert.Equal(10, Assert.Single(FfmpegSpeakingAudioConverter.SplitWav(SpeechWav(10), 25)).Seconds, 3);
+        Assert.Empty(FfmpegSpeakingAudioConverter.SplitWav("not a wav"u8.ToArray(), 25));
+    }
+
+    [Fact]
+    public async Task Gemini_receives_pictures_and_is_told_transcripts_are_untrusted()
+    {
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
+        var evaluator = new GeminiSpeakingLanguageEvaluator(
+            new HttpClient(handler) { BaseAddress = new Uri("https://generativelanguage.googleapis.com/") },
+            Options.Create(new GeminiOptions { Enabled = true, ApiKey = "gemini-key" }));
+
+        await Assert.ThrowsAsync<SpeakingEvaluatorException>(() => evaluator.EvaluateAsync(new SpeakingLanguageWork(
+            Guid.NewGuid(), "gemini-test", "v2", [new SpeakingLanguageItem(3, 2, 0, """{"part":2}""", "{}",
+                "Two people talk.", 80, 75, 70, null, [], new SpeakingLanguageImage([1, 2, 3], "image/png"))]),
+            CancellationToken.None));
+
+        var body = Encoding.UTF8.GetString(Assert.Single(handler.Requests).Body);
+        Assert.Contains("\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"AQID\"}", body);
+        Assert.Contains("position 3", body);
+        Assert.Contains("untrusted learner speech", body);
+    }
+
+    [Fact]
     public void Wav_duration_comes_from_the_byte_rate_and_data_chunk()
     {
         var wav = new byte[44 + 64_000];

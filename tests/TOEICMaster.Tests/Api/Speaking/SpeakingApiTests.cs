@@ -272,7 +272,7 @@ public sealed class SpeakingApiTests : IDisposable
         Assert.Equal("COMPLETED", evaluation!["status"]!.GetValue<string>());
         Assert.Equal(160, evaluation["estimatedScore"]!.GetValue<int>());
         var item = evaluation["items"]![0]!;
-        Assert.Equal(("RECOGNIZED", "I would like to book a table.", 80d, 80, 4, 5),
+        Assert.Equal(("RECOGNIZED", FakeSpeechAssessor.SustainedAnswer, 80d, 80, 4, 5),
             (item["recognitionStatus"]!.GetValue<string>(), item["transcript"]!.GetValue<string>(),
                 item["pronunciationScore"]!.GetValue<double>(), item["grammarScore"]!.GetValue<int>(),
                 item["rawScore"]!.GetValue<int>(), item["maxRawScore"]!.GetValue<int>()));
@@ -355,6 +355,45 @@ public sealed class SpeakingApiTests : IDisposable
         attempt.Submit(startedAt.AddSeconds(30));
         store.AddAttempt(attempt);
         return attemptId;
+    }
+
+    [Fact]
+    public async Task Draft_test_delete_requires_the_current_version()
+    {
+        using var admin = AdminClient();
+        using var created = await admin.PostAsJsonAsync($"{Admin}/tests",
+            new SpeakingTestInput("SPK-DEL", "Draft to delete", "", []));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var draft = await JsonAsync(created);
+        var url = $"{Admin}/tests/{draft["id"]!.GetValue<string>()}";
+        var version = draft["version"]!.GetValue<int>();
+
+        using var missingVersion = await admin.DeleteAsync(url);
+        Assert.Equal(HttpStatusCode.BadRequest, missingVersion.StatusCode);
+        using var stale = await admin.DeleteAsync($"{url}?version={version + 1}");
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+
+        using var deleted = await admin.DeleteAsync($"{url}?version={version}");
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        using var gone = await admin.GetAsync(url);
+        Assert.Equal(HttpStatusCode.NotFound, gone.StatusCode);
+    }
+
+    [Fact]
+    public async Task Changing_the_guest_session_does_not_escape_the_evaluation_limit()
+    {
+        var url = $"{Learner}/attempts/{Guid.NewGuid()}/evaluation-consent";
+        for (var request = 0; request < 30; request++)
+        {
+            using var guest = GuestClient();
+            using var allowed = await guest.PostAsJsonAsync(url, new { accepted = true });
+            Assert.Equal(HttpStatusCode.NotFound, allowed.StatusCode);
+        }
+
+        using var nextGuest = GuestClient();
+        using var limited = await nextGuest.PostAsJsonAsync(url, new { accepted = true });
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
     }
 
     private HttpClient AdminClient()

@@ -83,7 +83,7 @@ public sealed class SpeakingEvaluationApplicationTests
             1 or 2 => FakeSpeechAssessor.Recognized("Attention, shoppers. The store closes in 30 minutes.",
                 lexical: "attention shoppers the store closes in thirty minutes"),
             11 => new SpeakingSpeechResult(SpeakingRecognitionStatus.NoSpeech, "", "", 60, 0, 0, null, 0, []),
-            _ => FakeSpeechAssessor.Recognized("I usually read in the evening.")
+            _ => FakeSpeechAssessor.Recognized(FakeSpeechAssessor.SustainedAnswer)
         };
         var attemptId = await RecordAndSubmitAsync(Learner, "FULL",
             recorded: [1, 2, 4, 5, 6, 7, 8, 9, 10, 11]);
@@ -242,6 +242,86 @@ public sealed class SpeakingEvaluationApplicationTests
         Assert.All(evaluation.Items, item => Assert.Equal(("NO_SPEECH", 0), (item.RecognitionStatus, item.RawScore)));
         Assert.Empty(_language.Calls);
         Assert.NotEmpty(evaluation.Improvements);
+    }
+
+    [Fact]
+    public async Task A_consent_losing_a_race_returns_the_job_the_other_request_created()
+    {
+        var attemptId = await RecordAndSubmitAsync(Learner, "PART_5");
+        var winner = SpeakingEvaluation.Create(attemptId, "azure-speech", "en-US", "gemini", "gemini-test",
+            "toeic-speaking-v1", _clock.Now);
+        _evaluations.ConcurrentEvaluation = winner;
+
+        var result = await ConsentAsync(Learner, attemptId);
+
+        Assert.Equal("QUEUED", result.Evaluation!.Status);
+        Assert.Same(winner, Assert.Single(_evaluations.Evaluations));
+    }
+
+    [Fact]
+    public async Task A_guest_job_cannot_be_requeued_once_untranscribed_recordings_expired()
+    {
+        var attemptId = await RecordAndSubmitAsync(Guest, "PART_5");
+        await ConsentAsync(Guest, attemptId);
+        _speech.Failure = new SpeakingEvaluatorException("SPEECH_REJECTED", "Lỗi.", false);
+        await ProcessAsync();
+        Assert.Equal("FAILED", (await GetAsync(Guest, attemptId)).Evaluation!.Status);
+
+        _clock.Advance(31 * 24 * 60 * 60);
+
+        await Assert.ThrowsAsync<SpeakingConflictException>(() => ConsentAsync(Guest, attemptId));
+        Assert.Equal("FAILED", (await GetAsync(Guest, attemptId)).Evaluation!.Status);
+    }
+
+    [Fact]
+    public async Task A_guest_job_with_every_answer_transcribed_can_still_be_requeued_after_expiry()
+    {
+        var attemptId = await RecordAndSubmitAsync(Guest, "PART_5");
+        await ConsentAsync(Guest, attemptId);
+        _language.Failure = new SpeakingEvaluatorException("PROVIDER_REJECTED", "Lỗi.", false);
+        await ProcessAsync();
+
+        _clock.Advance(31 * 24 * 60 * 60);
+
+        Assert.Equal("QUEUED", (await ConsentAsync(Guest, attemptId)).Evaluation!.Status);
+    }
+
+    [Fact]
+    public async Task Part_two_answers_are_graded_with_their_picture()
+    {
+        var attemptId = await RecordAndSubmitAsync(Learner, "PART_2");
+        await ConsentAsync(Learner, attemptId);
+
+        await ProcessAsync();
+
+        var items = Assert.Single(_language.Calls).Items;
+        Assert.NotEmpty(items);
+        Assert.All(items, item =>
+        {
+            Assert.Equal("image/png", item.Image!.ContentType);
+            Assert.Equal(SpeakingSamples.PngVariant((byte)item.Position), item.Image.Data);
+        });
+    }
+
+    [Fact]
+    public async Task A_job_whose_lease_keeps_expiring_fails_instead_of_looping()
+    {
+        var attemptId = await RecordAndSubmitAsync(Learner, "PART_5");
+        await ConsentAsync(Learner, attemptId);
+
+        // The first run and three takeovers all die without recording an outcome.
+        for (var run = 0; run < 4; run++)
+        {
+            Assert.NotNull(await _evaluations.ClaimNextAsync(_clock.Now, _clock.Now.AddSeconds(300),
+                CancellationToken.None));
+            _clock.Advance(300);
+        }
+        await ProcessAsync();
+
+        var result = await GetAsync(Learner, attemptId);
+        Assert.Equal("FAILED", result.Evaluation!.Status);
+        Assert.False(string.IsNullOrWhiteSpace(result.Evaluation.FailureMessage));
+        Assert.Equal(0, _speech.Calls);
     }
 
     private Task<bool> ProcessAsync() =>

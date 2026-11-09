@@ -40,6 +40,9 @@ public sealed class EfSpeakingEvaluationRepository(ToeicDbContext context) : ISp
 
     public void Add(SpeakingEvaluation evaluation) => Evaluations.Add(evaluation);
 
+    public Task<SpeakingMediaAsset?> FindMediaAssetAsync(Guid assetId, CancellationToken cancellationToken) =>
+        context.SpeakingMediaAssets.AsNoTracking().SingleOrDefaultAsync(asset => asset.Id == assetId, cancellationToken);
+
     public async Task<SpeakingEvaluationWork?> ClaimNextAsync(DateTimeOffset now, DateTimeOffset leaseExpiresAtUtc,
         CancellationToken cancellationToken)
     {

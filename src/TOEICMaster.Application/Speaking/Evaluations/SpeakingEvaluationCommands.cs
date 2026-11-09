@@ -54,6 +54,8 @@ public sealed class GrantSpeakingEvaluationConsentCommandHandler(ISpeakingAttemp
         {
             if (evaluation.Status == SpeakingEvaluationStatus.Failed && !settings.IsConfigured)
                 throw new SpeakingConflictException("Dịch vụ chấm AI Speaking chưa được cấu hình. Bài làm vẫn được lưu.");
+            if (evaluation.Status == SpeakingEvaluationStatus.Failed && RecordingsExpired(attempt, evaluation, now))
+                throw new SpeakingConflictException("Bản ghi của lượt làm này đã hết hạn lưu trữ nên không thể chấm lại.");
             if (evaluation.Requeue(now))
                 await evaluations.SaveChangesAsync(cancellationToken);
             return await SpeakingAttemptAccess.ToDtoAsync(attempts, attempt, now, cancellationToken, evaluation);
@@ -75,8 +77,24 @@ public sealed class GrantSpeakingEvaluationConsentCommandHandler(ISpeakingAttemp
 
         evaluation = SpeakingEvaluation.Create(attempt.Id, settings.SpeechProvider, settings.SpeechLocale,
             settings.LanguageProvider, settings.LanguageModel, settings.RubricVersion, now);
-        evaluations.Add(evaluation);
-        await evaluations.SaveChangesAsync(cancellationToken);
+        try
+        {
+            evaluations.Add(evaluation);
+            await evaluations.SaveChangesAsync(cancellationToken);
+        }
+        catch (SpeakingConflictException)
+        {
+            // A concurrent request created the job first, so this one reports that job as a repeat call would.
+            evaluation = await evaluations.FindForUpdateByAttemptIdAsync(attempt.Id, cancellationToken);
+            if (evaluation is null)
+                throw;
+        }
         return await SpeakingAttemptAccess.ToDtoAsync(attempts, attempt, now, cancellationToken, evaluation);
     }
+
+    /// <summary>A guest's recordings are purged, so questions not transcribed yet could only score zero.</summary>
+    private static bool RecordingsExpired(SpeakingAttempt attempt, SpeakingEvaluation evaluation, DateTimeOffset now) =>
+        attempt.AnonymousSessionHash is not null &&
+        attempt.CreatedAtUtc < now - SpeakingMediaRules.GuestRecordingRetention &&
+        attempt.Questions.Any(question => evaluation.FindItem(question.Position) is null);
 }

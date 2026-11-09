@@ -112,6 +112,9 @@ public sealed class SpeakingEvaluation
     {
         if (!CanBeClaimed(now))
             throw new InvalidOperationException("This Speaking evaluation is not ready to be processed.");
+        // An expired lease means the previous run died without recording a failure, so it uses up a retry too.
+        if (Status == SpeakingEvaluationStatus.Processing)
+            RetryCount++;
         Status = SpeakingEvaluationStatus.Processing;
         StartedAtUtc ??= now;
         LeaseExpiresAtUtc = leaseExpiresAtUtc;

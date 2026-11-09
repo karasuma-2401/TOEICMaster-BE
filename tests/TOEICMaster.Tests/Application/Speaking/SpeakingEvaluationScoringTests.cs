@@ -16,6 +16,8 @@ public sealed class SpeakingEvaluationScoringTests
 
     [Theory]
     [InlineData(1, 90, 100d, 0, 0, 0, 93)]
+    [InlineData(1, 95, 10d, 0, 0, 0, 10)]
+    [InlineData(1, 90, 0d, 0, 0, 0, 0)]
     [InlineData(2, 50, null, 100, 100, 100, 80)]
     [InlineData(3, 100, null, 50, 50, 0, 50)]
     [InlineData(5, 60, null, 70, 80, 90, 75)]
@@ -34,6 +36,15 @@ public sealed class SpeakingEvaluationScoringTests
     [InlineData(5, 9, 10, 0)]
     public void Raw_scores_round_and_cap_off_topic_answers(int part, double quality, int? relevance, int expected) =>
         Assert.Equal(expected, SpeakingEvaluationScoring.RawScore(part, quality, relevance));
+
+    [Theory]
+    [InlineData(5, 29, 1)]
+    [InlineData(5, 30, 5)]
+    [InlineData(2, 14, 1)]
+    [InlineData(2, 15, 3)]
+    [InlineData(3, 3, 3)]
+    public void Too_short_sustained_answers_earn_at_most_one_point(int part, int words, int expected) =>
+        Assert.Equal(expected, SpeakingEvaluationScoring.RawScore(part, 100, 90, words));
 
     [Fact]
     public void The_estimate_scales_raw_points_to_two_hundred_in_steps_of_ten()

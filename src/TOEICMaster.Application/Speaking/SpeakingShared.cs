@@ -193,6 +193,8 @@ public static class SpeakingCodes
 public static class SpeakingMediaRules
 {
     public const int MaxImageBytes = 5 * 1024 * 1024;
+    /// <summary>How long recordings of anonymous (guest) attempts are kept after the attempt started.</summary>
+    public static readonly TimeSpan GuestRecordingRetention = TimeSpan.FromDays(30);
     public const int MaxRecordingBytes = 4 * 1024 * 1024;
 
     /// <summary>Upload ceiling for one answer: responseSeconds × 32 KB + 256 KB, capped at 4 MiB.</summary>

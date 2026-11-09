@@ -156,9 +156,9 @@ Tất cả chỉ **thêm mới**, không đổi các response hiện có.
 
 `POST /tests/{testId}/clone`, body `{ "code": "SP-2026-01-V2", "title": "..." }`. Tạo đề nháp mới, trả `201`, dùng cùng các bài theo `ExerciseId`. Bài đã bị lưu trữ vẫn giữ trong bản nháp và sẽ báo lỗi ở bước kiểm tra. Đề gốc không đổi.
 
-### Xóa đề nháp (đề xuất)
+### Xóa đề nháp
 
-`DELETE /tests/{testId}?version=1`. Chỉ với đề nháp; đề đã công bố trả `409`. Trả `204`.
+`DELETE /tests/{testId}?version=1`. Chỉ với đề nháp. Trả `204`; xóa đề và các vị trí trong đề, không xóa bài tập. Thiếu `version` hoặc `version` nhỏ hơn 1 trả `400`; không tìm thấy trả `404`; đề đã công bố hoặc sai phiên bản trả `409`.
 
 ### Số đề đang dùng bài (đề xuất)
 

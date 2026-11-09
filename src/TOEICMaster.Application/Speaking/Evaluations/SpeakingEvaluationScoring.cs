@@ -16,25 +16,40 @@ public static class SpeakingEvaluationScoring
 
     /// <summary>
     /// Weighted 0-100 quality of one answer. Read aloud (Part 1) is judged on pronunciation, which already blends
-    /// accuracy, fluency and prosody, and on how much of the passage was read. The other parts add grammar,
-    /// vocabulary and relevance, with relevance weighing more where the answer must address questions or a topic.
+    /// accuracy, fluency and prosody, and on how much of the passage was read. Pronunciation is assessed without the
+    /// passage, so the share of the passage read also caps the quality: reading well cannot replace reading the text.
+    /// The other parts add grammar, vocabulary and relevance, with relevance weighing more where the answer must
+    /// address questions or a topic.
     /// </summary>
     public static double QualityScore(int part, double pronunciationScore, double? completenessScore,
         int grammarScore, int vocabularyScore, int relevanceScore) => part switch
         {
-            1 => 0.7 * pronunciationScore + 0.3 * (completenessScore ?? 0),
+            1 => Math.Min(0.7 * pronunciationScore + 0.3 * (completenessScore ?? 0), completenessScore ?? 100),
             2 => 0.4 * pronunciationScore + 0.2 * grammarScore + 0.2 * vocabularyScore + 0.2 * relevanceScore,
             3 or 4 or 5 => 0.3 * pronunciationScore + 0.2 * grammarScore + 0.2 * vocabularyScore +
                            0.3 * relevanceScore,
             _ => throw new ArgumentOutOfRangeException(nameof(part))
         };
 
-    public static int RawScore(int part, double qualityScore, int? relevanceScore)
+    /// <summary>
+    /// Fewest spoken words for a sustained answer to earn more than 1 point. Parts 3 and 4 have none because a short
+    /// factual reply can be complete; Part 1 is already capped by how much of the passage was read.
+    /// </summary>
+    public static int MinimumSustainedWords(int part) => part switch
+    {
+        2 => 15,
+        5 => 30,
+        _ => 0
+    };
+
+    public static int RawScore(int part, double qualityScore, int? relevanceScore, int? spokenWords = null)
     {
         var maximum = MaxRawScore(part);
         var raw = (int)Math.Round(Math.Clamp(qualityScore, 0, 100) / 100 * maximum, MidpointRounding.AwayFromZero);
-        return relevanceScore < RelevanceGate ? Math.Min(raw, 1) : raw;
+        return relevanceScore < RelevanceGate || spokenWords < MinimumSustainedWords(part) ? Math.Min(raw, 1) : raw;
     }
+
+    public static int CountWords(string text) => Words(text).Length;
 
     /// <summary>Sum of task scores scaled to 0-200 in steps of 10, like the official score report.</summary>
     public static int EstimatedScore(IEnumerable<SpeakingEvaluationItem> items)

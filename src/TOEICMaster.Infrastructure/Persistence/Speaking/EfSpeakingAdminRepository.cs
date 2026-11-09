@@ -140,6 +140,8 @@ public sealed class EfSpeakingAdminRepository(ToeicDbContext context) : ISpeakin
         context.SpeakingTestExercises.AddRange(slots);
     }
 
+    public void RemoveTest(SpeakingTest test) => context.SpeakingTests.Remove(test);
+
     public async Task ReplaceDraftSlotsAndSaveAsync(SpeakingTest test, IReadOnlyList<SpeakingTestExercise> slots,
         CancellationToken cancellationToken)
     {
