@@ -209,6 +209,13 @@ public static class SpeakingSamples
 
     public static readonly byte[] WebmAudio = [0x1a, 0x45, 0xdf, 0xa3, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06];
 
+    public static byte[] PngVariant(byte variant)
+    {
+        var bytes = (byte[])Png.Clone();
+        bytes[42] = variant;
+        return bytes;
+    }
+
     public static SpeakingExerciseInput Exercise(int part, string code, Guid? imageAssetId = null,
         string status = "PUBLISHED") => part switch
         {
