@@ -157,7 +157,7 @@ public sealed class StartSpeakingAttemptCommandHandler(ISpeakingAttemptRepositor
         SpeakingCodes.TryParseMode(request.Input.Mode, out var mode);
         var part = mode.Part();
         var slots = loaded.Slots.Where(slot => part is null || slot.Part == part).ToArray();
-        if (slots.Length == 0 || slots.Any(slot => slot.SnapshotJson is null))
+        if (slots.Length == 0 || slots.Any(slot => slot.SnapshotJson is null && slot.ContentJson is null))
             throw new SpeakingConflictException(part is null
                 ? "Đề Speaking chưa sẵn sàng để làm bài."
                 : $"Đề Speaking chưa có Part {part}.");

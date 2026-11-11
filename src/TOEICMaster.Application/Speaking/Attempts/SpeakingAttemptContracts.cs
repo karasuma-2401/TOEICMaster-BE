@@ -161,8 +161,18 @@ public static class SpeakingAttemptMapping
     {
         var questions = new List<SpeakingAttemptQuestion>();
         foreach (var slot in slots.OrderBy(slot => slot.Part).ThenBy(slot => slot.SequenceNumber))
-            AddQuestions(questions, attemptId, slot.Part, slot.ExerciseId,
-                SpeakingJson.Deserialize<SpeakingExerciseDto>(slot.SnapshotJson!));
+        {
+            if (slot.SnapshotJson is not null)
+            {
+                var exercise = SpeakingJson.Deserialize<SpeakingExerciseDto>(slot.SnapshotJson);
+                AddQuestions(questions, attemptId, slot.Part, slot.ExerciseId, exercise.ToContent(),
+                    exercise.RubricNotes, exercise.ModelAnswer);
+                continue;
+            }
+            var content = SpeakingJson.Deserialize<SpeakingTestQuestionContentDto>(slot.ContentJson!);
+            AddQuestions(questions, attemptId, slot.Part, null, content.ToContent(slot.Part), content.RubricNotes,
+                content.ModelAnswer);
+        }
         return questions;
     }
 
@@ -170,7 +180,8 @@ public static class SpeakingAttemptMapping
     public static IReadOnlyList<SpeakingAttemptQuestion> BuildQuestions(Guid attemptId, SpeakingExercise exercise)
     {
         var questions = new List<SpeakingAttemptQuestion>();
-        AddQuestions(questions, attemptId, exercise.Part, exercise.Id, exercise.ToDto());
+        AddQuestions(questions, attemptId, exercise.Part, exercise.Id, exercise.ToDto().ToContent(),
+            exercise.RubricNotes, exercise.ModelAnswer);
         return questions;
     }
 
@@ -183,11 +194,10 @@ public static class SpeakingAttemptMapping
         new(exercise.Code, $"Luyện Part {exercise.Part} · {exercise.Topic}");
 
     private static void AddQuestions(List<SpeakingAttemptQuestion> questions, Guid attemptId, int part,
-        Guid exerciseId, SpeakingExerciseDto exercise)
+        Guid? exerciseId, SpeakingContentDto content, string rubricNotes, string modelAnswer)
     {
-        var contentJson = SpeakingJson.Serialize(exercise.ToContent() with { Part = part });
-        var reviewJson = SpeakingJson.Serialize(new SpeakingReviewSnapshot(exercise.RubricNotes,
-            exercise.ModelAnswer));
+        var contentJson = SpeakingJson.Serialize(content with { Part = part });
+        var reviewJson = SpeakingJson.Serialize(new SpeakingReviewSnapshot(rubricNotes, modelAnswer));
         for (var index = 0; index < SpeakingTiming.QuestionsPerExercise(part); index++)
             questions.Add(SpeakingAttemptQuestion.Create(attemptId, questions.Count + 1, part, index, exerciseId,
                 contentJson, reviewJson));

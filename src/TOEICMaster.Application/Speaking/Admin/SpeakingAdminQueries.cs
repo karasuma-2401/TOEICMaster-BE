@@ -96,12 +96,7 @@ public sealed class GetSpeakingTestQueryHandler(ISpeakingAdminRepository reposit
     {
         var loaded = await repository.FindTestAsync(request.TestId, cancellationToken)
             ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
-        var draftExerciseIds = loaded.Slots.Where(slot => slot.SnapshotJson is null)
-            .Select(slot => slot.ExerciseId).Distinct().ToArray();
-        var exercises = draftExerciseIds.Length == 0
-            ? new Dictionary<Guid, Domain.Entities.SpeakingExercise>()
-            : (await repository.FindExercisesAsync(draftExerciseIds, cancellationToken))
-            .ToDictionary(exercise => exercise.Id);
+        var exercises = await SpeakingTestInputs.LoadDetailExercisesAsync(loaded, repository, cancellationToken);
         return loaded.ToDetailDto(exercises);
     }
 }

@@ -1,6 +1,7 @@
 using FluentValidation;
 using TOEICMaster.Application.Speaking;
 using TOEICMaster.Application.Speaking.Admin;
+using TOEICMaster.Application.Speaking.Attempts;
 using TOEICMaster.Domain.Entities;
 using TOEICMaster.Tests.TestDoubles;
 
@@ -132,7 +133,7 @@ public sealed class SpeakingAdministrationTests
         var slot = _store.Slots.First(item => item.Part == 1 && item.SequenceNumber == 2);
         _store.Slots.Remove(slot);
         _store.Slots.Add(SpeakingTestExercise.Create(test.Id, 1, 2,
-            _store.Slots.First(item => item.Part == 5).ExerciseId));
+            _store.Slots.First(item => item.Part == 5).ExerciseId!.Value));
 
         await Assert.ThrowsAsync<SpeakingConflictException>(() => Publish(test.Id, test.Version + 1));
         var error = await Assert.ThrowsAsync<SpeakingPublishRequirementsException>(() => Publish(test.Id, test.Version));
@@ -141,7 +142,7 @@ public sealed class SpeakingAdministrationTests
     }
 
     [Fact]
-    public async Task Published_tests_keep_their_snapshot_and_cannot_be_edited()
+    public async Task Published_legacy_tests_keep_their_snapshot_and_allow_metadata_edits()
     {
         var test = await FullTestAsync();
         var published = await Publish(test.Id, test.Version);
@@ -160,9 +161,10 @@ public sealed class SpeakingAdministrationTests
         var frozen = detail.Exercises.Single(slot => slot.ExerciseId == passage.Id).Exercise;
         Assert.Equal(("Attention, shoppers. The store closes in thirty minutes.", "PUBLISHED"),
             (frozen.Passage, frozen.Status));
-        await Assert.ThrowsAsync<SpeakingConflictException>(() => new UpdateSpeakingTestCommandHandler(_store, _clock)
-            .Handle(new UpdateSpeakingTestCommand(Admin, test.Id, published.Version,
-                new SpeakingTestInput("SPK-01", "Edited", null, [])), CancellationToken.None));
+        var edited = await new UpdateSpeakingTestCommandHandler(_store, _clock).Handle(
+            new UpdateSpeakingTestCommand(Admin, test.Id, published.Version,
+                new SpeakingTestInput("SPK-01", "Edited", null, null)), CancellationToken.None);
+        Assert.Equal(("Edited", "PUBLISHED", 3), (edited.Title, edited.Status, edited.Version));
     }
 
     [Fact]
@@ -198,6 +200,64 @@ public sealed class SpeakingAdministrationTests
                 [new(opinion.Id, 1, 1), new(Guid.NewGuid(), 2, 1)])), CancellationToken.None));
 
         Assert.Equal(2, error.Errors.Count(failure => failure.PropertyName == "Exercises"));
+    }
+
+    [Fact]
+    public async Task Direct_draft_keeps_its_content_private_and_publishes_only_when_every_part_is_complete()
+    {
+        var image = await new UploadSpeakingImageCommandHandler(_store, _store, _clock).Handle(
+            new UploadSpeakingImageCommand(Admin, SpeakingSamples.Png, "image/png"), CancellationToken.None);
+        var questions = new List<SpeakingTestQuestionInput>();
+        foreach (var part in Enumerable.Range(1, 5))
+            for (var sequence = 1; sequence <= SpeakingTiming.SlotsPerPart(part); sequence++)
+                questions.Add(DirectQuestion(part, sequence, image.Id));
+
+        var draft = await new CreateSpeakingTestCommandHandler(_store, _clock).Handle(
+            new CreateSpeakingTestCommand(Admin, new SpeakingTestInput("SP-DIRECT-01", "Direct draft", "",
+                [], "DIRECT", questions)), CancellationToken.None);
+
+        Assert.Equal("DIRECT", draft.ContentMode);
+        Assert.Empty(draft.Exercises);
+        Assert.Equal(7, draft.Questions.Count);
+        Assert.Empty(_store.Exercises);
+        Assert.All(_store.Slots, slot =>
+        {
+            Assert.Null(slot.ExerciseId);
+            Assert.NotNull(slot.ContentJson);
+        });
+
+        var published = await Publish(draft.Id, draft.Version);
+
+        Assert.Equal("PUBLISHED", published.Status);
+        Assert.Equal("DIRECT", published.ContentMode);
+        Assert.Equal(11, published.Questions.Sum(question => SpeakingTiming.QuestionsPerExercise(question.Part)));
+
+        var attempt = await new StartSpeakingAttemptCommandHandler(_store, _clock).Handle(
+            new StartSpeakingAttemptCommand(SpeakingAttemptOwner.ForUser(Guid.NewGuid()),
+                new StartSpeakingAttemptInput(draft.Id, "FULL")), CancellationToken.None);
+        Assert.Equal(11, attempt.Questions.Count);
+        Assert.All(_store.Attempts.Single().Questions, question => Assert.Null(question.ExerciseId));
+    }
+
+    [Fact]
+    public async Task Direct_draft_persists_an_incomplete_question_but_cannot_publish_it()
+    {
+        var draft = await new CreateSpeakingTestCommandHandler(_store, _clock).Handle(
+            new CreateSpeakingTestCommand(Admin, new SpeakingTestInput("SP-DIRECT-PARTIAL", "Direct draft", "",
+                [], "DIRECT", [new SpeakingTestQuestionInput(1, 1,
+                    new SpeakingTestQuestionContentInput(null, null, Passage: "Draft passage"))])),
+            CancellationToken.None);
+
+        var question = Assert.Single(draft.Questions);
+        Assert.Equal((1, 1, "Draft passage", ""),
+            (question.Part, question.SequenceNumber, question.Content.Passage, question.Content.ModelAnswer));
+        Assert.Empty(_store.Exercises);
+
+        var error = await Assert.ThrowsAsync<SpeakingPublishRequirementsException>(() =>
+            Publish(draft.Id, draft.Version));
+
+        Assert.Contains("Part1", error.Errors.Keys);
+        Assert.Equal(SpeakingTestStatus.Draft, _store.Tests.Single().Status);
     }
 
     [Fact]
@@ -255,5 +315,13 @@ public sealed class SpeakingAdministrationTests
         return await new CreateSpeakingTestCommandHandler(_store, _clock).Handle(new CreateSpeakingTestCommand(Admin,
             new SpeakingTestInput("SPK-01", "TOEIC Speaking Practice Test 01", "Đề đủ 11 câu.", slots)),
             CancellationToken.None);
+    }
+
+    private static SpeakingTestQuestionInput DirectQuestion(int part, int sequence, Guid imageAssetId)
+    {
+        var sample = SpeakingSamples.Exercise(part, $"DIRECT-{part}-{sequence}", imageAssetId);
+        return new SpeakingTestQuestionInput(part, sequence, new SpeakingTestQuestionContentInput(sample.RubricNotes,
+            sample.ModelAnswer, sample.Passage, sample.ImageAssetId, sample.ImageAlt, sample.Context,
+            sample.Questions, sample.DocumentTitle, sample.DocumentRows, sample.CallerIntro, sample.Prompt));
     }
 }

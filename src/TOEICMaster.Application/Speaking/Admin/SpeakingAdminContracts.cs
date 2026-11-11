@@ -69,19 +69,57 @@ public sealed record SpeakingAdminSummaryDto(SpeakingExerciseCountsDto Exercises
 public sealed record SpeakingTestSlotInput(Guid ExerciseId, int Part, int SequenceNumber);
 
 public sealed record SpeakingTestInput(string? Code, string? Title, string? Description,
-    IReadOnlyList<SpeakingTestSlotInput?>? Exercises);
+    IReadOnlyList<SpeakingTestSlotInput?>? Exercises, string? ContentMode = null,
+    IReadOnlyList<SpeakingTestQuestionInput?>? Questions = null);
+
+/// <summary>Test-owned content. It deliberately has no code, difficulty or publish status from the exercise bank.</summary>
+public sealed record SpeakingTestQuestionContentInput(
+    string? RubricNotes,
+    string? ModelAnswer,
+    string? Passage = null,
+    Guid? ImageAssetId = null,
+    string? ImageAlt = null,
+    string? Context = null,
+    IReadOnlyList<string?>? Questions = null,
+    string? DocumentTitle = null,
+    IReadOnlyList<SpeakingInfoRowInput?>? DocumentRows = null,
+    string? CallerIntro = null,
+    string? Prompt = null);
+
+public sealed record SpeakingTestQuestionInput(int Part, int SequenceNumber,
+    SpeakingTestQuestionContentInput? Content);
+
+public sealed record SpeakingTestQuestionContentDto(
+    string RubricNotes,
+    string ModelAnswer,
+    string? Passage = null,
+    Guid? ImageAssetId = null,
+    string? ImageAlt = null,
+    string? Context = null,
+    IReadOnlyList<string?>? Questions = null,
+    string? DocumentTitle = null,
+    IReadOnlyList<SpeakingInfoRowDto>? DocumentRows = null,
+    string? CallerIntro = null,
+    string? Prompt = null)
+{
+    public SpeakingContentDto ToContent(int part) => new(part, Passage, ImageAssetId, ImageAlt, Context, Questions,
+        DocumentTitle, DocumentRows, CallerIntro, Prompt);
+}
 
 public sealed record SpeakingTestFilter(string? Query, string? Status, int PageNumber = 1, int PageSize = 20);
 
 public sealed record SpeakingTestListItemDto(Guid Id, string Code, string Title, string Status, int Version,
     DateTimeOffset UpdatedAtUtc, DateTimeOffset? PublishedAtUtc, IReadOnlyDictionary<string, int> PartCounts,
-    int QuestionCount);
+    int QuestionCount, string ContentMode);
 
 public sealed record SpeakingTestSlotDto(Guid ExerciseId, int Part, int SequenceNumber, SpeakingExerciseDto Exercise);
 
+public sealed record SpeakingTestQuestionDto(int Part, int SequenceNumber, SpeakingTestQuestionContentDto Content);
+
 public sealed record SpeakingTestDetailDto(Guid Id, string Code, string Title, string Description, string Status,
     int Version, DateTimeOffset CreatedAtUtc, DateTimeOffset UpdatedAtUtc, DateTimeOffset? PublishedAtUtc,
-    IReadOnlyList<SpeakingTestSlotDto> Exercises);
+    string ContentMode, IReadOnlyList<SpeakingTestSlotDto> Exercises,
+    IReadOnlyList<SpeakingTestQuestionDto> Questions);
 
 /// <summary>A test with its exercise slots, as loaded by repositories.</summary>
 public sealed record SpeakingTestWithSlots(SpeakingTest Test, IReadOnlyList<SpeakingTestExercise> Slots);
@@ -158,18 +196,33 @@ public sealed class SpeakingTestInputValidator : AbstractValidator<SpeakingTestI
             .WithMessage("Tên đề cần 1–200 ký tự.");
         RuleFor(input => input.Description).Must(value => SpeakingExerciseInputValidator.Length(value) <= 2_000)
             .WithMessage("Mô tả tối đa 2000 ký tự.");
-        RuleFor(input => input.Exercises).NotNull().WithMessage("Danh sách bài tập là bắt buộc.");
+        RuleFor(input => input.ContentMode).Must(mode => string.IsNullOrWhiteSpace(mode) ||
+                SpeakingCodes.TryParseTestContentMode(mode, out _))
+            .WithMessage("Nguồn nội dung đề không hợp lệ.");
         RuleForEach(input => input.Exercises).Must(slot => slot is not null && slot.ExerciseId != Guid.Empty &&
                 SpeakingTiming.IsPart(slot.Part) && slot.SequenceNumber >= 1 &&
                 slot.SequenceNumber <= SpeakingTiming.SlotsPerPart(slot.Part))
+            .When(input => !SpeakingTestInputs.IsDirect(input))
             .WithMessage("Vị trí bài tập không hợp lệ.");
         RuleFor(input => input.Exercises).Must(slots => slots is null || slots.Where(slot => slot is not null)
                 .Select(slot => slot!.ExerciseId).Distinct().Count() == slots.Count(slot => slot is not null))
+            .When(input => !SpeakingTestInputs.IsDirect(input))
             .WithMessage("Một bài tập không thể xuất hiện hai lần trong cùng một đề.");
         RuleFor(input => input.Exercises).Must(slots => slots is null || slots.Where(slot => slot is not null)
                 .Select(slot => (slot!.Part, slot.SequenceNumber)).Distinct().Count() ==
                 slots.Count(slot => slot is not null))
+            .When(input => !SpeakingTestInputs.IsDirect(input))
             .WithMessage("Thứ tự bài tập trong mỗi Part không được trùng nhau.");
+        RuleForEach(input => input.Questions).Must(question => question is not null &&
+                SpeakingTiming.IsPart(question.Part) && question.SequenceNumber >= 1 &&
+                question.SequenceNumber <= SpeakingTiming.SlotsPerPart(question.Part) && question.Content is not null)
+            .When(SpeakingTestInputs.IsDirect)
+            .WithMessage("Câu hỏi trực tiếp không hợp lệ.");
+        RuleFor(input => input.Questions).Must(questions => questions is null || questions.Where(question => question is not null)
+                .Select(question => (question!.Part, question.SequenceNumber)).Distinct().Count() ==
+                questions.Count(question => question is not null))
+            .When(SpeakingTestInputs.IsDirect)
+            .WithMessage("Thứ tự câu hỏi trong mỗi Part không được trùng nhau.");
     }
 }
 
@@ -196,26 +249,33 @@ public static class SpeakingAdminMapping
         var questionCount = source.Slots.Sum(slot => SpeakingTiming.QuestionsPerExercise(slot.Part));
         var test = source.Test;
         return new SpeakingTestListItemDto(test.Id, test.Code, test.Title, test.Status.ToCode(), test.Version,
-            test.UpdatedAtUtc, test.PublishedAtUtc, counts, questionCount);
+            test.UpdatedAtUtc, test.PublishedAtUtc, counts, questionCount, test.ContentMode.ToCode());
     }
 
     /// <summary>Published slots use their frozen snapshot; draft slots show the current exercise.</summary>
     public static SpeakingTestDetailDto ToDetailDto(this SpeakingTestWithSlots source,
         IReadOnlyDictionary<Guid, SpeakingExercise> currentExercises)
     {
-        var slots = source.Slots.OrderBy(slot => slot.Part).ThenBy(slot => slot.SequenceNumber)
+        var slots = source.Slots.Where(slot => slot.ExerciseId is not null).OrderBy(slot => slot.Part)
+            .ThenBy(slot => slot.SequenceNumber)
             .Select(slot =>
             {
+                var exerciseId = slot.ExerciseId!.Value;
                 var exercise = slot.SnapshotJson is not null
                     ? SpeakingJson.Deserialize<SpeakingExerciseDto>(slot.SnapshotJson)
-                    : currentExercises.GetValueOrDefault(slot.ExerciseId)?.ToDto();
+                    : currentExercises.GetValueOrDefault(exerciseId)?.ToDto();
                 return exercise is null
                     ? null
-                    : new SpeakingTestSlotDto(slot.ExerciseId, slot.Part, slot.SequenceNumber, exercise);
+                    : new SpeakingTestSlotDto(exerciseId, slot.Part, slot.SequenceNumber, exercise);
             })
             .OfType<SpeakingTestSlotDto>().ToArray();
         var test = source.Test;
+        var questions = source.Slots.Where(slot => slot.ContentJson is not null).OrderBy(slot => slot.Part)
+            .ThenBy(slot => slot.SequenceNumber).Select(slot => new SpeakingTestQuestionDto(slot.Part,
+                slot.SequenceNumber, SpeakingJson.Deserialize<SpeakingTestQuestionContentDto>(slot.ContentJson!)))
+            .ToArray();
         return new SpeakingTestDetailDto(test.Id, test.Code, test.Title, test.Description, test.Status.ToCode(),
-            test.Version, test.CreatedAtUtc, test.UpdatedAtUtc, test.PublishedAtUtc, slots);
+            test.Version, test.CreatedAtUtc, test.UpdatedAtUtc, test.PublishedAtUtc, test.ContentMode.ToCode(), slots,
+            questions);
     }
 }
