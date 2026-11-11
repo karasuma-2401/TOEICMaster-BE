@@ -344,15 +344,18 @@ public sealed class SpeakingAdministrationTests
         new DeleteSpeakingTestDraftCommandHandler(_store).Handle(new DeleteSpeakingTestDraftCommand(Admin, testId,
             version), CancellationToken.None);
 
+    private Task<SpeakingImageDto> UploadImageAsync(byte[] png) =>
+        new UploadSpeakingImageCommandHandler(_store, _store, _clock).Handle(
+            new UploadSpeakingImageCommand(Admin, png, "image/png"), CancellationToken.None);
+
     private async Task<SpeakingTestDetailDto> FullTestAsync()
     {
-        var image = await new UploadSpeakingImageCommandHandler(_store, _store, _clock).Handle(
-            new UploadSpeakingImageCommand(Admin, SpeakingSamples.Png, "image/png"), CancellationToken.None);
         var slots = new List<SpeakingTestSlotInput>();
         foreach (var part in Enumerable.Range(1, 5))
             for (var sequence = 1; sequence <= SpeakingTiming.SlotsPerPart(part); sequence++)
             {
-                var exercise = await CreateAsync(SpeakingSamples.Exercise(part, $"SP{part}-00{sequence}", image.Id));
+                Guid? imageId = part == 2 ? (await UploadImageAsync(SpeakingSamples.PngVariant((byte)sequence))).Id : null;
+                var exercise = await CreateAsync(SpeakingSamples.Exercise(part, $"SP{part}-00{sequence}", imageId));
                 slots.Add(new SpeakingTestSlotInput(exercise.Id, part, sequence));
             }
         return await new CreateSpeakingTestCommandHandler(_store, _clock).Handle(new CreateSpeakingTestCommand(Admin,
