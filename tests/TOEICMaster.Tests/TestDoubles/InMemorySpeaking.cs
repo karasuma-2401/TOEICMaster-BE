@@ -114,8 +114,9 @@ public sealed class InMemorySpeaking : ISpeakingAdminRepository, ISpeakingAttemp
 
     public Task<SpeakingMediaAsset?> FindPublishedImageAsync(Guid assetId, CancellationToken cancellationToken)
     {
-        var published = Slots.Any(slot => slot.SnapshotJson?.Contains(assetId.ToString(), StringComparison.Ordinal)
-                                          == true && Tests.Single(test => test.Id == slot.TestId).Status ==
+        var published = Slots.Any(slot => (slot.SnapshotJson?.Contains(assetId.ToString(), StringComparison.Ordinal)
+                                           == true || slot.ContentJson?.Contains(assetId.ToString(),
+                                           StringComparison.Ordinal) == true) && Tests.Single(test => test.Id == slot.TestId).Status ==
                                           SpeakingTestStatus.Published) ||
                         Exercises.Any(exercise => exercise.ImageAssetId == assetId &&
                                                   exercise.Status == SpeakingExerciseStatus.Published);

@@ -90,6 +90,13 @@ public static class SpeakingCodes
         _ => throw new ArgumentOutOfRangeException(nameof(value))
     };
 
+    public static string ToCode(this SpeakingTestContentMode value) => value switch
+    {
+        SpeakingTestContentMode.ExerciseBank => "EXERCISE_BANK",
+        SpeakingTestContentMode.Direct => "DIRECT",
+        _ => throw new ArgumentOutOfRangeException(nameof(value))
+    };
+
     public static string ToCode(this SpeakingMediaKind value) => value switch
     {
         SpeakingMediaKind.Image => "IMAGE",
@@ -151,6 +158,9 @@ public static class SpeakingCodes
     public static bool TryParseTestStatus(string? value, out SpeakingTestStatus result) =>
         TryParse(value, out result, SpeakingTestStatus.Draft, SpeakingTestStatus.Published);
 
+    public static bool TryParseTestContentMode(string? value, out SpeakingTestContentMode result) =>
+        TryParse(value, out result, SpeakingTestContentMode.ExerciseBank, SpeakingTestContentMode.Direct);
+
     public static bool TryParseMode(string? value, out SpeakingAttemptMode result) =>
         TryParse(value, out result, SpeakingAttemptMode.Full, SpeakingAttemptMode.Part1, SpeakingAttemptMode.Part2,
             SpeakingAttemptMode.Part3, SpeakingAttemptMode.Part4, SpeakingAttemptMode.Part5);
@@ -180,6 +190,7 @@ public static class SpeakingCodes
         SpeakingDifficulty difficulty => difficulty.ToCode(),
         SpeakingExerciseStatus status => status.ToCode(),
         SpeakingTestStatus status => status.ToCode(),
+        SpeakingTestContentMode mode => mode.ToCode(),
         SpeakingMediaKind kind => kind.ToCode(),
         SpeakingAttemptMode mode => mode.ToCode(),
         SpeakingAttemptStatus status => status.ToCode(),

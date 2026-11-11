@@ -246,7 +246,7 @@ public sealed class SpeakingAttemptQuestion
     {
     }
 
-    private SpeakingAttemptQuestion(Guid attemptId, int position, int part, int questionIndex, Guid exerciseId,
+    private SpeakingAttemptQuestion(Guid attemptId, int position, int part, int questionIndex, Guid? exerciseId,
         string contentJson, string reviewJson, SpeakingQuestionTiming timing)
     {
         AttemptId = attemptId;
@@ -265,7 +265,8 @@ public sealed class SpeakingAttemptQuestion
     public int Position { get; private set; }
     public int Part { get; private set; }
     public int QuestionIndex { get; private set; }
-    public Guid ExerciseId { get; private set; }
+    /// <summary>Null when the immutable snapshot originated from a test-owned direct question.</summary>
+    public Guid? ExerciseId { get; private set; }
     /// <summary>Full content snapshot; unreached Part 3/4 questions are hidden when mapped to a response.</summary>
     public string ContentJson { get; private set; } = "{}";
     /// <summary>Private rubric and model answer; only returned after submission.</summary>
@@ -279,7 +280,7 @@ public sealed class SpeakingAttemptQuestion
     public DateTimeOffset? RecordingUploadedAtUtc { get; private set; }
 
     public static SpeakingAttemptQuestion Create(Guid attemptId, int position, int part, int questionIndex,
-        Guid exerciseId, string contentJson, string reviewJson) =>
+        Guid? exerciseId, string contentJson, string reviewJson) =>
         new(attemptId, position, part, questionIndex, exerciseId, contentJson, reviewJson,
             SpeakingTiming.For(part, questionIndex));
 
