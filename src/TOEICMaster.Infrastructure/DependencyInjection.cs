@@ -49,6 +49,7 @@ public static class DependencyInjection
             provider.GetRequiredService<IOptions<ConnectionStringsOptions>>().Value.Postgres,
             provider => provider.EnableRetryOnFailure(3)));
         services.AddScoped<IAccountReader, AccountReader>();
+        services.AddScoped<IAdminUserReader, AdminUserReader>();
         services.AddScoped<IExamRepository, EfExamRepository>();
         services.AddScoped<ILrExerciseBankRepository, EfLrExerciseBankRepository>();
         services.AddSingleton<ILrExerciseBankImportParser, XlsxLrExerciseBankImportParser>();

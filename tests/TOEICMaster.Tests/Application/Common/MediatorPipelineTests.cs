@@ -31,6 +31,7 @@ public sealed class MediatorPipelineTests
         services.AddLogging();
         services.AddApplication();
         services.AddSingleton<IAccountReader, SampleAccountReader>();
+        services.AddSingleton<IAdminUserReader, EmptyAdminUserReader>();
         services.AddSingleton<IProfileRepository, EmptyProfileRepository>();
         services.AddSingleton<IAvatarStore, EmptyAvatarStore>();
         services.AddSingleton<IWritingAdminRepository, EmptyWritingAdminRepository>();
