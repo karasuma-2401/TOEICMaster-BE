@@ -40,7 +40,7 @@ Trường riêng theo Part:
 
 Server chỉ lưu các trường thuộc đúng Part, trong `content_json`. Lỗi `400` dùng tên trường không có tiền tố, ví dụ `Passage`, để form hiện lỗi đúng chỗ.
 
-`questions` của Part 3–4 phải khác nhau sau chuẩn hóa. Đoạn văn, từng câu hỏi, đề bài Part 5 và ảnh (theo `sha256`) không được trùng với bất kỳ bài nào khác trong ngân hàng, kể cả bài đã lưu trữ. Vi phạm trả `400` theo đúng trường, ví dụ `Passage` hoặc `Questions[1]`. Xem [ADR-002](../../decisions/002-speaking-test-content-uniqueness.md).
+**Đích (ADR-002):** `questions` của Part 3–4 phải khác nhau sau chuẩn hóa.
 
 ## Ảnh
 
@@ -54,10 +54,35 @@ Asset bất biến. Thay ảnh nghĩa là tải asset mới.
 - `GET /tests?query=&status=&pageNumber=1&pageSize=20`: mỗi phần tử có `partCounts` và `questionCount`.
 - `GET /tests/{testId}`: đề đã công bố đọc từ snapshot; đề nháp đọc bài hiện tại.
 - `POST /tests`: tạo đề nháp, trả `201`.
-- `PUT /tests/{testId}`: chỉ với đề nháp; body `{ "version": 1, "test": { ... } }`.
+- `PUT /tests/{testId}`: lưu Draft trực tiếp; đề legacy đã công bố chỉ được sửa metadata cơ bản (mã, tên, mô tả), không đổi nội dung.
 - `POST /tests/{testId}/publish`: body `{ "version": 1 }`.
 
-Body đề:
+Body đề mới (builder nhập trực tiếp):
+
+```json
+{
+  "code": "SP-2026-01",
+  "title": "Đề Speaking 01",
+  "description": "",
+  "contentMode": "DIRECT",
+  "exercises": [],
+  "questions": [
+    {
+      "part": 1,
+      "sequenceNumber": 1,
+      "content": {
+        "rubricNotes": "Phát âm rõ ràng.",
+        "modelAnswer": "Reference answer for evaluation.",
+        "passage": "Please read this short announcement aloud."
+      }
+    }
+  ]
+}
+```
+
+`questions` là nội dung thuộc riêng đề: không tạo `speaking_exercises`, không xuất hiện ở tab Bài tập và không được đề khác chọn lại. Part 3 và 4 mỗi phần tử chứa context chung cùng đúng ba câu con, nên đề có 7 nhóm nội dung tương ứng 11 câu của thí sinh (2/2/3/3/1). Draft có thể thiếu nhóm; mỗi nhóm đã gửi phải hợp lệ theo trường của Part. Ảnh Part 2 vẫn upload qua `POST /media/images`, sau đó dùng `imageAssetId` trong `content`.
+
+Body legacy tương thích:
 
 ```json
 {
@@ -70,7 +95,9 @@ Body đề:
 }
 ```
 
-Khi lưu: đề nháp được phép thiếu bài. Mỗi bài phải tồn tại và đúng Part; `sequenceNumber` từ 1 đến số bài của Part; không trùng `exerciseId` và không trùng vị trí. Một bài chỉ thuộc một đề: bài đã nằm trong đề khác (nháp hoặc đã công bố) trả `400 errors.Exercises`.
+Khi lưu: đề nháp được phép thiếu bài. Mỗi bài phải tồn tại và đúng Part; `sequenceNumber` từ 1 đến số bài của Part; không trùng `exerciseId` và không trùng vị trí.
+
+Body legacy không có `contentMode` (hoặc dùng `EXERCISE_BANK`) tiếp tục được đọc để xem/làm bài. API không chuyển dữ liệu legacy sang direct builder. Với đề legacy đã công bố, `PUT` không kèm `exercises` chỉ lưu metadata; nội dung snapshot giữ nguyên.
 
 **Điều kiện công bố** (lỗi `422`, trả tất cả lỗi cùng lúc):
 
@@ -78,32 +105,12 @@ Khi lưu: đề nháp được phép thiếu bài. Mỗi bài phải tồn tại
 | --- | --- |
 | `Code`, `Title` | Không rỗng |
 | `Part1` … `Part5` | Đúng 2/2/1/1/1 bài, đánh số liên tục từ 1 |
-| `Exercises` | Không lặp bài; mọi bài tồn tại, đúng Part và `PUBLISHED`; không bài nào thuộc đề khác |
-| `Content` | Không trùng văn bản hoặc ảnh giữa các câu trong đề, kể cả khác Part |
+| `Exercises` | Không lặp bài; mọi bài tồn tại, đúng Part và `PUBLISHED` |
+| `Part1` … `Part5` (direct) | Đúng 2/2/1/1/1 nhóm nội dung, thứ tự liên tục; Part 3/4 có đúng ba câu con |
+| `Questions` | Chỉ chứa nội dung direct thuộc đề, không lẫn tham chiếu ngân hàng |
+| `Content` | **Đích (ADR-002):** không trùng nội dung |
 
 Khi công bố, server ghi `snapshot_json` cho từng vị trí, tăng `version` và khóa đề. Sửa hoặc lưu trữ bài sau đó không ảnh hưởng đề đã công bố. `snapshot_json` có chứa rubric và bài mẫu, chỉ dùng cho Admin và attempt snapshot.
-
-### Import đề từ Excel
-
-`POST /tests/import`, `multipart/form-data`, field `file` (`.xlsx`, tối đa 16 MiB). Tạo 7 bài mới và 1 đề `DRAFT`, trả `201` với chi tiết đề. Nếu có lỗi thì không tạo gì.
-
-Sheet `Test`: cột A là tên trường, cột B là giá trị, gồm `Code`, `Title`, `Description`.
-
-Sheet `Exercises`: dòng 1 là tiêu đề, không phân biệt hoa thường và khoảng trắng. Cần đúng 7 dòng, 2/2/1/1/1 bài cho Part 1–5.
-
-| Cột | Áp dụng | Ghi chú |
-| --- | --- | --- |
-| `Part`, `Sequence`, `Code`, `Topic`, `Difficulty`, `Model Answer` | Mọi bài | Bắt buộc |
-| `Status` | Mọi bài | Bỏ trống là `DRAFT`. Muốn công bố đề, các bài phải là `PUBLISHED` |
-| `Rubric Notes` | Mọi bài | Tùy chọn |
-| `Passage` | Part 1 | |
-| `Image Alt` và ảnh | Part 2 | Chèn bằng Insert > Pictures > **Place over Cells**, góc trên trái nằm trong dòng của bài. Ảnh "Place in Cell" bị từ chối. JPEG hoặc PNG, tối đa 5 MiB |
-| `Context` | Part 3 | |
-| `Question 1`, `Question 2`, `Question 3` | Part 3, 4 | |
-| `Document Title`, `Document Rows`, `Caller Intro` | Part 4 | `Document Rows`: mỗi dòng trong ô là `nhãn \| nội dung` |
-| `Prompt` | Part 5 | |
-
-Lỗi `400` có khóa theo số dòng Excel, ví dụ `Rows[5].Passage`, `Rows[4].Image`. Khóa khác gồm `Test.Code`, `Exercises`, `Content`. File không đọc được trả `400`, file quá cỡ trả `413`, trùng mã đề trả `409`.
 
 ## Lỗi
 

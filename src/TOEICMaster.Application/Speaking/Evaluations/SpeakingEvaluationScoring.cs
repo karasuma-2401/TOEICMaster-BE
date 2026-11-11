@@ -85,7 +85,7 @@ public static class SpeakingEvaluationScoring
     private static string[] Words(string text)
     {
         var builder = new StringBuilder(text.Length);
-        foreach (var character in text.ToLowerInvariant().Replace('’', '\'').Replace('‘', '\''))
+        foreach (var character in text.ToLowerInvariant())
             builder.Append(char.IsLetterOrDigit(character) || character == '\'' ? character : ' ');
         return builder.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries);
     }

@@ -704,7 +704,7 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("content_json");
 
-                    b.Property<Guid>("ExerciseId")
+                    b.Property<Guid?>("ExerciseId")
                         .HasColumnType("uuid")
                         .HasColumnName("exercise_id");
 
@@ -1163,6 +1163,14 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("code");
 
+                    b.Property<string>("ContentMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("EXERCISE_BANK")
+                        .HasColumnName("content_mode");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
@@ -1216,6 +1224,8 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
 
                     b.ToTable("speaking_tests", null, t =>
                         {
+                            t.HasCheckConstraint("ck_speaking_tests_content_mode", "content_mode IN ('EXERCISE_BANK', 'DIRECT')");
+
                             t.HasCheckConstraint("ck_speaking_tests_published_at", "status <> 'PUBLISHED' OR published_at_utc IS NOT NULL");
 
                             t.HasCheckConstraint("ck_speaking_tests_status", "status IN ('DRAFT', 'PUBLISHED')");
@@ -1236,9 +1246,17 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("sequence_number");
 
-                    b.Property<Guid>("ExerciseId")
+                    b.Property<string>("ContentJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("content_json");
+
+                    b.Property<Guid?>("ExerciseId")
                         .HasColumnType("uuid")
                         .HasColumnName("exercise_id");
+
+                    b.Property<Guid?>("ImageAssetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("image_asset_id");
 
                     b.Property<string>("SnapshotJson")
                         .HasColumnType("jsonb")
@@ -1248,11 +1266,15 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ExerciseId");
 
+                    b.HasIndex("ImageAssetId");
+
                     b.HasIndex("TestId", "ExerciseId")
                         .IsUnique();
 
                     b.ToTable("speaking_test_exercises", null, t =>
                         {
+                            t.HasCheckConstraint("ck_speaking_test_exercises_content_source", "(exercise_id IS NOT NULL AND content_json IS NULL) OR (exercise_id IS NULL AND content_json IS NOT NULL)");
+
                             t.HasCheckConstraint("ck_speaking_test_exercises_part", "part BETWEEN 1 AND 5");
 
                             t.HasCheckConstraint("ck_speaking_test_exercises_sequence_number", "sequence_number >= 1");
@@ -2008,8 +2030,12 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.HasOne("TOEICMaster.Domain.Entities.SpeakingExercise", null)
                         .WithMany()
                         .HasForeignKey("ExerciseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TOEICMaster.Domain.Entities.SpeakingMediaAsset", null)
+                        .WithMany()
+                        .HasForeignKey("ImageAssetId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("TOEICMaster.Domain.Entities.SpeakingTest", null)
                         .WithMany()

@@ -13,12 +13,6 @@ public interface ISpeakingAdminRepository
         CancellationToken cancellationToken);
     Task<bool> ExerciseCodeExistsAsync(string code, Guid? excludingId, CancellationToken cancellationToken);
     void AddExercise(SpeakingExercise exercise);
-    /// <summary>Content of every exercise in the bank, archived ones included.</summary>
-    Task<IReadOnlyList<SpeakingExerciseContentSource>> GetExerciseContentSourcesAsync(
-        CancellationToken cancellationToken);
-    /// <summary>For each given exercise already placed in another test, the code of that test.</summary>
-    Task<IReadOnlyDictionary<Guid, string>> FindOtherTestCodesAsync(IReadOnlyCollection<Guid> exerciseIds,
-        Guid? excludingTestId, CancellationToken cancellationToken);
 
     Task<SpeakingMediaAsset?> FindMediaAssetAsync(Guid id, CancellationToken cancellationToken);
     void AddMediaAsset(SpeakingMediaAsset asset);

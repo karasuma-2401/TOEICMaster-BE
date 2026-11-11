@@ -102,22 +102,10 @@ public sealed class GeminiSpeakingLanguageEvaluator(HttpClient httpClient, IOpti
                 throw ToProviderException(response);
             try
             {
-                // The timeout must also cover the body: headers arrive first, and a stalled body would hold the worker.
                 using var payload = await JsonDocument.ParseAsync(
-                    await response.Content.ReadAsStreamAsync(timeout.Token), cancellationToken: timeout.Token);
+                    await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
                 using var result = JsonDocument.Parse(CandidateText(payload.RootElement));
                 return Parse(result.RootElement);
-            }
-            catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
-            {
-                throw new SpeakingEvaluatorException("TIMEOUT",
-                    "Chấm AI đang mất nhiều thời gian hơn dự kiến. Hệ thống sẽ thử lại.", true,
-                    innerException: exception);
-            }
-            catch (Exception exception) when (exception is HttpRequestException or IOException)
-            {
-                throw new SpeakingEvaluatorException("NETWORK_ERROR",
-                    "Không thể kết nối dịch vụ chấm AI. Hệ thống sẽ thử lại.", true, innerException: exception);
             }
             catch (JsonException exception)
             {

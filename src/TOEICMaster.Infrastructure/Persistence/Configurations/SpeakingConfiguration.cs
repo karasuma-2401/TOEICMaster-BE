@@ -17,6 +17,7 @@ internal static class SpeakingColumns
         SpeakingDifficulty difficulty => difficulty.ToCode(),
         SpeakingExerciseStatus status => status.ToCode(),
         SpeakingTestStatus status => status.ToCode(),
+        SpeakingTestContentMode mode => mode.ToCode(),
         SpeakingMediaKind kind => kind.ToCode(),
         SpeakingAttemptMode mode => mode.ToCode(),
         SpeakingAttemptStatus status => status.ToCode(),
@@ -98,6 +99,8 @@ public sealed class SpeakingTestConfiguration : IEntityTypeConfiguration<Speakin
         builder.ToTable("speaking_tests", table =>
         {
             table.HasCheckConstraint("ck_speaking_tests_status", "status IN ('DRAFT', 'PUBLISHED')");
+            table.HasCheckConstraint("ck_speaking_tests_content_mode",
+                "content_mode IN ('EXERCISE_BANK', 'DIRECT')");
             table.HasCheckConstraint("ck_speaking_tests_published_at",
                 "status <> 'PUBLISHED' OR published_at_utc IS NOT NULL");
         });
@@ -107,6 +110,10 @@ public sealed class SpeakingTestConfiguration : IEntityTypeConfiguration<Speakin
         builder.Property(test => test.Title).HasColumnName("title").HasMaxLength(200).IsRequired();
         builder.Property(test => test.Description).HasColumnName("description").HasMaxLength(2_000)
             .HasDefaultValue(string.Empty).IsRequired();
+        builder.Property(test => test.ContentMode).HasColumnName("content_mode").HasMaxLength(20)
+            .HasConversion(SpeakingColumns.Code<SpeakingTestContentMode>())
+            .HasDefaultValue(SpeakingTestContentMode.ExerciseBank).HasSentinel(SpeakingTestContentMode.ExerciseBank)
+            .IsRequired();
         builder.Property(test => test.Status).HasColumnName("status").HasMaxLength(12)
             .HasConversion(SpeakingColumns.Code<SpeakingTestStatus>()).IsRequired();
         builder.Property(test => test.PublishedAtUtc).HasColumnName("published_at_utc");
@@ -129,17 +136,23 @@ public sealed class SpeakingTestExerciseConfiguration : IEntityTypeConfiguration
         {
             table.HasCheckConstraint("ck_speaking_test_exercises_part", "part BETWEEN 1 AND 5");
             table.HasCheckConstraint("ck_speaking_test_exercises_sequence_number", "sequence_number >= 1");
+            table.HasCheckConstraint("ck_speaking_test_exercises_content_source",
+                "(exercise_id IS NOT NULL AND content_json IS NULL) OR (exercise_id IS NULL AND content_json IS NOT NULL)");
         });
         builder.HasKey(slot => new { slot.TestId, slot.Part, slot.SequenceNumber });
         builder.Property(slot => slot.TestId).HasColumnName("test_id");
         builder.Property(slot => slot.Part).HasColumnName("part").HasConversion<short>();
         builder.Property(slot => slot.SequenceNumber).HasColumnName("sequence_number").HasConversion<short>();
-        builder.Property(slot => slot.ExerciseId).HasColumnName("exercise_id").IsRequired();
+        builder.Property(slot => slot.ExerciseId).HasColumnName("exercise_id");
+        builder.Property(slot => slot.ContentJson).HasColumnName("content_json").HasColumnType("jsonb");
+        builder.Property(slot => slot.ImageAssetId).HasColumnName("image_asset_id");
         builder.Property(slot => slot.SnapshotJson).HasColumnName("snapshot_json").HasColumnType("jsonb");
         builder.HasIndex(slot => new { slot.TestId, slot.ExerciseId }).IsUnique();
         builder.HasIndex(slot => slot.ExerciseId);
         builder.HasOne<SpeakingTest>().WithMany().HasForeignKey(slot => slot.TestId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne<SpeakingExercise>().WithMany().HasForeignKey(slot => slot.ExerciseId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<SpeakingMediaAsset>().WithMany().HasForeignKey(slot => slot.ImageAssetId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
@@ -213,7 +226,7 @@ public sealed class SpeakingAttemptQuestionConfiguration : IEntityTypeConfigurat
         builder.Property(question => question.Part).HasColumnName("part").HasConversion<short>().IsRequired();
         builder.Property(question => question.QuestionIndex).HasColumnName("question_index").HasConversion<short>()
             .IsRequired();
-        builder.Property(question => question.ExerciseId).HasColumnName("exercise_id").IsRequired();
+        builder.Property(question => question.ExerciseId).HasColumnName("exercise_id");
         builder.Property(question => question.ContentJson).HasColumnName("content_json").HasColumnType("jsonb")
             .IsRequired();
         builder.Property(question => question.ReviewJson).HasColumnName("review_json").HasColumnType("jsonb")

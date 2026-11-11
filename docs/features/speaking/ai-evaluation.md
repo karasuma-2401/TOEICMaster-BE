@@ -91,8 +91,6 @@ Không commit key. Đặt trong `.env`, user-secrets hoặc secret của môi tr
 
 Image chạy cần có `ffmpeg`. Hiện `ffmpeg` và các biến trên chỉ được khai báo trong `docker-compose.override.yml`, file không nằm trong git. `Dockerfile` và `docker-compose.yml` chưa có, nên image dựng từ repo sẽ không chấm được (báo cáo OPS-01).
 
-Khi chạy `dotnet run`, thêm vào `.env` đúng tên `AzureSpeech__Enabled`, `AzureSpeech__Key`, `AzureSpeech__Region`, và cài `ffmpeg` (`brew install ffmpeg`). Tên `AZURE_SPEECH_*` chỉ có tác dụng qua `docker-compose.override.yml`; `DotEnvConfiguration` chưa ánh xạ các tên này.
-
 Mỗi bài đầy đủ gọi Azure khoảng 11–16 request và Gemini 1 lần.
 
 ## Giới hạn đã biết

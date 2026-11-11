@@ -69,7 +69,7 @@ public sealed class StartSpeakingAttemptCommandValidator : AbstractValidator<Sta
                                                        (input.ExerciseId is { } exerciseId && exerciseId != Guid.Empty))
             .OverridePropertyName("TestId").WithMessage("Cần chọn một đề hoặc một bài tập Speaking.");
         RuleFor(command => command.Input.Mode).Must(mode => SpeakingCodes.TryParseMode(mode, out _))
-            .When(command => command.Input.ExerciseId is null || command.Input.ExerciseId == Guid.Empty)
+            .When(command => command.Input.ExerciseId is null)
             .OverridePropertyName("Mode").WithMessage("Chế độ làm bài phải là FULL hoặc PART_1 đến PART_5.");
     }
 }
@@ -150,14 +150,14 @@ public sealed class StartSpeakingAttemptCommandHandler(ISpeakingAttemptRepositor
     public async Task<SpeakingAttemptDto> Handle(StartSpeakingAttemptCommand request,
         CancellationToken cancellationToken)
     {
-        if (request.Input.ExerciseId is { } exerciseId && exerciseId != Guid.Empty)
+        if (request.Input.ExerciseId is { } exerciseId)
             return await StartExercisePracticeAsync(request.Owner, exerciseId, cancellationToken);
         var loaded = await repository.FindPublishedTestAsync(request.Input.TestId!.Value, cancellationToken)
             ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
         SpeakingCodes.TryParseMode(request.Input.Mode, out var mode);
         var part = mode.Part();
         var slots = loaded.Slots.Where(slot => part is null || slot.Part == part).ToArray();
-        if (slots.Length == 0 || slots.Any(slot => slot.SnapshotJson is null))
+        if (slots.Length == 0 || slots.Any(slot => slot.SnapshotJson is null && slot.ContentJson is null))
             throw new SpeakingConflictException(part is null
                 ? "Đề Speaking chưa sẵn sàng để làm bài."
                 : $"Đề Speaking chưa có Part {part}.");

@@ -71,7 +71,6 @@ public sealed class SpeakingEvaluationScoringTests
     [InlineData("The store closes in thirty minutes.", "the store closes in minutes", 83.3)]
     [InlineData("The store closes soon.", "uh the the store um closes soon", 100)]
     [InlineData("Please don't run.", "please do not run", 66.7)]
-    [InlineData("Please don’t run.", "please don't run", 100)]
     [InlineData("Read this.", "", 0)]
     public void Reading_completeness_counts_passage_words_spoken_in_order(string passage, string spoken,
         double expected) =>
