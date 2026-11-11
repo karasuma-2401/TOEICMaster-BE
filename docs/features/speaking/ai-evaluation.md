@@ -8,10 +8,10 @@ Speaking chấm theo hàng đợi bền vững. Bài nộp và bản ghi luôn �
 2. FE gọi `GET /api/v1/speaking/evaluation-availability`, trả `{ available }`. Nếu chưa cấu hình, UI báo chưa bật.
 3. Học viên đọc thông báo dữ liệu và đồng ý. FE gọi `POST /attempts/{id}/evaluation-consent` với `{ "accepted": true }`. Job chuyển sang `QUEUED`.
 4. Worker xử lý từng câu có bản ghi:
-   - Tải bản ghi từ MinIO, dùng `ffmpeg` chuyển sang WAV PCM 16 kHz mono và cắt đoạn tối đa 25 giây.
+   - Tải bản ghi từ MinIO, dùng `ffmpeg` chuyển sang WAV PCM 16 kHz mono và cắt đoạn tối đa 25 giây, tại điểm yên tĩnh nhất trong 5 giây cuối của đoạn.
    - Gửi từng đoạn đến Azure Speech REST kèm pronunciation assessment.
    - Gộp điểm các đoạn theo thời lượng và lưu kết quả câu ngay. Khi thử lại sẽ không gọi Azure lần nữa.
-5. Worker gọi Gemini một lần cho cả bài, lấy `grammar`, `vocabulary`, `relevance` (0–100), nhận xét và câu gợi ý.
+5. Worker gọi Gemini một lần cho cả bài, gửi kèm ảnh của các câu Part 2, lấy `grammar`, `vocabulary`, `relevance` (0–100), nhận xét và câu gợi ý. Transcript được coi là dữ liệu không tin cậy.
 6. Server tự tính điểm. FE gọi `GET /attempts/{id}` mỗi 5 giây tới khi `COMPLETED` hoặc `FAILED`.
 
 Phải cắt đoạn vì REST của Azure [giới hạn pronunciation assessment ở 30 giây](https://docs.azure.cn/en-us/ai-services/speech-service/rest-speech-to-text-short), trong khi Part 1 trả lời 45 giây và Part 5 trả lời 60 giây. Phải chuyển định dạng vì trình duyệt ghi WebM hoặc MP4.
@@ -29,8 +29,10 @@ Phải cắt đoạn vì REST của Azure [giới hạn pronunciation assessment
 | `409` | Lượt làm không có bản ghi nào |
 | `409` | Backend chưa cấu hình |
 | `409` | Phiên ẩn danh đã dùng lượt chấm trong 24 giờ qua |
+| `409` | Xếp lại job `FAILED` của khách khi bản ghi của câu chưa nhận diện đã hết hạn lưu trữ |
+| `429` | Vượt giới hạn: 10 lần/phút cho mỗi tài khoản; khách dùng chung 30 lần/giờ theo địa chỉ kết nối |
 
-Gọi lại khi đã có job thì trả job hiện tại. Nếu job đang `FAILED` thì xếp hàng lại.
+Gọi lại, kể cả hai request đồng thời, khi đã có job thì trả job hiện tại. Nếu job đang `FAILED` thì xếp hàng lại.
 
 ## Công thức điểm
 
@@ -38,7 +40,7 @@ Nguồn: `SpeakingEvaluationScoring`. P là `PronScore` của Azure, đã gồm 
 
 | Part | Chất lượng 0–100 | Điểm tối đa |
 | --- | --- | --- |
-| 1 | 0,7·P + 0,3·completeness | 3 |
+| 1 | min(0,7·P + 0,3·completeness; completeness) | 3 |
 | 2 | 0,4·P + 0,2·grammar + 0,2·vocabulary + 0,2·relevance | 3 |
 | 3, 4 | 0,3·P + 0,2·grammar + 0,2·vocabulary + 0,3·relevance | 3 |
 | 5 | 0,3·P + 0,2·grammar + 0,2·vocabulary + 0,3·relevance | 5 |
@@ -50,7 +52,8 @@ Nguồn: `SpeakingEvaluationScoring`. P là `PronScore` của Azure, đã gồm 
 
 - `completeness`: phần trăm từ của đoạn văn được đọc đúng thứ tự.
 - `relevance < 40`: câu đó tối đa 1 điểm.
-- Câu không có bản ghi hoặc không nhận ra giọng nói: 0 điểm, không gửi sang Gemini.
+- Transcript dưới 15 từ ở Part 2 hoặc dưới 30 từ ở Part 5: câu đó tối đa 1 điểm. Part 3, 4 không áp dụng vì câu trả lời ngắn vẫn có thể đủ ý.
+- Câu không có bản ghi, không nhận ra giọng nói hoặc file không giải mã được: 0 điểm, không gửi sang Gemini.
 
 Đây là quy đổi luyện tập do nhóm đề xuất, chưa được hiệu chỉnh và không phải bảng quy đổi của ETS.
 
@@ -58,9 +61,9 @@ Nguồn: `SpeakingEvaluationScoring`. P là `PronScore` của Azure, đã gồm 
 
 `status`: `QUEUED`, `PROCESSING`, `RETRYING`, `COMPLETED`, `FAILED`.
 
-- Lỗi tạm thời (quota, mạng, 5xx, LLM trả sai cấu trúc): thử lại tối đa 3 lần, chờ 1, 3, 9 phút. Nếu `Retry-After` lớn hơn thì theo giá trị đó.
+- Lỗi tạm thời (quota, mạng, 5xx, LLM trả sai cấu trúc, `ffmpeg` lỗi vì lý do khác file hỏng): thử lại tối đa 3 lần, chờ 1, 3, 9 phút. Nếu `Retry-After` lớn hơn thì theo giá trị đó.
 - Lỗi cấu hình (sai key, thiếu `ffmpeg`): chuyển thẳng `FAILED`. Thiếu `ffmpeg` có mã `AUDIO_CONVERTER_UNAVAILABLE`.
-- Worker có lease 5 phút. Hết lease thì worker khác tiếp quản. `version` chống hoàn thành hai lần.
+- Worker có lease 5 phút. Hết lease thì worker khác tiếp quản, mỗi lần tiếp quản tính là một lần thử lại; vượt quá 3 lần thì `FAILED` với mã `LEASE_RETRIES_EXHAUSTED`. `version` chống hoàn thành hai lần.
 - API trả `failureMessage` an toàn, không trả lỗi gốc của nhà cung cấp hay key.
 
 ## Dữ liệu trả về
@@ -69,7 +72,7 @@ Nguồn: `SpeakingEvaluationScoring`. P là `PronScore` của Azure, đã gồm 
 
 Mỗi phần tử `items` (chỉ có khi `COMPLETED`): `position`, `part`, `recognitionStatus`, `transcript`, `accuracyScore`, `fluencyScore`, `completenessScore`, `prosodyScore`, `pronunciationScore`, `grammarScore`, `vocabularyScore`, `relevanceScore`, `rawScore`, `maxRawScore`, `feedback`, `suggestedResponse`, `wordIssues`.
 
-`recognitionStatus`: `RECOGNIZED`, `NO_SPEECH`, `NO_RECORDING`. Rubric hiện tại: `toeic-speaking-v1`.
+`recognitionStatus`: `RECOGNIZED`, `NO_SPEECH`, `NO_RECORDING`. Rubric hiện tại: `toeic-speaking-v2`.
 
 ## Cấu hình
 

@@ -127,6 +127,51 @@ Response `200 OK`:
 }
 ```
 
+### Danh sách người dùng cho trang Admin
+
+`GET /api/v1/admin/users`, yêu cầu policy `AccountAdministration`. Đây là endpoint trang `/admin/users` sử dụng.
+
+| Query | Mặc định | Điều kiện |
+| :--- | :--- | :--- |
+| `page` | 1 | 1 đến 10000 |
+| `pageSize` | 10 | 1 đến 100 |
+| `q` | | Tìm trong họ tên và email, tối đa 100 ký tự |
+| `role` | | `USER`, `ADMIN` |
+| `status` | | `ACTIVE`, `PENDING`, `LOCKED` |
+| `sort` | `createdAt:desc` | `fullName`, `createdAt` hoặc `lastLoginAt`, kèm `:asc` hoặc `:desc` |
+
+Response `200 OK`:
+
+```json
+{
+  "items": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "fullName": "Nguyen Van A",
+      "email": "learner@example.com",
+      "avatarUrl": null,
+      "role": "USER",
+      "status": "ACTIVE",
+      "emailVerified": true,
+      "authProvider": "PASSWORD",
+      "createdAt": "2026-10-01T00:00:00+00:00",
+      "lastLoginAt": null
+    }
+  ],
+  "page": 1,
+  "pageSize": 10,
+  "totalItems": 1,
+  "totalPages": 1,
+  "stats": { "totalUsers": 1, "activeUsers": 1, "pendingUsers": 0, "lockedUsers": 0 }
+}
+```
+
+- `status`: `ACTIVE` khi `IsActive`; `PENDING` khi chưa kích hoạt và chưa xác thực email; `LOCKED` khi chưa kích hoạt nhưng đã xác thực email.
+- `authProvider`: `GOOGLE` khi tài khoản không có mật khẩu, còn lại là `PASSWORD`.
+- `lastLoginAt`: thời điểm tạo phiên đăng nhập mới nhất, không tính các phiên sinh ra do refresh.
+- `avatarUrl` luôn `null` vì endpoint ảnh đại diện chỉ phục vụ người đang đăng nhập.
+- `stats` tính trên toàn bộ người dùng, không phụ thuộc bộ lọc.
+
 ## Giới hạn request xác thực
 
 Các endpoint xác thực có fixed-window rate limit theo địa chỉ IP trong từng API instance:

@@ -11,7 +11,7 @@ namespace TOEICMaster.Infrastructure.Persistence.Speaking;
 public sealed class SpeakingRecordingRetentionWorker(IServiceScopeFactory scopeFactory, TimeProvider timeProvider,
     ILogger<SpeakingRecordingRetentionWorker> logger) : BackgroundService
 {
-    public static readonly TimeSpan GuestRetention = TimeSpan.FromDays(30);
+    public static readonly TimeSpan GuestRetention = SpeakingMediaRules.GuestRecordingRetention;
     private static readonly TimeSpan Interval = TimeSpan.FromHours(6);
     private static readonly TimeSpan FirstRunDelay = TimeSpan.FromMinutes(5);
     private const int BatchSize = 100;

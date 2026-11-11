@@ -23,6 +23,7 @@ Cung cấp giải pháp định danh an toàn cho hệ thống TOEICMaster bao g
    - Đổi mật khẩu -> tự động thu hồi toàn bộ refresh token cũ.
 3. **Quản trị tài khoản (`/api/v1/accounts`):**
    - Admin xem danh sách tài khoản phân trang (`pageNumber`, `pageSize`).
+   - Trang `/admin/users` dùng `GET /api/v1/admin/users` (tìm kiếm, lọc, sắp xếp, thống kê).
 
 ---
 

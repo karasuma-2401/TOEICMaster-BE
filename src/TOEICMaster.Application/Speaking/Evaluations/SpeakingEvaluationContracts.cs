@@ -40,9 +40,12 @@ public interface ISpeakingSpeechAssessor
         CancellationToken cancellationToken);
 }
 
+public sealed record SpeakingLanguageImage(byte[] Data, string ContentType);
+
+/// <summary><see cref="Image"/> is the picture a Part 2 answer describes.</summary>
 public sealed record SpeakingLanguageItem(int Position, int Part, int QuestionIndex, string ContentJson,
     string ReviewJson, string Transcript, double PronunciationScore, double FluencyScore, double? ProsodyScore,
-    double? CompletenessScore, IReadOnlyList<SpeakingWordIssue> WordIssues);
+    double? CompletenessScore, IReadOnlyList<SpeakingWordIssue> WordIssues, SpeakingLanguageImage? Image = null);
 
 public sealed record SpeakingLanguageWork(Guid EvaluationId, string Model, string RubricVersion,
     IReadOnlyList<SpeakingLanguageItem> Items);
@@ -81,6 +84,7 @@ public interface ISpeakingEvaluationRepository
     Task<bool> HasAnonymousConsentAfterAsync(string anonymousSessionHash, Guid excludingAttemptId,
         DateTimeOffset afterUtc, CancellationToken cancellationToken);
     void Add(SpeakingEvaluation evaluation);
+    Task<SpeakingMediaAsset?> FindMediaAssetAsync(Guid assetId, CancellationToken cancellationToken);
     /// <summary>Claims the next due job; returns null when nothing is due or another worker claimed it first.</summary>
     Task<SpeakingEvaluationWork?> ClaimNextAsync(DateTimeOffset now, DateTimeOffset leaseExpiresAtUtc,
         CancellationToken cancellationToken);

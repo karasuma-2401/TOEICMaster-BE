@@ -133,6 +133,18 @@ public sealed class AdminSpeakingController(ISender sender) : ControllerBase
         Ok(await sender.Send(new PublishSpeakingTestCommand(CurrentUserId(), testId, request.Version),
             cancellationToken));
 
+    [HttpDelete("tests/{testId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> DeleteDraftTest(Guid testId, [FromQuery] int version,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new DeleteSpeakingTestDraftCommand(CurrentUserId(), testId, version), cancellationToken);
+        return NoContent();
+    }
+
     private static readonly SpeakingExerciseInput MissingExercise = new(0, null, null, null, null, null, null);
 
     internal static async Task<byte[]> ReadAsync(IFormFile file, CancellationToken cancellationToken)

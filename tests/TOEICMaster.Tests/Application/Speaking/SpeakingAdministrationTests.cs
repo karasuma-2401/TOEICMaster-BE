@@ -275,6 +275,45 @@ public sealed class SpeakingAdministrationTests
         Assert.Equal(new SpeakingTestCountsDto(1, 0, 1), summary.Tests);
     }
 
+    [Fact]
+    public async Task Deleting_a_draft_removes_the_test_and_its_slots_but_keeps_the_exercises()
+    {
+        var draft = await FullTestAsync();
+        var exerciseCount = _store.Exercises.Count;
+
+        await DeleteDraft(draft.Id, draft.Version);
+
+        Assert.Empty(_store.Tests);
+        Assert.Empty(_store.Slots);
+        Assert.Equal(exerciseCount, _store.Exercises.Count);
+    }
+
+    [Fact]
+    public async Task Deleting_a_test_is_refused_when_missing_stale_or_published()
+    {
+        var draft = await FullTestAsync();
+
+        await Assert.ThrowsAsync<SpeakingNotFoundException>(() => DeleteDraft(Guid.NewGuid(), 1));
+        await Assert.ThrowsAsync<SpeakingConflictException>(() => DeleteDraft(draft.Id, draft.Version + 1));
+        Assert.Single(_store.Tests);
+
+        var published = await Publish(draft.Id, draft.Version);
+        await Assert.ThrowsAsync<SpeakingConflictException>(() => DeleteDraft(published.Id, published.Version));
+        Assert.Single(_store.Tests);
+        Assert.NotEmpty(_store.Slots);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Deleting_a_test_requires_a_positive_version(int version)
+    {
+        var result = new DeleteSpeakingTestDraftCommandValidator().Validate(
+            new DeleteSpeakingTestDraftCommand(Admin, Guid.NewGuid(), version));
+
+        Assert.Contains(result.Errors, failure => failure.PropertyName == "ExpectedVersion");
+    }
+
     internal static async Task<SpeakingTestDetailDto> CreatePublishedTestAsync(InMemorySpeaking store,
         TimeProvider clock)
     {
@@ -299,6 +338,10 @@ public sealed class SpeakingAdministrationTests
 
     private Task<SpeakingTestDetailDto> Publish(Guid testId, int version) =>
         new PublishSpeakingTestCommandHandler(_store, _clock).Handle(new PublishSpeakingTestCommand(Admin, testId,
+            version), CancellationToken.None);
+
+    private Task DeleteDraft(Guid testId, int version) =>
+        new DeleteSpeakingTestDraftCommandHandler(_store).Handle(new DeleteSpeakingTestDraftCommand(Admin, testId,
             version), CancellationToken.None);
 
     private async Task<SpeakingTestDetailDto> FullTestAsync()
