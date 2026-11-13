@@ -1,34 +1,40 @@
-# Listening & Reading attempt API
+# Listening & Reading learner API
 
-> **Trạng thái:** Chưa có API lượt làm bài L&R trong backend hiện tại. Tài liệu này ghi ranh giới đã kiểm chứng và các quyết định còn thiếu; không định nghĩa endpoint giả định.
+> **Trạng thái:** Backend đã có learner attempt API trong `ExamAttemptsController`; các endpoint dưới đây yêu cầu Bearer token và chỉ truy cập lượt thi của người dùng hiện tại. FE learner tích hợp qua Next.js BFF `/api/lr/*`.
 
-## Phần hiện có
+## Endpoint đã triển khai
 
-Backend có `Exam`/`ExamRevision` cho Admin tạo và công bố đề, 200 câu cùng đáp án, media và `ScoreProfile` cho hai kỹ năng. Các route hiện tại nằm dưới `/api/v1/admin/exams`, `/api/v1/admin/exam-media`, `/api/v1/admin/score-profiles` và `/api/v1/admin/lr-exercise-bank`. Chúng yêu cầu policy Admin và trả dữ liệu quản trị, gồm `correctKey` ở response revision/bank.
+| Method | Endpoint | Chức năng |
+| --- | --- | --- |
+| GET | `/api/v1/exams/lr` | Danh sách revision Published mới nhất theo đề, không trả đáp án đúng |
+| GET | `/api/v1/exams/{examId}/lr-overview` | Thông tin đề và activeAttemptId |
+| POST | `/api/v1/exams/{examId}/attempts` | Tạo lượt thi hoặc resume lượt đang làm |
+| GET | `/api/v1/exam-attempts/{attemptId}` | Tải snapshot đề, đáp án đã lưu, trạng thái phase và thời gian còn lại |
+| POST | `/api/v1/exam-attempts/{attemptId}/start-reading` | Chuyển sang Reading và khóa Listening |
+| PUT | `/api/v1/exam-attempts/{attemptId}/answers` | Autosave tối đa 200 câu |
+| PUT | `/api/v1/exam-attempts/{attemptId}/questions/{questionId}/flag` | Bật/tắt cờ một câu |
+| POST | `/api/v1/exam-attempts/{attemptId}/submit` | Nộp và chấm điểm |
+| GET | `/api/v1/exam-attempts/{attemptId}/result` | Xem kết quả sau khi nộp |
+| GET | `/api/v1/exam-attempts/{attemptId}/review?filter=All` | Xem đáp án/giải thích sau khi nộp |
+| GET | `/api/v1/exam-attempts/history` | Lịch sử lượt thi |
+| POST | `/api/v1/exam-attempts/{attemptId}/abandon` | Hủy lượt đang làm |
 
-## Phần chưa có
+## Quy tắc bảo mật và nghiệp vụ
 
-Chưa có controller/handler L&R công khai để học viên lấy danh sách đề đã publish, bắt đầu hoặc resume attempt, lưu đáp án, nộp bài, chấm điểm, xem kết quả, xem lại bài hoặc xem lịch sử. Chưa có bảng attempt L&R hay snapshot đề cho lượt làm. Vì vậy chưa có route, request/response, trạng thái hoặc mã lỗi ổn định để BFF tích hợp cho các thao tác đó.
+- User ID luôn lấy từ claim đã xác thực; client không gửi UserId.
+- Response attempt đang làm không bao giờ chứa `correctKey`, explanation hoặc translation.
+- Attempt gắn với revision và score profile tại thời điểm bắt đầu; kết quả được chấm bằng barem đã gắn.
+- Server là nguồn thời gian duy nhất, giới hạn mặc định 120 phút. Client chỉ hiển thị đồng hồ dựa trên RemainingSeconds.
+- Sau khi bắt đầu Reading, Listening không thể sửa hoặc gắn cờ.
+- Câu chưa trả lời tính là skipped; chấm điểm chỉ xảy ra khi submit hoặc hết hạn.
+- Review/result chỉ đọc được khi attempt đã Completed.
+- Đáp án phải hợp lệ theo lựa chọn của câu; Part 2 chỉ chấp nhận A–C.
+- Autosave chấp nhận grace period 5 giây sau deadline để xử lý độ trễ mạng.
 
-Các màn hình L&R trong [screen inventory](../../ui-ux/screens-inventory.md) và yêu cầu phòng thi 120 phút trong [PRD](../../specs/prd-mvp.md) là đầu vào thiết kế, chưa chứng minh backend đã thực thi đồng hồ, tự nộp, khóa đáp án Listening, phát audio không pause/seek hay trả điểm 10–990.
+## Media
 
-## Điều kiện cần chốt trước khi viết contract learner
+Attempt DTO hiện trả `MasterAudioObjectKey` cho revision legacy nhưng chưa cung cấp URL phát media an toàn cho learner. Media workspace audio theo block cũng chưa được đưa vào sheet DTO learner. Do đó không được coi phần audio player là đã tích hợp hoàn chỉnh; cần bổ sung endpoint cấp presigned GET URL có kiểm tra quyền sở hữu attempt và phase trước khi bật phát audio production.
 
-- Cách xác định chủ sở hữu attempt cho người đăng nhập và khách, cùng chính sách lưu lịch sử.
-- Nguồn thời gian chuẩn, cách xử lý hết giờ/mất kết nối, và cơ chế khóa đáp án Listening khi phát audio.
-- Cách phát media của revision workspace (audio theo block) và revision legacy (master audio) cho học viên, bảo vệ object storage private.
-- Snapshot immutable của câu hỏi, đáp án và barem khi bắt đầu attempt; thời điểm được phép trả `correctKey`, transcript, giải thích và ảnh/audio.
-- Quy tắc chấm theo từng Part, cách tra profile Listening/Reading và response kết quả.
+## Frontend
 
-Chỉ sau khi các quyết định này được xác nhận mới thêm endpoint và ví dụ payload. Không gọi API preview Admin từ client học viên vì response chứa đáp án.
-
-## Frontend hiện tại
-
-Kiểm tra source FE cho thấy không có route trang L&R dành cho học viên, không có route handler BFF learner và không có module client gọi attempt L&R. Hai route L&R hiện có đều thuộc Admin:
-
-| Route | Mục đích |
-| --- | --- |
-| `/admin/exams` | Quản trị đề và ngân hàng bài tập. |
-| `/admin/exams/reading/{examId}/{revisionId}` | Chỉnh sửa revision, nhận cả `correctKey` và metadata quản trị. |
-
-Do đó không có luồng FE→BFF→BE cho attempt để mô tả ở thời điểm này. Khi triển khai learner, contract phải được chốt trước và tách hẳn dữ liệu public khỏi các DTO Admin; không suy ra contract từ UI Figma hoặc từ payload quản trị.
+FE learner sử dụng BFF `/api/lr/[...segments]`, kiểm tra same-origin với mutation, lấy access token từ HttpOnly session cookie, forward đến `/api/v1/*` và đặt `Cache-Control: no-store`. Không gọi Admin preview API từ learner client.
