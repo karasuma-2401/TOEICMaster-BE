@@ -62,6 +62,7 @@ public sealed record ExamBlockSheetDto(
     Guid Id,
     int Part,
     int FirstQuestionNumber,
+    Guid? AudioAssetId,
     IReadOnlyList<ExamContextBlockDto> ContextBlocks,
     IReadOnlyList<ExamQuestionSheetDto> Questions
 );
