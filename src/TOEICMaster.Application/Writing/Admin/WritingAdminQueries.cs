@@ -26,7 +26,7 @@ public sealed class WritingTestFilterValidator : AbstractValidator<WritingTestFi
     public WritingTestFilterValidator()
     {
         RuleFor(filter => filter.Query).Must(query => query is null || query.Trim().Length <= 100);
-        RuleFor(filter => filter.Status).Must(value => value is null || value.Trim().ToUpperInvariant() is "DRAFT" or "PUBLISHED");
+        RuleFor(filter => filter.Status).Must(value => value is null || value.Trim().ToUpperInvariant() is "DRAFT" or "PUBLISHED" or "ARCHIVED");
         RuleFor(filter => filter.PageNumber).GreaterThan(0);
         RuleFor(filter => filter.PageSize).InclusiveBetween(1, 100);
     }

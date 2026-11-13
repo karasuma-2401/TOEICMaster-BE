@@ -18,23 +18,34 @@ Trả `201` với Draft revision đã có đúng 200 slot. `GET /api/v1/admin/ex
 
 | Endpoint | Nội dung |
 | --- | --- |
-| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/questions/{questionNumber}` | JSON nội dung câu hỏi và đáp án; Part 2 chỉ nhận A–C, các Part khác A–D. `imageAssetId` phải là asset đã upload. |
+| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/questions/{questionNumber}` | JSON nội dung câu hỏi và đáp án; Part 2 chỉ nhận A–C, các Part khác A–D. Có thêm `imageRequired`; khi `true`, Publish chỉ thành công sau khi ảnh được gắn. |
 | `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/score-profile` | JSON `{ "scoreProfileId": "<uuid>" }`; chọn lại barem cho Draft. |
-| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/blocks/{blockKey}/contexts` | JSON `{ "contexts": [...] }`, với `ordinal` liên tiếp từ 1. Một context là `Text` hoặc `Image`; context ảnh phải tham chiếu asset đã upload. |
+| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/blocks/{blockKey}/contexts` | JSON `{ "contexts": [...] }`, với `ordinal` liên tiếp từ 1. Context có `imageRequired`; ảnh bắt buộc phải được gắn trước Publish. |
 | `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/master-audio` | `multipart/form-data`, field `file`; `.mp3`/`.wav`, tối đa 100 MiB. |
 | `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/publish` | Publish nếu revision đầy đủ. |
 | `POST /api/v1/admin/exams/{examId}/revisions` | JSON `{ "sourceRevisionId": "<published-revision-uuid>" }`; fork published revision thành Draft mới. |
 
 `POST /api/v1/admin/exam-media/images` nhận `multipart/form-data`, field `file`, chỉ PNG/JPEG/WebP tối đa 5 MiB. API kiểm tra signature file và trả asset UUID; client dùng UUID đó trong `ImageAssetId`, không dùng tên file hoặc URL.
 
+### Media workspace cho đề mới
+
+Draft mới và import chỉ có `workbook` dùng media workspace riêng. `GET revision` trả `usesMediaWorkspace`, `audioAssetId` của block và `imageRequired` của question/context. Revision cũ giữ `usesMediaWorkspace=false`, tiếp tục dùng UI/API master-audio cũ và không được migration trong phạm vi này.
+
+1. `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents` nhận JSON `{ ownerKind, ownerKey, contentType, byteSize }`, trả `201` với `{ intentId, uploadUrl, expiresAtUtc, requiredHeaders }`. `ownerKind` là `AudioGroup`, `QuestionImage` hoặc `ContextImage`. Server chỉ cấp URL cho Draft workspace, key do server tạo, audio MP3/WAV tối đa 100 MiB và image PNG/JPEG/WebP tối đa 5 MiB.
+2. Browser `PUT` bytes trực tiếp tới `uploadUrl` với `requiredHeaders`; không gửi credential storage qua FE.
+3. `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents/{intentId}/complete` xác minh object tồn tại, MIME và kích thước, rồi gắn `ExamMediaAsset` vào owner; trả `201`. Intent hết hạn, đã hoàn tất hoặc Draft không còn hợp lệ trả `409`.
+
+Publish workspace yêu cầu audio cho mọi block Listening Part 1–4 và mọi ảnh có `imageRequired=true`. Intent chưa hoàn tất được dọn sau khi hết hạn; bucket private và URL ký sẵn không được lưu vào database.
+
 ### Import một đề L&R hoàn chỉnh
 
-`POST /api/v1/admin/exams/import` nhận `multipart/form-data` với hai field bắt buộc:
+`POST /api/v1/admin/exams/import` nhận `multipart/form-data` với field bắt buộc:
 
 - `workbook`: XLSX, tối đa 10 MiB.
-- `masterAudio`: `.mp3` hoặc `.wav`, tối đa 100 MiB.
 
-Workbook có bốn sheet bắt buộc: `Manifest`, `Blocks`, `ContextBlocks`, `Questions`. `Manifest` có `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, `ScoreProfileId`. Importer đối chiếu chính xác 103 block và 200 câu theo `BlockKey` + `QuestionNumber`; không dựa vào thứ tự dòng. Lỗi workbook trả `400 ValidationProblemDetails` với key `workbook`; lỗi Master Audio trả `400 ProblemDetails`. Cả hai trường hợp đều không tạo Draft. Lỗi ghi DB sau upload thực hiện cleanup object audio tốt nhất có thể.
+`masterAudio` vẫn được chấp nhận tùy chọn để giữ tương thích import legacy; import chỉ có `workbook` tạo Draft media workspace mới.
+
+Workbook có bốn sheet bắt buộc: `Manifest`, `Blocks`, `ContextBlocks`, `Questions`. `Manifest` có `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, `ScoreProfileId`. `ContextBlocks` và `Questions` hỗ trợ cột `ImageRequired` (true/false; cột cũ không có vẫn hợp lệ). Importer đối chiếu chính xác 103 block và 200 câu theo `BlockKey` + `QuestionNumber`; không dựa vào thứ tự dòng. Lỗi workbook trả `400 ValidationProblemDetails` với key `workbook`; lỗi Master Audio trả `400 ProblemDetails`. Cả hai trường hợp đều không tạo Draft. Lỗi ghi DB sau upload thực hiện cleanup object audio tốt nhất có thể.
 
 Thay toàn bộ placeholder nội dung, `ScoreProfileId` và `ImageAssetId` trước khi import; template cố ý không thể publish nguyên trạng.
 
@@ -45,8 +56,121 @@ server-side `API_BASE_URL`; không đưa URL backend hoặc credential vào brow
 
 Contract hồ sơ người dùng dùng backend prefix `/api/v1/profile`; BFF ánh xạ nhóm này thành `/api/profile` cho browser.
 Các route `/api/v1/users/me` vẫn có sẵn để tương thích với client cũ.
-Chi tiết request, response, validation, avatar và các alias tương thích nằm trong
-[báo cáo API profile](profile-api-implementation-report.md#contract-cho-frontend).
+
+## Hồ sơ người dùng (User Profile)
+
+Browser gọi các Next.js BFF route `/api/profile`, `/api/profile/password` và `/api/profile/avatar`. BFF chuyển tiếp đến backend qua prefix `/api/v1/profile`. Các route backend dưới `/api/v1/users/me` vẫn được giữ làm alias tương thích. Tất cả endpoint backend dưới đây yêu cầu `Authorization: Bearer <accessToken>`. Backend lấy user ID từ claim `sub` đã xác thực; client không gửi user ID.
+
+| Endpoint | Input | Thành công | Lỗi chính |
+| :--- | :--- | :--- | :--- |
+| `GET /api/v1/profile` | Không có body | `200` JSON profile | `401` khi không có phiên hợp lệ |
+| `PATCH /api/v1/profile` | JSON `{ "displayName": "Tên mới" }` | `200` JSON profile sau cập nhật | `400` khi tên trống hoặc quá 100 ký tự |
+| `PUT /api/v1/profile` | JSON `{ "displayName": "Tên", "phone": "0912345678", "targetScore": 750 }` | `200` JSON profile sau cập nhật | `400` khi dữ liệu không hợp lệ |
+| `PUT /api/v1/profile/avatar` | `multipart/form-data`, field `file` | `200` JSON profile sau cập nhật (hoặc `204`) | `400` khi file không hợp lệ, `413` khi vượt 2 MiB |
+| `GET /api/v1/profile/avatar` | Không có body | `200` binary PNG/JPEG/WebP | `404` khi chưa có ảnh |
+| `PUT /api/v1/profile/password` | JSON `{ "currentPassword": "...", "newPassword": "..." }` | `204 No Content` | `400` khi mật khẩu cũ sai hoặc dữ liệu không hợp lệ |
+
+JSON profile:
+
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000001",
+  "displayName": "Nguyen Van A",
+  "email": "learner@example.com",
+  "avatarUrl": "/api/v1/profile/avatar",
+  "phone": "0912345678",
+  "dateOfBirth": "2001-06-15",
+  "targetScore": 750,
+  "hasPassword": true
+}
+```
+
+- `avatarUrl`, `phone`, `targetScore` là `null` nếu chưa có.
+- `avatarUrl` là đường dẫn tương đối cần Bearer token.
+- Ảnh đại diện giới hạn 2 MiB, định dạng `image/png`, `image/jpeg` hoặc `image/webp`.
+- Đổi mật khẩu yêu cầu 8–128 ký tự và thu hồi toàn bộ refresh session cũ.
+
+## Quản trị danh sách tài khoản (Account Administration)
+
+Endpoint dành cho Admin xem danh sách tài khoản phân trang, yêu cầu policy `AccountAdministration` (role `Admin`).
+
+```http
+GET /api/v1/accounts?pageNumber=1&pageSize=20
+Authorization: Bearer <access-token-with-Admin-role>
+Accept: application/json
+```
+
+| Query | Mặc định | Điều kiện |
+| :--- | :--- | :--- |
+| `pageNumber` | 1 | Số nguyên từ 1 |
+| `pageSize` | 20 | Số nguyên từ 1 đến 100 |
+
+Response `200 OK`:
+
+```json
+{
+  "items": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "email": "learner@example.com",
+      "displayName": "Nguyen Van A",
+      "isActive": true,
+      "createdAtUtc": "2026-10-01T00:00:00+00:00"
+    }
+  ],
+  "pageNumber": 1,
+  "pageSize": 20,
+  "totalCount": 1,
+  "totalPages": 1,
+  "hasNextPage": false,
+  "hasPreviousPage": false
+}
+```
+
+### Danh sách người dùng cho trang Admin
+
+`GET /api/v1/admin/users`, yêu cầu policy `AccountAdministration`. Đây là endpoint trang `/admin/users` sử dụng.
+
+| Query | Mặc định | Điều kiện |
+| :--- | :--- | :--- |
+| `page` | 1 | 1 đến 10000 |
+| `pageSize` | 10 | 1 đến 100 |
+| `q` | | Tìm trong họ tên và email, tối đa 100 ký tự |
+| `role` | | `USER`, `ADMIN` |
+| `status` | | `ACTIVE`, `PENDING`, `LOCKED` |
+| `sort` | `createdAt:desc` | `fullName`, `createdAt` hoặc `lastLoginAt`, kèm `:asc` hoặc `:desc` |
+
+Response `200 OK`:
+
+```json
+{
+  "items": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "fullName": "Nguyen Van A",
+      "email": "learner@example.com",
+      "avatarUrl": null,
+      "role": "USER",
+      "status": "ACTIVE",
+      "emailVerified": true,
+      "authProvider": "PASSWORD",
+      "createdAt": "2026-10-01T00:00:00+00:00",
+      "lastLoginAt": null
+    }
+  ],
+  "page": 1,
+  "pageSize": 10,
+  "totalItems": 1,
+  "totalPages": 1,
+  "stats": { "totalUsers": 1, "activeUsers": 1, "pendingUsers": 0, "lockedUsers": 0 }
+}
+```
+
+- `status`: `ACTIVE` khi `IsActive`; `PENDING` khi chưa kích hoạt và chưa xác thực email; `LOCKED` khi chưa kích hoạt nhưng đã xác thực email.
+- `authProvider`: `GOOGLE` khi tài khoản không có mật khẩu, còn lại là `PASSWORD`.
+- `lastLoginAt`: thời điểm tạo phiên đăng nhập mới nhất, không tính các phiên sinh ra do refresh.
+- `avatarUrl` luôn `null` vì endpoint ảnh đại diện chỉ phục vụ người đang đăng nhập.
+- `stats` tính trên toàn bộ người dùng, không phụ thuộc bộ lọc.
 
 ## Thi thử TOEIC Listening & Reading (learner)
 
@@ -302,3 +426,23 @@ Khi đăng nhập lần đầu:
 Nếu FE dùng popup/callback rồi gọi Next.js BFF thì BFF gửi JSON như trên. Nếu sau này chuyển sang redirect mode trực tiếp
 từ Google, endpoint callback phải bổ sung kiểm tra CSRF double-submit token theo hướng dẫn Google; không dùng endpoint JSON
 này làm callback redirect trực tiếp.
+
+---
+
+## Quản trị đề TOEIC Writing & Ngân hàng câu hỏi
+
+Các endpoint `/api/v1/admin/writing/*` dùng policy `WritingAdministration` yêu cầu role `Admin`. Xem [Writing Admin API](../features/writing/admin-api.md) để biết cấu trúc dữ liệu, import Excel và ảnh.
+
+- `/exercises`: danh sách, tạo, sửa và lưu trữ bài tập lẻ; `/exercises/imports/validate` và `/exercises/import` kiểm tra và import Excel theo Part.
+- `/tests`: tạo/sửa/xóa bản nháp, publish đủ 5/2/1, lưu trữ và khôi phục đề đã công bố; `/tests/import-template`, `/tests/imports/validate` và `/tests/import` hỗ trợ import đề Excel. Xóa, lưu trữ và khôi phục yêu cầu phiên bản hiện tại.
+- `/media/images`: upload ảnh Part 1; bài tham khảo `modelAnswer` là tùy chọn nội bộ và không được trả cho học viên.
+
+## Thi thử & Luyện tập TOEIC Writing
+
+Các endpoint `/api/v1/writing` xác định owner qua JWT hoặc header `X-Writing-Anonymous-Session`; attempt của owner khác nhận 404. Xem [Writing Attempt API](../features/writing/attempt-api.md) và [AI Evaluation](../features/writing/ai-evaluation.md).
+
+- `GET /exercises?part=1&pageNumber=1&pageSize=20` liệt kê bài lẻ đã công bố; `POST /exercises/{id}/attempts` bắt đầu bài luyện không giới hạn thời gian.
+- `GET /tests`, `GET /tests/{id}` liệt kê đề đã publish; `POST /attempts` với `{ "testId": "uuid", "mode": "FULL" }` bắt đầu đề.
+- `GET /attempts`, `GET /attempts/{id}`, `PUT /attempts/{id}/answers/{position}`, `POST /attempts/{id}/next`, `POST /attempts/{id}/submit` hỗ trợ lịch sử, lưu, chuyển câu và nộp.
+- `POST /attempts/{id}/evaluation-consent` chỉ gửi bài và ảnh cho AI sau khi được đồng ý; FE poll `GET /attempts/{id}`. Trạng thái gồm `CONSENT_REQUIRED`, `QUEUED`, `PROCESSING`, `RETRYING`, `COMPLETED`, `FAILED`; gửi lại consent khi `FAILED` để thử lại.
+- Guest được tạo tối đa một lượt chấm mới trong 24 giờ; retry của cùng attempt không tính quota mới. Bài mẫu không hiển thị cho học viên. Điểm AI chỉ để luyện tập.

@@ -68,12 +68,13 @@ public sealed record WritingExercisePageDto(
 public sealed record WritingMediaAssetDto(Guid Id, string OriginalFileName, string ContentType, long ByteLength,
     DateTimeOffset UploadedAtUtc, string DownloadUrl);
 
-public sealed record WritingTestQuestionInput(Guid ExerciseId, int Part, int SequenceNumber);
+public sealed record WritingTestQuestionInput(Guid? ExerciseId, int Part, int SequenceNumber,
+    WritingExerciseInput? Content = null);
 
 public sealed record WritingTestInput(string Code, string Title, string? Description,
     IReadOnlyList<WritingTestQuestionInput> Questions);
 
-public sealed record WritingTestQuestionDto(Guid Id, Guid ExerciseId, int Part, int SequenceNumber,
+public sealed record WritingTestQuestionDto(Guid Id, Guid? ExerciseId, int Part, int SequenceNumber,
     string? SnapshotJson);
 
 public sealed record WritingTestDto(Guid Id, string Code, string Title, string Description, string Status,
@@ -139,6 +140,7 @@ public static class WritingAdminMapping
     {
         "DRAFT" => WritingTestStatus.Draft,
         "PUBLISHED" => WritingTestStatus.Published,
+        "ARCHIVED" => WritingTestStatus.Archived,
         _ => throw new ArgumentOutOfRangeException(nameof(value))
     };
 
@@ -162,6 +164,7 @@ public static class WritingAdminMapping
     {
         WritingTestStatus.Draft => "DRAFT",
         WritingTestStatus.Published => "PUBLISHED",
+        WritingTestStatus.Archived => "ARCHIVED",
         _ => throw new ArgumentOutOfRangeException(nameof(value))
     };
 

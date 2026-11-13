@@ -1,7 +1,5 @@
 # TOEICMaster Backend
 
-Task CNPMCS-18: [API danh sách tài khoản có phân trang](docs/account-list-api.md), dùng model và authentication của `dev`. Endpoint yêu cầu quyền Admin; token đăng nhập hiện chưa có role nên trả `403` cho đến khi tích hợp module phân quyền.
-
 API của phần mềm hỗ trợ học và luyện thi TOEIC, tổ chức theo Clean Architecture và CQRS trong một ứng dụng.
 
 **Công nghệ:** ASP.NET Core .NET 10, EF Core 10, Neon PostgreSQL, Redis, MinIO và SMTP. MediatR 14.2.0, FluentValidation 12.1.1 và AutoMapper 16.2.0 được cấu hình sẵn.
@@ -126,6 +124,40 @@ Nếu network đã tồn tại, bỏ qua lệnh tạo. Frontend sẽ gọi API q
 | MinIO console | http://localhost:9001 | Xem object storage        |
 | PostgreSQL    | Neon                  | Database bên ngoài Docker |
 
+## MinIO local cho media L&R
+
+Media workspace của đề L&R mới dùng bucket private `exam-media`. Browser không nhận access key/secret key: API chỉ cấp presigned PUT ngắn hạn, browser upload trực tiếp, rồi API xác nhận object trước khi gắn asset vào revision.
+
+1. Cài và mở Docker Desktop, sau đó xác nhận daemon hoạt động:
+
+   ```sh
+   docker version
+   ```
+
+2. Tạo file `.env` từ `.env.example` nếu chưa có. Đặt `MINIO_ROOT_USER` và `MINIO_ROOT_PASSWORD` là credential local riêng; không commit `.env`.
+
+3. Khởi động riêng MinIO và kiểm tra health:
+
+   ```sh
+   docker compose up -d minio
+   docker compose ps minio
+   curl http://localhost:9000/minio/health/live
+   ```
+
+   Console local là `http://localhost:9001`. Dùng credential trong `.env` để xem bucket; không cần tạo public bucket hoặc policy public.
+
+4. Khi chạy API bằng `dotnet run`, `appsettings.Development.json` dùng cả `Minio:Endpoint` và `Minio:PublicEndpoint` là `localhost:9000`.
+
+   Khi chạy API trong Docker Compose, `Minio__Endpoint=minio:9000` là hostname nội bộ giữa containers, còn `Minio__PublicEndpoint=localhost:9000` là hostname được nhúng vào URL ký sẵn cho browser. Giữ hai giá trị này khác nhau là cần thiết để upload trực tiếp hoạt động trên máy local.
+
+5. Chạy migration chỉ sau khi kiểm tra chuỗi kết nối đang trỏ đúng database phát triển. Migration `AddAdminLrMediaWorkspace` chỉ thêm metadata/intents; không chuyển object media cũ:
+
+   ```sh
+   dotnet ef database update --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api
+   ```
+
+Với môi trường cloud sau này, cấu hình `Minio__Endpoint`, `Minio__PublicEndpoint`, `Minio__AccessKey`, `Minio__SecretKey` và `Minio__UseSsl=true` bằng endpoint/credential của MinIO self-hosted, S3-compatible storage hoặc R2. Bucket phải private và public endpoint phải là hostname browser truy cập được.
+
 Backend kết nối trực tiếp đến nhà cung cấp SMTP bên ngoài đã cấu hình. Vì vậy email do ứng dụng gửi sẽ được chuyển tới
 hộp thư thật; không còn dịch vụ mail giả chạy trong Docker Compose.
 
@@ -170,12 +202,10 @@ tests/
 docs/                         Kiến trúc
 ```
 
-[Chi tiết kiến trúc](docs/architecture.md) và [API contract](docs/api-contract.md). API đăng ký, đăng nhập local/Google,
+[Chi tiết kiến trúc](docs/foundations/architecture.md) và [API contract](docs/contracts/api-contract.md). Bản đồ toàn bộ tài liệu được mô tả tại [docs/README.md](docs/README.md). API đăng ký, đăng nhập local/Google,
 refresh và logout đã có; nghiệp vụ TOEIC được bổ sung theo backlog.
 
-API quản trị ngân hàng và đề Writing (Part 1/2/3) được mô tả trong [Writing Administration API](docs/writing-admin-api.md).
-Luồng làm bài, chấm AI và checklist UAT Writing nằm tại [Writing Attempt API](docs/writing-attempt-api.md),
-[AI evaluation](docs/writing-ai-evaluation.md) và [Writing UAT runbook](docs/writing-uat-runbook.md).
+Phân hệ TOEIC Writing (Part 1/2/3), luồng làm bài và chấm điểm AI được đặc tả chi tiết tại [Module TOEIC Writing](docs/features/writing/spec.md) và [Writing UAT runbook](docs/runbooks/writing-uat-runbook.md).
 
 Các endpoint auth có rate limit theo IP: gửi email 5 request/phút, kiểm tra credential 10 request/phút và thao tác
 session 30 request/phút. Request vượt giới hạn nhận `429` kèm `Retry-After`; xem chi tiết trong API contract.

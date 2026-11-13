@@ -50,7 +50,10 @@ public sealed class EfSpeakingAttemptRepository(ToeicDbContext context) : ISpeak
                 SELECT 1
                 FROM speaking_test_exercises AS slot
                 JOIN speaking_tests AS test ON test.id = slot.test_id
-                WHERE test.status = 'PUBLISHED' AND slot.snapshot_json ->> 'imageAssetId' = {assetText}
+                WHERE test.status = 'PUBLISHED' AND (
+                    slot.snapshot_json ->> 'imageAssetId' = {assetText}
+                    OR slot.content_json ->> 'imageAssetId' = {assetText}
+                )
             ) OR EXISTS (
                 SELECT 1
                 FROM speaking_exercises AS exercise

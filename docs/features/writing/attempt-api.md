@@ -1,7 +1,7 @@
 # Writing attempt API
 
 Các endpoint dùng prefix `/api/v1/writing`. `GET /tests` và `GET /tests/{testId}` chỉ trả đề đã publish; không trả
-model answer hay rubric của Admin. `GET /media/{assetId}` chỉ mở ảnh đang được một đề đã publish tham chiếu.
+model answer hay rubric của Admin. `GET /media/{assetId}` chỉ mở ảnh được nội dung đã publish tham chiếu.
 
 ## Chủ sở hữu lượt làm
 
@@ -11,6 +11,8 @@ body. Một attempt chỉ thuộc **một** trong hai loại owner và owner kh�
 
 ## Đề và lịch sử
 
+- `GET /exercises?part=1&pageNumber=1&pageSize=20`: chỉ liệt kê bài tập lẻ đã công bố.
+- `POST /exercises/{exerciseId}/attempts`: bắt đầu một lượt luyện tập không giới hạn thời gian, lưu snapshot riêng và dùng các endpoint lưu/nộp/chấm AI dưới đây.
 - `GET /tests?query=&pageNumber=1&pageSize=20`
 - `GET /tests/{testId}`
 - `GET /attempts`: tối đa 100 lượt gần nhất của owner hiện tại.
@@ -39,15 +41,16 @@ Frontend đếm ngược từ `phaseEndsAtUtc`; backend là nguồn thời gian 
 Part 1 là 30 giây chuẩn bị + 60 giây làm; Part 2 là 60 giây + 540 giây; Part 3 là 120 giây + 1680 giây.
 
 Response public của `writing_attempt_questions` chỉ chứa prompt hiển thị; không trả `modelAnswer` hoặc `rubricNotes`
-khi User đang làm bài. Server giữ private review snapshot bất biến cho evaluation; model answer chỉ được trả trong
-`reviewQuestions` khi evaluation AI đã `COMPLETED`.
+khi User đang làm bài hoặc xem kết quả. Server giữ private review snapshot bất biến cho evaluation;
+`reviewQuestions` luôn rỗng trong API học viên. Ảnh trong snapshot được tải qua
+`GET /attempts/{attemptId}/media/{assetId}` và yêu cầu cùng chủ sở hữu với attempt.
 
 Các endpoint `attempts` và response BFF tương ứng luôn có `Cache-Control: no-store`, nên browser/proxy không cache
 bài làm, trạng thái timer hoặc kết quả của User. Autosave debounce 800ms; khi tab bị ẩn hoặc User rời trang, frontend
 gửi thêm một request `keepalive` best-effort. Không coi request lifecycle này là bảo đảm tuyệt đối: khi mở lại trang,
 API vẫn là nguồn chân lý và trả câu trả lời đã được server lưu gần nhất.
 
-Sau khi submit, server tạo job AI ở `CONSENT_REQUIRED`. Xem [AI evaluation cho Writing](writing-ai-evaluation.md) để
+Sau khi submit, server tạo job AI ở `CONSENT_REQUIRED`. Xem [AI evaluation cho Writing](ai-evaluation.md) để
 biết consent, retry và cách quy đổi điểm.
 
 Migration `AddWritingAttempts` tạo `writing_attempts` và `writing_attempt_questions`. Nó chỉ được thêm vào source; chưa

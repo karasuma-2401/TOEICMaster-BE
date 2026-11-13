@@ -31,6 +31,7 @@ public sealed class MediatorPipelineTests
         services.AddLogging();
         services.AddApplication();
         services.AddSingleton<IAccountReader, SampleAccountReader>();
+        services.AddSingleton<IAdminUserReader, EmptyAdminUserReader>();
         services.AddSingleton<IProfileRepository, EmptyProfileRepository>();
         services.AddSingleton<IAvatarStore, EmptyAvatarStore>();
         services.AddSingleton<IWritingAdminRepository, EmptyWritingAdminRepository>();
@@ -39,6 +40,7 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<IWritingEvaluationSettings, StaticWritingEvaluationSettings>();
         services.AddSingleton<IWritingImageStore, EmptyWritingImageStore>();
         services.AddSingleton<IWritingExerciseImportParser, EmptyWritingExerciseImportParser>();
+        services.AddSingleton<IWritingTestImportParser, EmptyWritingTestImportParser>();
         var speaking = new InMemorySpeaking();
         services.AddSingleton<ISpeakingAdminRepository>(speaking);
         services.AddSingleton<ISpeakingAttemptRepository>(speaking);
@@ -63,6 +65,21 @@ public sealed class MediatorPipelineTests
         services.AddSingleton(TimeProvider.System);
         configure?.Invoke(services);
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+    }
+
+    [Fact]
+    public async Task Writing_history_passes_the_real_validation_pipeline_for_user_and_guest()
+    {
+        using var provider = CreateServices();
+        using var scope = provider.CreateScope();
+        var sender = scope.ServiceProvider.GetRequiredService<ISender>();
+        var userHistory = await sender.Send(new GetWritingAttemptHistoryQuery(WritingAttemptOwner.ForUser(Guid.NewGuid())));
+        var guestHistory = await sender.Send(new GetWritingAttemptHistoryQuery(
+            WritingAttemptOwner.ForAnonymousSession(Guid.NewGuid().ToString())));
+        Assert.Empty(userHistory.Items);
+        Assert.Empty(guestHistory.Items);
+        await Assert.ThrowsAsync<ValidationException>(() => sender.Send(new GetWritingAttemptHistoryQuery(
+            new WritingAttemptOwner(null, null))));
     }
 
     [Fact]

@@ -37,10 +37,19 @@ public sealed class InMemorySpeakingEvaluations(InMemorySpeaking speaking) : ISp
                     attempt.Id == evaluation.AttemptId && attempt.AnonymousSessionHash == anonymousSessionHash)));
     }
 
+    public Task<SpeakingMediaAsset?> FindMediaAssetAsync(Guid assetId, CancellationToken cancellationToken) =>
+        speaking.FindMediaAssetAsync(assetId, cancellationToken);
+
+    /// <summary>Simulates another request creating the job just before this one adds its own.</summary>
+    public SpeakingEvaluation? ConcurrentEvaluation { get; set; }
+
     public void Add(SpeakingEvaluation evaluation)
     {
         lock (_gate)
         {
+            if (ConcurrentEvaluation is not null)
+                Evaluations.Add(ConcurrentEvaluation);
+            ConcurrentEvaluation = null;
             if (Evaluations.Any(existing => existing.AttemptId == evaluation.AttemptId))
                 throw new SpeakingConflictException("Yêu cầu chấm AI cho lượt làm này đã được gửi.");
             Evaluations.Add(evaluation);
@@ -92,7 +101,11 @@ public sealed class StaticSpeakingEvaluationSettings : ISpeakingEvaluationSettin
 /// <summary>Returns <see cref="Result"/> for every recording, or throws <see cref="Failure"/> when set.</summary>
 public sealed class FakeSpeechAssessor : ISpeakingSpeechAssessor
 {
-    public Func<byte[], SpeakingSpeechResult> Result { get; set; } = _ => Recognized("I would like to book a table.");
+    /// <summary>Long enough to pass the minimum length of every Part.</summary>
+    public const string SustainedAnswer = "I would like to book a table because our whole team is meeting tonight to " +
+        "celebrate the new contract, and we need a quiet room near the window where everyone can talk comfortably together.";
+
+    public Func<byte[], SpeakingSpeechResult> Result { get; set; } = _ => Recognized(SustainedAnswer);
     public SpeakingEvaluatorException? Failure { get; set; }
     public int Calls { get; private set; }
 

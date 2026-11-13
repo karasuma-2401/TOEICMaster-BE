@@ -93,6 +93,7 @@ public sealed class SpeakingAttemptsController(ISender sender) : ControllerBase
 
     /// <summary>Consents to AI evaluation (Azure Speech + language model) and queues it; poll the attempt for the result.</summary>
     [HttpPost("attempts/{attemptId:guid}/evaluation-consent")]
+    [EnableRateLimiting(SpeakingRateLimitPolicies.EvaluationConsent)]
     [ProducesResponseType<SpeakingAttemptDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]

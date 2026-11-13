@@ -71,11 +71,18 @@ public sealed class WritingEvaluation
     }
 
     /// <summary>Records explicit consent and queues the first evaluation. Failed jobs reuse this consent on a user retry.</summary>
-    public bool GrantConsentAndQueue(DateTimeOffset now)
+    public bool GrantConsentAndQueue(DateTimeOffset now, string provider, string model, string rubricVersion)
     {
         if (Status is not (WritingEvaluationStatus.ConsentRequired or WritingEvaluationStatus.Failed))
             return false;
 
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        ArgumentException.ThrowIfNullOrWhiteSpace(model);
+        ArgumentException.ThrowIfNullOrWhiteSpace(rubricVersion);
+        Provider = provider;
+        Model = model;
+        RubricVersion = rubricVersion;
+        RetryCount = 0;
         ConsentAcceptedAtUtc ??= now;
         Status = WritingEvaluationStatus.Queued;
         QueuedAtUtc = now;

@@ -8,6 +8,9 @@ public interface IWritingAttemptRepository
         CancellationToken cancellationToken);
     Task<WritingPublicTestDto?> GetPublishedTestAsync(Guid testId, CancellationToken cancellationToken);
     Task<WritingTest?> FindPublishedTestForAttemptAsync(Guid testId, CancellationToken cancellationToken);
+    Task<WritingExercise?> FindPublishedExerciseAsync(Guid exerciseId, CancellationToken cancellationToken);
+    Task<WritingPracticeExercisePageDto> GetPublishedExercisesAsync(int part, int pageNumber, int pageSize,
+        CancellationToken cancellationToken);
     Task<WritingMediaAsset?> FindPublishedMediaAssetAsync(Guid assetId, CancellationToken cancellationToken);
     Task<WritingAttempt?> FindAttemptForUpdateAsync(Guid attemptId, CancellationToken cancellationToken);
     Task<WritingAttempt?> GetAttemptAsync(Guid attemptId, CancellationToken cancellationToken);

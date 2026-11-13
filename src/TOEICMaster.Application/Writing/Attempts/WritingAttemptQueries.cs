@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentValidation;
 using MediatR;
 using TOEICMaster.Application.Writing.Admin;
@@ -11,11 +12,61 @@ public sealed record GetPublishedWritingTestsQuery(string? Query, int PageNumber
 
 public sealed record GetPublishedWritingTestQuery(Guid TestId) : IRequest<WritingPublicTestDto>;
 
+public sealed record GetPublishedWritingExercisesQuery(int Part, int PageNumber, int PageSize)
+    : IRequest<WritingPracticeExercisePageDto>;
+
+public sealed class GetPublishedWritingExercisesQueryValidator : AbstractValidator<GetPublishedWritingExercisesQuery>
+{
+    public GetPublishedWritingExercisesQueryValidator()
+    {
+        RuleFor(query => query.Part).InclusiveBetween(1, 3);
+        RuleFor(query => query.PageNumber).GreaterThan(0);
+        RuleFor(query => query.PageSize).InclusiveBetween(1, 100);
+    }
+}
+
+public sealed class GetPublishedWritingExercisesQueryHandler(IWritingAttemptRepository repository)
+    : IRequestHandler<GetPublishedWritingExercisesQuery, WritingPracticeExercisePageDto>
+{
+    public Task<WritingPracticeExercisePageDto> Handle(GetPublishedWritingExercisesQuery request,
+        CancellationToken cancellationToken) => repository.GetPublishedExercisesAsync(request.Part, request.PageNumber,
+        request.PageSize, cancellationToken);
+}
+
 public sealed record GetWritingAttemptQuery(WritingAttemptOwner Owner, Guid AttemptId) : IRequest<WritingAttemptDto>;
 
 public sealed record GetWritingAttemptHistoryQuery(WritingAttemptOwner Owner) : IRequest<WritingAttemptPageDto>;
 
 public sealed record GetPublishedWritingImageQuery(Guid AssetId) : IRequest<WritingImageContent>;
+public sealed record GetWritingAttemptImageQuery(WritingAttemptOwner Owner, Guid AttemptId, Guid AssetId)
+    : IRequest<WritingImageContent>;
+
+public sealed class GetWritingAttemptImageQueryValidator : AbstractValidator<GetWritingAttemptImageQuery>
+{
+    public GetWritingAttemptImageQueryValidator()
+    {
+        RuleFor(query => query.Owner).SetValidator(new WritingAttemptOwnerValidator());
+        RuleFor(query => query.AttemptId).NotEmpty();
+        RuleFor(query => query.AssetId).NotEmpty();
+    }
+}
+
+public sealed class GetWritingAttemptImageQueryHandler(IWritingAttemptRepository repository,
+    IWritingAdminRepository adminRepository, IWritingImageStore store) : IRequestHandler<GetWritingAttemptImageQuery, WritingImageContent>
+{
+    public async Task<WritingImageContent> Handle(GetWritingAttemptImageQuery request, CancellationToken cancellationToken)
+    {
+        var attempt = await repository.GetAttemptAsync(request.AttemptId, cancellationToken)
+            ?? throw new WritingAttemptNotFoundException();
+        GetWritingAttemptQueryHandler.EnsureOwner(attempt, request.Owner);
+        if (!attempt.Questions.Any(question =>
+            JsonSerializer.Deserialize<WritingAttemptPromptSnapshot>(question.PromptSnapshotJson)?.ImageAssetId == request.AssetId))
+            throw new WritingAttemptNotFoundException();
+        var asset = await adminRepository.FindMediaAssetAsync(request.AssetId, cancellationToken)
+            ?? throw new WritingAttemptNotFoundException();
+        return await store.DownloadAsync(asset.ObjectKey, cancellationToken);
+    }
+}
 
 public sealed class GetPublishedWritingTestsQueryValidator : AbstractValidator<GetPublishedWritingTestsQuery>
 {
@@ -54,7 +105,9 @@ public sealed class GetWritingAttemptHistoryQueryValidator : AbstractValidator<G
 public sealed class WritingAttemptOwnerValidator : AbstractValidator<WritingAttemptOwner>
 {
     public WritingAttemptOwnerValidator() => RuleFor(owner => owner).Must(owner =>
-        (owner.UserId is not null) != string.IsNullOrWhiteSpace(owner.AnonymousSessionHash));
+        owner.UserId is Guid userId
+            ? userId != Guid.Empty && string.IsNullOrWhiteSpace(owner.AnonymousSessionHash)
+            : !string.IsNullOrWhiteSpace(owner.AnonymousSessionHash));
 }
 
 public sealed class GetPublishedWritingTestsQueryHandler(IWritingAttemptRepository repository)

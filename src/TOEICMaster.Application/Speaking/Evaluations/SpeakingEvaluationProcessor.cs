@@ -31,6 +31,15 @@ public sealed class SpeakingEvaluationProcessor(ISpeakingEvaluationRepository re
             var evaluation = await repository.FindForUpdateAsync(work.EvaluationId, cancellationToken);
             if (evaluation is null || evaluation.Status != SpeakingEvaluationStatus.Processing)
                 return true;
+            if (evaluation.RetryCount > MaximumRetries)
+            {
+                // Only lease takeovers reach this count, so the job keeps stopping before it can record a failure.
+                evaluation.Fail("LEASE_RETRIES_EXHAUSTED",
+                    "Không thể hoàn tất chấm AI cho bài này. Bài làm của bạn vẫn được lưu, hãy thử lại sau.",
+                    timeProvider.GetUtcNow());
+                await repository.SaveChangesAsync(cancellationToken);
+                return true;
+            }
             await AssessSpeechAsync(evaluation, work, cancellationToken);
             await GradeLanguageAsync(evaluation, work, cancellationToken);
             await repository.SaveChangesAsync(cancellationToken);
@@ -100,13 +109,15 @@ public sealed class SpeakingEvaluationProcessor(ISpeakingEvaluationRepository re
         SpeakingLanguageResult? result = null;
         if (recognized.Length > 0)
         {
+            var images = await LoadImagesAsync(recognized, questions, cancellationToken);
             var languageWork = new SpeakingLanguageWork(evaluation.Id, work.LanguageModel, work.RubricVersion,
                 recognized.Select(item =>
                 {
                     var question = questions[item.Position];
                     return new SpeakingLanguageItem(item.Position, item.Part, question.QuestionIndex,
                         question.ContentJson, question.ReviewJson, item.Transcript, item.PronunciationScore,
-                        item.FluencyScore, item.ProsodyScore, item.CompletenessScore, item.WordIssues());
+                        item.FluencyScore, item.ProsodyScore, item.CompletenessScore, item.WordIssues(),
+                        images.GetValueOrDefault(item.Position));
                 }).ToArray());
             result = await languageEvaluator.EvaluateAsync(languageWork, cancellationToken);
             Validate(result, recognized);
@@ -131,7 +142,8 @@ public sealed class SpeakingEvaluationProcessor(ISpeakingEvaluationRepository re
             var quality = SpeakingEvaluationScoring.QualityScore(item.Part, item.PronunciationScore,
                 item.CompletenessScore, language.GrammarScore, language.VocabularyScore, language.RelevanceScore);
             item.ApplyLanguageScores(grammar, vocabulary, relevance,
-                SpeakingEvaluationScoring.RawScore(item.Part, quality, relevance), language.Feedback.Trim(),
+                SpeakingEvaluationScoring.RawScore(item.Part, quality, relevance,
+                    SpeakingEvaluationScoring.CountWords(item.Transcript)), language.Feedback.Trim(),
                 string.IsNullOrWhiteSpace(language.SuggestedResponse) ? null : language.SuggestedResponse.Trim());
         }
 
@@ -141,6 +153,25 @@ public sealed class SpeakingEvaluationProcessor(ISpeakingEvaluationRepository re
             result?.Strengths.Select(text => text.Trim()).ToArray() ?? [],
             result?.Improvements.Select(text => text.Trim()).ToArray() ??
             ["Kiểm tra micro và nói rõ, đủ lớn trong thời gian trả lời."], timeProvider.GetUtcNow());
+    }
+
+    /// <summary>Part 2 relevance can only be judged against the picture itself, not its short description.</summary>
+    private async Task<Dictionary<int, SpeakingLanguageImage>> LoadImagesAsync(
+        IReadOnlyList<SpeakingEvaluationItem> recognized, IReadOnlyDictionary<int, SpeakingEvaluationQuestion> questions,
+        CancellationToken cancellationToken)
+    {
+        var images = new Dictionary<int, SpeakingLanguageImage>();
+        foreach (var item in recognized.Where(item => item.Part == 2))
+        {
+            var assetId = SpeakingJson.Deserialize<SpeakingContentDto>(questions[item.Position].ContentJson).ImageAssetId;
+            if (assetId is null ||
+                await repository.FindMediaAssetAsync(assetId.Value, cancellationToken) is not { } asset)
+                continue;
+            images[item.Position] = new SpeakingLanguageImage(
+                await mediaStore.DownloadAsync(SpeakingMediaKind.Image, asset.ObjectKey, cancellationToken),
+                asset.ContentType);
+        }
+        return images;
     }
 
     private static string Truncate(string text, int length) => text.Length <= length ? text : text[..length];

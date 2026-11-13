@@ -10,9 +10,9 @@ public sealed class XlsxWritingExerciseImportParser : IWritingExerciseImportPars
 
     private static readonly IReadOnlyDictionary<int, string[]> RequiredHeaders = new Dictionary<int, string[]>
     {
-        [1] = ["Code", "Topic", "Difficulty", "Status", "ImageAssetId", "ImageAlt", "KeywordOne", "KeywordTwo", "ModelAnswer"],
-        [2] = ["Code", "Topic", "Difficulty", "Status", "Sender", "Recipient", "Subject", "EmailBody", "Directions", "ModelAnswer"],
-        [3] = ["Code", "Topic", "Difficulty", "Status", "Prompt", "MinimumWordCount", "ModelAnswer"]
+        [1] = ["Code", "Topic", "Difficulty", "Status", "ImageAssetId", "ImageAlt", "KeywordOne", "KeywordTwo"],
+        [2] = ["Code", "Topic", "Difficulty", "Status", "Sender", "Recipient", "Subject", "EmailBody", "Directions"],
+        [3] = ["Code", "Topic", "Difficulty", "Status", "Prompt", "MinimumWordCount"]
     };
 
     public WritingExerciseImportPreviewDto Preview(int part, string fileName, byte[] content)
@@ -21,6 +21,8 @@ public sealed class XlsxWritingExerciseImportParser : IWritingExerciseImportPars
         {
             using var stream = new MemoryStream(content, writable: false);
             using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
+            if (archive.Entries.Count > 1_000 || archive.Entries.Sum(entry => entry.Length) > 32L * 1024 * 1024)
+                throw new InvalidWritingImportException("Nội dung giải nén của file Excel quá lớn.");
             var workbook = archive.Entries.Where(entry => entry.FullName.StartsWith("xl/worksheets/", StringComparison.Ordinal) &&
                                                            entry.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(entry => entry.FullName, StringComparer.Ordinal).FirstOrDefault()
@@ -75,7 +77,8 @@ public sealed class XlsxWritingExerciseImportParser : IWritingExerciseImportPars
     private static WritingExerciseImportRowDto ValidateRow(int part, SpreadsheetRow row,
         IReadOnlyDictionary<string, int> headers)
     {
-        string Value(string header) => row.Cells.GetValueOrDefault(headers[header])?.Trim() ?? string.Empty;
+        string Value(string header) => headers.TryGetValue(header, out var index)
+            ? row.Cells.GetValueOrDefault(index)?.Trim() ?? string.Empty : string.Empty;
         var code = Value("Code");
         var errors = new List<string>();
         foreach (var header in RequiredHeaders[part])
@@ -97,7 +100,16 @@ public sealed class XlsxWritingExerciseImportParser : IWritingExerciseImportPars
             errors.Add("ImageAssetId phải là UUID của ảnh đã upload.");
         if (part == 3 && (!int.TryParse(Value("MinimumWordCount"), out var minimum) || minimum is < 1 or > 5_000))
             errors.Add("MinimumWordCount phải là số từ 1 đến 5000.");
-        return new WritingExerciseImportRowDto(row.RowNumber, string.IsNullOrWhiteSpace(code) ? null : code, errors);
+        var input = new WritingExerciseInput(part, code, Value("Topic"), Value("Difficulty"), Value("Status"),
+            Value("RubricNotes"), Value("ModelAnswer"),
+            Guid.TryParse(Value("ImageAssetId"), out var imageId) ? imageId : null,
+            Value("ImageAlt"), Value("KeywordOne"), Value("KeywordTwo"), Value("Sender"), Value("Recipient"),
+            Value("Subject"), Value("EmailBody"), Value("Directions"), Value("Prompt"),
+            int.TryParse(Value("MinimumWordCount"), out var wordCount) ? wordCount : null, Value("Outline"));
+        var validation = new WritingExerciseInputValidator().Validate(input);
+        errors.AddRange(validation.Errors.Select(error => error.ErrorMessage));
+        return new WritingExerciseImportRowDto(row.RowNumber, string.IsNullOrWhiteSpace(code) ? null : code,
+            errors.Distinct(StringComparer.Ordinal).ToArray(), errors.Count == 0 ? input : null);
     }
 
     private static IReadOnlyList<string> ReadSharedStrings(ZipArchive archive)

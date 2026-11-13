@@ -48,8 +48,26 @@ public sealed class ImportExamApplicationTests
         var revision = Assert.Single(exam.Revisions);
         Assert.Equal(200, result.QuestionCount);
         Assert.Equal(store.ObjectKey, revision.MasterAudioObjectKey);
+        Assert.False(revision.UsesMediaWorkspace);
         Assert.StartsWith($"exam-audio/{revision.Id:N}/", store.ObjectKey, StringComparison.Ordinal);
         Assert.True(repository.Saved);
+    }
+
+    [Fact]
+    public async Task Workbook_only_import_creates_a_media_workspace_without_uploading_legacy_audio()
+    {
+        var profile = ScoreProfile.Create("Configured", DateTimeOffset.UtcNow);
+        var repository = new FakeExamRepository(profile);
+        var store = new RecordingMediaStore();
+        var handler = new ImportExamCommandHandler(repository, store, TimeProvider.System);
+
+        await handler.Handle(new ImportExamCommand(WorkbookBytes(ValidWorkbookData(profile.Id)), null, null),
+            CancellationToken.None);
+
+        var revision = Assert.Single(Assert.Single(repository.AddedExams).Revisions);
+        Assert.True(revision.UsesMediaWorkspace);
+        Assert.Null(revision.MasterAudioObjectKey);
+        Assert.Empty(store.UploadedObjectKeys);
     }
 
     [Fact]

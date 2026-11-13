@@ -52,10 +52,12 @@ public static class DependencyInjection
             provider => provider.EnableRetryOnFailure(3)));
         services.AddScoped<IExamAttemptRepository, EfExamAttemptRepository>();
         services.AddScoped<IAccountReader, AccountReader>();
+        services.AddScoped<IAdminUserReader, AdminUserReader>();
         services.AddScoped<IExamRepository, EfExamRepository>();
         services.AddScoped<ILrExerciseBankRepository, EfLrExerciseBankRepository>();
         services.AddSingleton<ILrExerciseBankImportParser, XlsxLrExerciseBankImportParser>();
         services.AddScoped<IExamMediaStore, MinioExamMediaStore>();
+        services.AddHostedService<ExamMediaUploadIntentRetentionWorker>();
         services.AddScoped<IProfileRepository, EfProfileRepository>();
         services.AddScoped<IAvatarStore, MinioAvatarStore>();
         services.AddScoped<IWritingAdminRepository, EfWritingAdminRepository>();
@@ -63,6 +65,7 @@ public static class DependencyInjection
         services.AddScoped<IWritingEvaluationRepository, EfWritingEvaluationRepository>();
         services.AddScoped<IWritingImageStore, MinioWritingImageStore>();
         services.AddSingleton<IWritingExerciseImportParser, XlsxWritingExerciseImportParser>();
+        services.AddSingleton<IWritingTestImportParser, XlsxWritingTestImportParser>();
         services.AddScoped<ISpeakingAdminRepository, EfSpeakingAdminRepository>();
         services.AddScoped<ISpeakingAttemptRepository, EfSpeakingAttemptRepository>();
         services.AddScoped<ISpeakingMediaStore, MinioSpeakingMediaStore>();

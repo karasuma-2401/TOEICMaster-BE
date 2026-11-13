@@ -41,7 +41,7 @@ public static class SpeakingEvaluationServices
 public sealed class SpeakingEvaluationSettings(IOptions<AzureSpeechOptions> speech, IOptions<GeminiOptions> gemini)
     : ISpeakingEvaluationSettings
 {
-    public const string Rubric = "toeic-speaking-v1";
+    public const string Rubric = "toeic-speaking-v2";
 
     public bool IsConfigured => speech.Value.Enabled && !string.IsNullOrWhiteSpace(speech.Value.Key) &&
                                 gemini.Value.Enabled && !string.IsNullOrWhiteSpace(gemini.Value.ApiKey);

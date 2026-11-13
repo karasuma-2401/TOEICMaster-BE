@@ -7,3 +7,4 @@ public sealed class ExamPublicationException(IReadOnlyList<string> errors) : Exc
     public IReadOnlyList<string> Errors { get; } = errors;
 }
 public sealed class InvalidExamMediaException : Exception;
+public sealed class ExamMediaUploadIntentConflictException(string message) : Exception(message);

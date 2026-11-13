@@ -7,6 +7,7 @@ namespace TOEICMaster.Tests.TestDoubles;
 
 public sealed class EmptyWritingAdminRepository : IWritingAdminRepository
 {
+    public WritingMediaAsset? MediaAsset { get; init; }
     public Task<WritingExercisePageDto> GetExercisePageAsync(WritingExerciseFilter filter,
         CancellationToken cancellationToken) =>
         Task.FromResult(new WritingExercisePageDto([], filter.PageNumber, filter.PageSize, 0));
@@ -24,7 +25,7 @@ public sealed class EmptyWritingAdminRepository : IWritingAdminRepository
     public Task AddExerciseAsync(WritingExercise exercise, CancellationToken cancellationToken) => Task.CompletedTask;
 
     public Task<WritingMediaAsset?> FindMediaAssetAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<WritingMediaAsset?>(null);
+        Task.FromResult(MediaAsset?.Id == id ? MediaAsset : null);
 
     public Task AddMediaAssetAsync(WritingMediaAsset asset, CancellationToken cancellationToken) => Task.CompletedTask;
 
@@ -44,22 +45,25 @@ public sealed class EmptyWritingAdminRepository : IWritingAdminRepository
         CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WritingExercise>>([]);
 
     public Task AddTestAsync(WritingTest test, CancellationToken cancellationToken) => Task.CompletedTask;
+    public void RemoveTest(WritingTest test) { }
     public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 public sealed class EmptyWritingImageStore : IWritingImageStore
 {
+    public byte[] Data { get; init; } = [];
     public Task UploadAsync(string objectKey, byte[] content, string contentType, CancellationToken cancellationToken) =>
         Task.CompletedTask;
 
     public Task<WritingImageContent> DownloadAsync(string objectKey, CancellationToken cancellationToken) =>
-        Task.FromResult(new WritingImageContent([], "image/png"));
+        Task.FromResult(new WritingImageContent(Data, "image/png"));
 
     public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 public sealed class EmptyWritingAttemptRepository : IWritingAttemptRepository
 {
+    public WritingAttempt? Attempt { get; init; }
     public Task<WritingPublicTestPageDto> GetPublishedTestsAsync(string? query, int pageNumber, int pageSize,
         CancellationToken cancellationToken) =>
         Task.FromResult(new WritingPublicTestPageDto([], pageNumber, pageSize, 0));
@@ -70,6 +74,12 @@ public sealed class EmptyWritingAttemptRepository : IWritingAttemptRepository
     public Task<WritingTest?> FindPublishedTestForAttemptAsync(Guid testId, CancellationToken cancellationToken) =>
         Task.FromResult<WritingTest?>(null);
 
+    public Task<WritingExercise?> FindPublishedExerciseAsync(Guid exerciseId, CancellationToken cancellationToken) =>
+        Task.FromResult<WritingExercise?>(null);
+
+    public Task<WritingPracticeExercisePageDto> GetPublishedExercisesAsync(int part, int pageNumber, int pageSize,
+        CancellationToken cancellationToken) => Task.FromResult(new WritingPracticeExercisePageDto([], pageNumber, pageSize, 0));
+
     public Task<WritingMediaAsset?> FindPublishedMediaAssetAsync(Guid assetId, CancellationToken cancellationToken) =>
         Task.FromResult<WritingMediaAsset?>(null);
 
@@ -77,7 +87,7 @@ public sealed class EmptyWritingAttemptRepository : IWritingAttemptRepository
         Task.FromResult<WritingAttempt?>(null);
 
     public Task<WritingAttempt?> GetAttemptAsync(Guid attemptId, CancellationToken cancellationToken) =>
-        Task.FromResult<WritingAttempt?>(null);
+        Task.FromResult(Attempt?.Id == attemptId ? Attempt : null);
 
     public Task<IReadOnlyList<WritingAttempt>> GetAttemptsAsync(WritingAttemptOwner owner,
         CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WritingAttempt>>([]);
@@ -106,6 +116,8 @@ public sealed class EmptyWritingEvaluationRepository : IWritingEvaluationReposit
 
     public Task AddAsync(WritingEvaluation evaluation, CancellationToken cancellationToken) => Task.CompletedTask;
 
+    public void AddFeedback(IReadOnlyCollection<WritingEvaluationFeedback> feedback) { }
+
     public Task<WritingEvaluationWork?> ClaimNextAsync(DateTimeOffset now, DateTimeOffset leaseExpiresAtUtc,
         CancellationToken cancellationToken) => Task.FromResult<WritingEvaluationWork?>(null);
 
@@ -123,4 +135,10 @@ public sealed class EmptyWritingExerciseImportParser : IWritingExerciseImportPar
 {
     public WritingExerciseImportPreviewDto Preview(int part, string fileName, byte[] content) =>
         new(part, fileName, []);
+}
+
+public sealed class EmptyWritingTestImportParser : IWritingTestImportParser
+{
+    public WritingTestImportPreviewDto Preview(byte[] content) => new(null, []);
+    public byte[] CreateTemplate() => [];
 }

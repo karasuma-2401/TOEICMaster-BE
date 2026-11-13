@@ -8,9 +8,9 @@ CP6 đánh giá Writing theo hàng đợi bền vững. Bài nộp và câu tr�
 2. User đọc thông báo dữ liệu được gửi tới AI và bấm đồng ý. Chỉ lúc đó job chuyển sang `QUEUED`.
 3. Background worker lấy job, gọi Gemini ở server và lưu JSON feedback đã kiểm tra.
 4. FE tự tải lại trạng thái mỗi 5 giây khi job `QUEUED`, `PROCESSING` hoặc `RETRYING`.
-5. Khi xong, UI luôn gọi đây là **điểm TOEIC Writing ước tính bởi AI (0–200, bước 10)**, không phải điểm ETS chính thức. Bài mẫu chỉ được trả về khi evaluation hoàn tất.
+5. Khi xong, UI gọi điểm bài thi là **điểm TOEIC Writing ước tính bởi AI (0–200, bước 10)**, không phải điểm ETS chính thức. Bài tập lẻ hiển thị điểm thô theo Part; bài mẫu không trả cho học viên.
 
-`FAILED` có thể được User gửi chấm lại. Consent đã lưu được dùng lại, nhưng browser không tự gửi bài ra provider nếu chưa có consent lần đầu.
+`FAILED` có thể được User gửi chấm lại. Consent đã lưu được dùng lại; lần chấm lại dùng model và rubric đang cấu hình. Browser không tự gửi bài ra provider nếu chưa có consent lần đầu.
 
 Để bảo vệ Free Tier, guest/anonymous session chỉ được bắt đầu một evaluation AI mới trong mỗi cửa sổ 24 giờ. Retry của **cùng attempt** không bị tính lại; User đăng nhập chưa bị áp quota trong checkpoint này.
 
@@ -23,9 +23,10 @@ Không commit API key. Chép các biến dưới đây vào `.env` local hoặc 
 ```dotenv
 GEMINI_ENABLED=true
 GEMINI_API_KEY=your_server_side_key
-GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_MODEL=gemini-3.5-flash-lite
 GEMINI_REQUEST_TIMEOUT_SECONDS=45
 GEMINI_RUBRIC_VERSION=toeic-writing-v1
+GEMINI_USE_WRITING_REFERENCE_ANSWERS=false
 ```
 
 `GEMINI_ENABLED=false` là mặc định an toàn. Với cấu hình này, UI và consent flow vẫn test được nhưng job sẽ chuyển `FAILED` với thông báo dịch vụ chưa được cấu hình. API key không được trả về API User, log hay Next.js browser bundle.
@@ -51,8 +52,11 @@ Part 3 là **0–5**. Server kiểm tra vị trí câu, biên điểm và toàn 
 round((tổng điểm thô / tổng điểm tối đa của attempt) × 20) × 10
 ```
 
-Đây là quy đổi luyện tập minh bạch, không phải bảng quy đổi ETS độc quyền. Model answer và rubric được snapshot
-khi tạo attempt; prompt public không chứa hai dữ liệu này. UI chỉ hiện bài mẫu sau khi chấm AI `COMPLETED`.
+Đây là quy đổi luyện tập minh bạch, không phải bảng quy đổi ETS độc quyền. Model answer tùy chọn và rubric được snapshot
+khi tạo attempt; API học viên không trả hai dữ liệu này. Theo mặc định AI chỉ nhận rubric; chỉ bật
+`GEMINI_USE_WRITING_REFERENCE_ANSWERS` sau khi nhóm đã calibration. Khi bật, bài mẫu là tham khảo, không phải đáp án duy nhất.
+Thay `GEMINI_RUBRIC_VERSION` khi thay đổi cách dùng bài tham khảo để phân biệt kết quả giữa các cấu hình.
+Ảnh Part 1 được gửi tới Gemini sau consent; tổng dữ liệu ảnh tối đa 12 MiB mỗi evaluation, vượt giới hạn sẽ báo lỗi an toàn.
 
 Editor tắt `spellcheck` và autosave debounce **800ms** sau lần gõ cuối. Browser không có API đáng tin cậy để biết
 chính xác nội dung paste đến từ chính editor hay một nguồn ngoài, nên không triển khai cơ chế chặn paste có thể làm
@@ -82,5 +86,5 @@ Chỉ nâng `GEMINI_RUBRIC_VERSION` sau khi review chênh lệch; lịch sử ev
 
 ## UAT và bật demo
 
-Xem [Writing UAT runbook](writing-uat-runbook.md) trước khi chạy migration hoặc gửi một bài test đến Gemini. Runbook
+Xem [Writing UAT runbook](../../runbooks/writing-uat-runbook.md) trước khi chạy migration hoặc gửi một bài test đến Gemini. Runbook
 liệt kê luồng User/Admin, điều kiện an toàn cho Free Tier và các giới hạn đã được chấp nhận.

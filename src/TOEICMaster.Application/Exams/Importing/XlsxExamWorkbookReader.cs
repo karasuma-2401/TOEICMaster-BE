@@ -13,7 +13,7 @@ public sealed record ImportedExamBlock(string Key, int Part, ExamBlockType Type,
     int QuestionCount);
 
 public sealed record ImportedExamContext(string BlockKey, int Ordinal, ExamContextType Type, string? Text,
-    Guid? ImageAssetId, string? AltText);
+    Guid? ImageAssetId, string? AltText, bool ImageRequired = false);
 
 public sealed record ImportedExamQuestion(string BlockKey, int QuestionNumber, ExamQuestionContent Content);
 
@@ -203,7 +203,8 @@ public static class XlsxExamWorkbookReader
 
     private static List<ImportedExamContext> ReadContexts(SheetData sheet, ICollection<string> errors)
     {
-        var table = ReadTable(sheet, ["BlockKey", "Ordinal", "Type", "Text", "ImageAssetId", "AltText"], errors);
+        var table = ReadTable(sheet, ["BlockKey", "Ordinal", "Type", "Text", "ImageAssetId", "AltText"], errors,
+            ["ImageRequired"]);
         var result = new List<ImportedExamContext>();
         foreach (var row in table)
         {
@@ -212,6 +213,8 @@ public static class XlsxExamWorkbookReader
                 continue;
             var key = Required(row, "BlockKey", sheet.Name, errors);
             if (key is null)
+                continue;
+            if (!TryParseBoolean(row, "ImageRequired", sheet.Name, errors, out var imageRequired))
                 continue;
             Guid? imageAssetId = null;
             var assetId = row.Get("ImageAssetId");
@@ -223,7 +226,7 @@ public static class XlsxExamWorkbookReader
                     errors.Add($"{sheet.Name}!E{row.RowNumber}: ImageAssetId không phải UUID.");
             }
             result.Add(new ImportedExamContext(key, ordinal, type, EmptyToNull(row.Get("Text")), imageAssetId,
-                EmptyToNull(row.Get("AltText"))));
+                EmptyToNull(row.Get("AltText")), imageRequired));
         }
         return result;
     }
@@ -231,7 +234,8 @@ public static class XlsxExamWorkbookReader
     private static List<ImportedExamQuestion> ReadQuestions(SheetData sheet, ICollection<string> errors)
     {
         var table = ReadTable(sheet, ["BlockKey", "QuestionNumber", "QuestionCode", "Stem", "OptionA", "OptionB",
-            "OptionC", "OptionD", "CorrectKey", "Translation", "Explanation", "ImageAssetId"], errors);
+            "OptionC", "OptionD", "CorrectKey", "Translation", "Explanation", "ImageAssetId"], errors,
+            ["ImageRequired"]);
         var result = new List<ImportedExamQuestion>();
         foreach (var row in table)
         {
@@ -244,6 +248,8 @@ public static class XlsxExamWorkbookReader
             var optionB = Required(row, "OptionB", sheet.Name, errors);
             var optionC = Required(row, "OptionC", sheet.Name, errors);
             var correctKey = Required(row, "CorrectKey", sheet.Name, errors);
+            if (!TryParseBoolean(row, "ImageRequired", sheet.Name, errors, out var imageRequired))
+                continue;
             Guid? imageAssetId = null;
             var assetId = row.Get("ImageAssetId");
             if (!string.IsNullOrWhiteSpace(assetId))
@@ -258,13 +264,13 @@ public static class XlsxExamWorkbookReader
                 continue;
             result.Add(new ImportedExamQuestion(blockKey, questionNumber, new ExamQuestionContent(code, stem, optionA,
                 optionB, optionC, EmptyToNull(row.Get("OptionD")), correctKey, EmptyToNull(row.Get("Translation")),
-                EmptyToNull(row.Get("Explanation")), imageAssetId)));
+                EmptyToNull(row.Get("Explanation")), imageAssetId, imageRequired)));
         }
         return result;
     }
 
     private static IReadOnlyList<TableRow> ReadTable(SheetData sheet, IReadOnlyList<string> expectedHeaders,
-        ICollection<string> errors)
+        ICollection<string> errors, IReadOnlyList<string>? optionalHeaders = null)
     {
         var header = sheet.Rows.FirstOrDefault(row => expectedHeaders.All(expected => row.Cells.Values.Any(value =>
             string.Equals(value.Trim(), expected, StringComparison.Ordinal))));
@@ -285,7 +291,17 @@ public static class XlsxExamWorkbookReader
             }
             columns[headerName] = matches[0].Key;
         }
-        if (columns.Count != expectedHeaders.Count)
+        if (optionalHeaders is not null)
+            foreach (var headerName in optionalHeaders)
+            {
+                var matches = header.Cells.Where(cell => string.Equals(cell.Value.Trim(), headerName,
+                    StringComparison.Ordinal)).ToArray();
+                if (matches.Length > 1)
+                    errors.Add($"Sheet '{sheet.Name}' cÃ³ header '{headerName}' bá»‹ láº·p.");
+                else if (matches.Length == 1)
+                    columns[headerName] = matches[0].Key;
+            }
+        if (expectedHeaders.Any(headerName => !columns.ContainsKey(headerName)))
             return [];
         return sheet.Rows.Where(row => row.RowNumber > header.RowNumber && row.Cells.Values.Any(value =>
                 !string.IsNullOrWhiteSpace(value))).Select(row => new TableRow(row.RowNumber, columns.ToDictionary(
@@ -319,6 +335,31 @@ public static class XlsxExamWorkbookReader
         if (int.TryParse(row.Get(field), out value))
             return true;
         errors.Add($"{sheetName}!{field}{row.RowNumber}: phải là số nguyên.");
+        return false;
+    }
+
+    private static bool TryParseBoolean(TableRow row, string field, string sheetName, ICollection<string> errors,
+        out bool value)
+    {
+        var raw = row.Get(field);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            value = false;
+            return true;
+        }
+        if (bool.TryParse(raw, out value))
+            return true;
+        if (raw == "1")
+        {
+            value = true;
+            return true;
+        }
+        if (raw == "0")
+        {
+            value = false;
+            return true;
+        }
+        errors.Add($"{sheetName}!{field}{row.RowNumber}: chá»‰ nháº­n true hoáº·c false.");
         return false;
     }
 

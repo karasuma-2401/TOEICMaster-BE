@@ -93,6 +93,12 @@ public sealed class InMemorySpeaking : ISpeakingAdminRepository, ISpeakingAttemp
         Slots.AddRange(slots);
     }
 
+    public void RemoveTest(SpeakingTest test)
+    {
+        Tests.Remove(test);
+        Slots.RemoveAll(slot => slot.TestId == test.Id);
+    }
+
     public Task ReplaceDraftSlotsAndSaveAsync(SpeakingTest test, IReadOnlyList<SpeakingTestExercise> slots,
         CancellationToken cancellationToken)
     {
@@ -114,8 +120,9 @@ public sealed class InMemorySpeaking : ISpeakingAdminRepository, ISpeakingAttemp
 
     public Task<SpeakingMediaAsset?> FindPublishedImageAsync(Guid assetId, CancellationToken cancellationToken)
     {
-        var published = Slots.Any(slot => slot.SnapshotJson?.Contains(assetId.ToString(), StringComparison.Ordinal)
-                                          == true && Tests.Single(test => test.Id == slot.TestId).Status ==
+        var published = Slots.Any(slot => (slot.SnapshotJson?.Contains(assetId.ToString(), StringComparison.Ordinal)
+                                           == true || slot.ContentJson?.Contains(assetId.ToString(),
+                                           StringComparison.Ordinal) == true) && Tests.Single(test => test.Id == slot.TestId).Status ==
                                           SpeakingTestStatus.Published) ||
                         Exercises.Any(exercise => exercise.ImageAssetId == assetId &&
                                                   exercise.Status == SpeakingExerciseStatus.Published);
@@ -201,6 +208,13 @@ public static class SpeakingSamples
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lWQAAAAASUVORK5CYII=");
 
     public static readonly byte[] WebmAudio = [0x1a, 0x45, 0xdf, 0xa3, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06];
+
+    public static byte[] PngVariant(byte variant)
+    {
+        var bytes = (byte[])Png.Clone();
+        bytes[42] = variant;
+        return bytes;
+    }
 
     public static SpeakingExerciseInput Exercise(int part, string code, Guid? imageAssetId = null,
         string status = "PUBLISHED") => part switch

@@ -7,9 +7,10 @@ public sealed class GeminiOptions
     public const string SectionName = "Gemini";
 
     public bool Enabled { get; init; }
+    public bool UseWritingReferenceAnswers { get; init; }
     public string ApiKey { get; init; } = string.Empty;
     [Required]
-    public string Model { get; init; } = "gemini-2.5-flash-lite";
+    public string Model { get; init; } = "gemini-3.5-flash-lite";
     [Range(10, 120)]
     public int RequestTimeoutSeconds { get; init; } = 45;
     [Required]
