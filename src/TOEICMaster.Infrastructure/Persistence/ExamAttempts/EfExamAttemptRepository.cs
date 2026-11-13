@@ -6,6 +6,15 @@ namespace TOEICMaster.Infrastructure.Persistence.ExamAttempts;
 
 public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRepository
 {
+    public async Task<ExamHeader?> GetExamHeaderAsync(Guid examId, CancellationToken cancellationToken)
+    {
+        return await db.Exams
+            .AsNoTracking()
+            .Where(e => e.Id == examId)
+            .Select(e => new ExamHeader(e.Id, e.Code, e.Title))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<ExamRevision?> FindPublishedRevisionForExamAsync(Guid examId, CancellationToken cancellationToken)
     {
         return await db.ExamRevisions
@@ -35,7 +44,7 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
             .FirstOrDefaultAsync(s => s.Id == scoreProfileId, cancellationToken);
     }
 
-    public async Task<IReadOnlyDictionary<Guid, (int Number, int Part)>> GetQuestionMetadataAsync(
+    public async Task<IReadOnlyDictionary<Guid, ExamQuestionMetadata>> GetQuestionMetadataAsync(
         IReadOnlyCollection<Guid> questionIds,
         CancellationToken cancellationToken)
     {
@@ -43,10 +52,12 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
             from q in db.ExamQuestions
             join b in db.ExamBlocks on q.BlockId equals b.Id
             where questionIds.Contains(q.Id)
-            select new { q.Id, q.Number, b.Part }
+            select new { q.Id, b.RevisionId, q.Number, b.Part, HasOptionD = q.OptionD != null }
         ).ToListAsync(cancellationToken);
 
-        return list.ToDictionary(x => x.Id, x => (x.Number, x.Part));
+        return list.ToDictionary(
+            x => x.Id,
+            x => new ExamQuestionMetadata(x.RevisionId, x.Number, x.Part, x.HasOptionD));
     }
 
     public async Task<ExamAttempt?> FindAttemptForUpdateAsync(Guid attemptId, Guid userId, CancellationToken cancellationToken)

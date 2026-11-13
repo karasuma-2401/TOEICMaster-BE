@@ -12,6 +12,11 @@ public sealed class ExamAttemptConfiguration : IEntityTypeConfiguration<ExamAtte
 
         builder.HasKey(x => x.Id);
 
+        // Ids are generated in the domain. Without this EF treats new children with a set key as existing rows.
+        builder.Property(x => x.Id).ValueGeneratedNever();
+
+        builder.Property(x => x.ReadingStartedAtUtc);
+
         builder.Property(x => x.Status)
             .HasConversion<int>()
             .IsRequired();
@@ -43,6 +48,8 @@ public sealed class ExamAttemptAnswerConfiguration : IEntityTypeConfiguration<Ex
         builder.ToTable("ExamAttemptAnswers");
 
         builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.Id).ValueGeneratedNever();
 
         builder.Property(x => x.SelectedKey)
             .HasMaxLength(8);

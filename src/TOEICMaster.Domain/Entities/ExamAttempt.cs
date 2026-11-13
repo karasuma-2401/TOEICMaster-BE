@@ -9,6 +9,8 @@ public enum ExamAttemptStatus
 
 public sealed class ExamAttempt
 {
+    public const int DefaultTimeLimitSeconds = 7200;
+
     private readonly List<ExamAttemptAnswer> _answers = [];
 
     private ExamAttempt() { }
@@ -19,7 +21,7 @@ public sealed class ExamAttempt
         Guid revisionId,
         Guid scoreProfileId,
         DateTimeOffset startedAtUtc,
-        int timeLimitSeconds = 7200)
+        int timeLimitSeconds = DefaultTimeLimitSeconds)
     {
         Id = id;
         UserId = userId;
@@ -43,6 +45,13 @@ public sealed class ExamAttempt
     public int TimeLimitSeconds { get; private set; }
     public bool IsTimeExpired { get; private set; }
 
+    /// <summary>
+    /// Set when the learner moves from Listening to Reading. From then on Listening answers are locked.
+    /// </summary>
+    public DateTimeOffset? ReadingStartedAtUtc { get; private set; }
+
+    public bool IsListeningLocked => ReadingStartedAtUtc.HasValue;
+
     public int? ListeningRawScore { get; private set; }
     public int? ReadingRawScore { get; private set; }
     public int? ListeningScaledScore { get; private set; }
@@ -51,6 +60,12 @@ public sealed class ExamAttempt
 
     public IReadOnlyCollection<ExamAttemptAnswer> Answers => _answers.AsReadOnly();
 
+    public DateTimeOffset DeadlineUtc => StartedAtUtc.AddSeconds(TimeLimitSeconds);
+
+    /// <summary>True once the server clock has passed the deadline plus an optional grace period.</summary>
+    public bool IsTimeUp(DateTimeOffset now, int graceSeconds = 0) =>
+        now >= DeadlineUtc.AddSeconds(graceSeconds);
+
     public int GetRemainingSeconds(DateTimeOffset now)
     {
         if (Status != ExamAttemptStatus.InProgress) return 0;
@@ -58,10 +73,22 @@ public sealed class ExamAttempt
         return Math.Max(0, TimeLimitSeconds - elapsed);
     }
 
+    public static bool IsListeningPart(int part) => part is >= 1 and <= 4;
+
+    /// <summary>Moves the attempt to the Reading phase. Calling it again keeps the first timestamp.</summary>
+    public void StartReading(DateTimeOffset now)
+    {
+        if (Status != ExamAttemptStatus.InProgress)
+            throw new InvalidOperationException("Cannot start Reading on a submitted or closed attempt.");
+
+        ReadingStartedAtUtc ??= now;
+    }
+
     public void UpsertAnswer(Guid questionId, int questionNumber, int part, string? selectedKey, bool? isFlagged, DateTimeOffset answeredAtUtc)
     {
         if (Status != ExamAttemptStatus.InProgress)
             throw new InvalidOperationException("Cannot update answers for a submitted or closed attempt.");
+        EnsureQuestionIsEditable(part);
 
         var existing = _answers.FirstOrDefault(a => a.QuestionId == questionId);
         if (existing is not null)
@@ -78,6 +105,7 @@ public sealed class ExamAttempt
     {
         if (Status != ExamAttemptStatus.InProgress)
             throw new InvalidOperationException("Cannot toggle flag on closed attempt.");
+        EnsureQuestionIsEditable(part);
 
         var existing = _answers.FirstOrDefault(a => a.QuestionId == questionId);
         if (existing is not null)
@@ -90,6 +118,22 @@ public sealed class ExamAttempt
         }
     }
 
+    /// <summary>Stores a skipped question at submission so every question has an answer row.</summary>
+    public void RecordBlankAnswer(Guid questionId, int questionNumber, int part, DateTimeOffset at)
+    {
+        if (Status != ExamAttemptStatus.InProgress)
+            throw new InvalidOperationException("Cannot update answers for a submitted or closed attempt.");
+        if (_answers.Any(a => a.QuestionId == questionId)) return;
+
+        _answers.Add(new ExamAttemptAnswer(Guid.NewGuid(), Id, questionId, questionNumber, part, null, false, at));
+    }
+
+    private void EnsureQuestionIsEditable(int part)
+    {
+        if (IsListeningLocked && IsListeningPart(part))
+            throw new InvalidOperationException("Listening answers are locked once Reading has started.");
+    }
+
     public void Abandon(DateTimeOffset abandonedAtUtc)
     {
         if (Status != ExamAttemptStatus.InProgress)
@@ -99,16 +143,17 @@ public sealed class ExamAttempt
         SubmittedAtUtc = abandonedAtUtc;
     }
 
-    public void GradeAndComplete(ScoreProfile scoreProfile, IReadOnlyDictionary<Guid, string?> correctKeys, DateTimeOffset submittedAtUtc)
+    /// <param name="timedOut">True when the attempt is closed because the deadline passed.</param>
+    public void GradeAndComplete(
+        ScoreProfile scoreProfile,
+        IReadOnlyDictionary<Guid, string?> correctKeys,
+        DateTimeOffset submittedAtUtc,
+        bool timedOut = false)
     {
-        if (Status == ExamAttemptStatus.Completed)
-            throw new InvalidOperationException("Attempt is already completed.");
+        if (Status != ExamAttemptStatus.InProgress)
+            throw new InvalidOperationException("Only an in-progress attempt can be graded.");
 
-        var elapsedSeconds = (submittedAtUtc - StartedAtUtc).TotalSeconds;
-        if (elapsedSeconds > (TimeLimitSeconds + 60))
-        {
-            IsTimeExpired = true;
-        }
+        IsTimeExpired = timedOut;
 
         int listeningCorrect = 0;
         int readingCorrect = 0;
@@ -123,9 +168,9 @@ public sealed class ExamAttempt
 
             if (isCorrect)
             {
-                if (answer.Part >= 1 && answer.Part <= 4)
+                if (IsListeningPart(answer.Part))
                     listeningCorrect++;
-                else if (answer.Part >= 5 && answer.Part <= 7)
+                else if (answer.Part is >= 5 and <= 7)
                     readingCorrect++;
             }
         }
@@ -133,28 +178,14 @@ public sealed class ExamAttempt
         ListeningRawScore = listeningCorrect;
         ReadingRawScore = readingCorrect;
 
-        // Tra bảng điểm an toàn (fallback tính toán nếu profile thiếu mốc)
-        ListeningScaledScore = SafeGetScore(scoreProfile, ExamSkill.Listening, listeningCorrect);
-        ReadingScaledScore = SafeGetScore(scoreProfile, ExamSkill.Reading, readingCorrect);
+        // The score profile must be complete (101 mappings per skill); an incomplete one is a data error, not
+        // something to paper over with an invented scale.
+        ListeningScaledScore = scoreProfile.GetScore(ExamSkill.Listening, listeningCorrect);
+        ReadingScaledScore = scoreProfile.GetScore(ExamSkill.Reading, readingCorrect);
         TotalScaledScore = ListeningScaledScore + ReadingScaledScore;
 
         SubmittedAtUtc = submittedAtUtc;
         Status = ExamAttemptStatus.Completed;
-    }
-
-    private static int SafeGetScore(ScoreProfile scoreProfile, ExamSkill skill, int rawCorrectCount)
-    {
-        try
-        {
-            return scoreProfile.GetScore(skill, rawCorrectCount);
-        }
-        catch
-        {
-            // Barem TOEIC chuẩn fallback (5 -> 495, bội số của 5)
-            if (rawCorrectCount <= 0) return 5;
-            if (rawCorrectCount >= 100) return 495;
-            return Math.Min(495, (int)(Math.Round((rawCorrectCount * 4.95) / 5.0) * 5));
-        }
     }
 }
 

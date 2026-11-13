@@ -77,7 +77,6 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamAttempt", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
@@ -99,6 +98,9 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
 
                     b.Property<int?>("ReadingScaledScore")
                         .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("ReadingStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("RevisionId")
                         .HasColumnType("uuid");
@@ -138,7 +140,6 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamAttemptAnswer", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("AnsweredAtUtc")

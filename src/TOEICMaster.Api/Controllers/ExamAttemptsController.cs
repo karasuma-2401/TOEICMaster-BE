@@ -19,14 +19,19 @@ public sealed class ExamAttemptsController(ISender sender) : ControllerBase
         return Guid.Parse(idClaim);
     }
 
-    [HttpPost("exams/{examId:guid}/attempts")]
-    public async Task<ActionResult<ExamAttemptSheetDto>> StartAttempt(
-        Guid examId,
-        [FromBody] StartExamAttemptInput? input,
-        CancellationToken cancellationToken)
+    /// <summary>Instructions screen: exam facts plus an in-progress attempt to resume, if any.</summary>
+    [HttpGet("exams/{examId:guid}/lr-overview")]
+    public async Task<ActionResult<LrExamOverviewDto>> GetOverview(Guid examId, CancellationToken cancellationToken)
     {
-        var timeLimit = input?.TimeLimitMinutes ?? 120;
-        var result = await sender.Send(new StartExamAttemptCommand(GetUserId(), examId, timeLimit), cancellationToken);
+        var result = await sender.Send(new GetLrExamOverviewQuery(GetUserId(), examId), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Starts an attempt, or resumes the in-progress one. The time limit is fixed by the server.</summary>
+    [HttpPost("exams/{examId:guid}/attempts")]
+    public async Task<ActionResult<ExamAttemptSheetDto>> StartAttempt(Guid examId, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StartExamAttemptCommand(GetUserId(), examId), cancellationToken);
         return Ok(result);
     }
 
@@ -34,7 +39,7 @@ public sealed class ExamAttemptsController(ISender sender) : ControllerBase
     public async Task<ActionResult<ExamAttemptSheetDto>> GetCurrentAttempt(Guid examId, CancellationToken cancellationToken)
     {
         var result = await sender.Send(new GetCurrentActiveAttemptQuery(GetUserId(), examId), cancellationToken);
-        if (result is null) return NotFound("No active attempt found for this exam.");
+        if (result is null) return NotFound();
         return Ok(result);
     }
 
@@ -45,6 +50,15 @@ public sealed class ExamAttemptsController(ISender sender) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Moves from Listening to Reading. Listening answers are locked from this point on.</summary>
+    [HttpPost("exam-attempts/{attemptId:guid}/start-reading")]
+    public async Task<ActionResult<ExamAttemptSheetDto>> StartReading(Guid attemptId, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StartReadingCommand(GetUserId(), attemptId), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Autosave. A null or blank <c>selectedKey</c> clears the selection for that question.</summary>
     [HttpPut("exam-attempts/{attemptId:guid}/answers")]
     public async Task<IActionResult> SaveAnswers(Guid attemptId, [FromBody] List<SaveAttemptAnswerInput> answers, CancellationToken cancellationToken)
     {
@@ -77,13 +91,21 @@ public sealed class ExamAttemptsController(ISender sender) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("exam-attempts/{attemptId:guid}/result")]
+    public async Task<ActionResult<ExamAttemptResultDto>> GetResult(Guid attemptId, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetExamAttemptResultQuery(GetUserId(), attemptId), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <param name="filter"><c>All</c> (default), <c>Incorrect</c> (wrong or skipped) or <c>Flagged</c>.</param>
     [HttpGet("exam-attempts/{attemptId:guid}/review")]
     public async Task<ActionResult<ExamAttemptReviewDto>> ReviewAttempt(
         Guid attemptId,
-        [FromQuery] bool onlyIncorrect = false,
+        [FromQuery] ExamReviewFilter filter = ExamReviewFilter.All,
         CancellationToken cancellationToken = default)
     {
-        var result = await sender.Send(new GetExamAttemptReviewQuery(GetUserId(), attemptId, onlyIncorrect), cancellationToken);
+        var result = await sender.Send(new GetExamAttemptReviewQuery(GetUserId(), attemptId, filter), cancellationToken);
         return Ok(result);
     }
 
