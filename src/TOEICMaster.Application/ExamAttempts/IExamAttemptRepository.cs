@@ -19,6 +19,7 @@ public interface IExamAttemptRepository
         CancellationToken cancellationToken);
     Task<ExamAttempt?> FindAttemptForUpdateAsync(Guid attemptId, Guid userId, CancellationToken cancellationToken);
     Task<ExamAttempt?> GetAttemptAsync(Guid attemptId, Guid userId, CancellationToken cancellationToken);
+    Task<string?> GetAttemptMediaObjectKeyAsync(Guid attemptId, Guid userId, Guid? assetId, ExamMediaKind kind, CancellationToken cancellationToken);
     Task<Guid?> FindActiveAttemptIdAsync(Guid userId, Guid examId, CancellationToken cancellationToken);
     Task<(IReadOnlyList<ExamAttemptHistoryItemDto> Items, int TotalCount)> GetAttemptHistoryAsync(
         Guid userId,
