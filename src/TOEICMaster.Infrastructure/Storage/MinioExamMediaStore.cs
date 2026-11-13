@@ -32,6 +32,17 @@ public sealed class MinioExamMediaStore(IMinioClient client, IOptions<MinioOptio
             .WithObject(objectKey).WithExpiry((int)lifetime.TotalSeconds));
     }
 
+    public async Task<string> CreatePresignedGetUrlAsync(string objectKey, TimeSpan lifetime,
+        CancellationToken cancellationToken)
+    {
+        await EnsureBucketAsync(cancellationToken);
+        var settings = options.Value;
+        var publicClient = new MinioClient().WithEndpoint(settings.PublicEndpoint)
+            .WithCredentials(settings.AccessKey, settings.SecretKey).WithSSL(settings.UseSsl).Build();
+        return await publicClient.PresignedGetObjectAsync(new PresignedGetObjectArgs().WithBucket(Bucket)
+            .WithObject(objectKey).WithExpiry((int)lifetime.TotalSeconds));
+    }
+
     public async Task<ExamMediaObjectMetadata?> GetMetadataAsync(string objectKey, CancellationToken cancellationToken)
     {
         try
