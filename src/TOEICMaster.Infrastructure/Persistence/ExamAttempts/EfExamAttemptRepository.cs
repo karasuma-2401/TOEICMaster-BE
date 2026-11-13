@@ -8,43 +8,41 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
 {
     public async Task<IReadOnlyList<PublishedLrExamDto>> GetPublishedExamsAsync(CancellationToken cancellationToken)
     {
-        var revisions = await (
-            from revision in db.ExamRevisions.AsNoTracking()
-            join exam in db.Exams.AsNoTracking() on revision.ExamId equals exam.Id
-            where revision.Status == ExamRevisionStatus.Published
-            select new
-            {
-                Revision = revision,
-                Exam = exam,
-                Blocks = revision.Blocks.Select(block => new
-                {
-                    block.Part,
-                    QuestionCount = block.Questions.Count
-                }).ToList()
-            })
+        var revisions = await db.ExamRevisions
+            .AsNoTracking()
+            .Where(revision => revision.Status == ExamRevisionStatus.Published)
+            .Select(revision => new { revision.Id, revision.ExamId, revision.VersionNumber, revision.CreatedAtUtc })
             .ToListAsync(cancellationToken);
 
-        return revisions
-            .GroupBy(item => item.Exam.Id)
-            .Select(group => group.OrderByDescending(item => item.Revision.VersionNumber).First())
-            .OrderByDescending(item => item.Revision.CreatedAtUtc)
-            .Select(item =>
-            {
-                var total = item.Blocks.Sum(block => block.QuestionCount);
-                var listening = item.Blocks.Where(block => block.Part is >= 1 and <= 4).Sum(block => block.QuestionCount);
-                return new PublishedLrExamDto(
-                    item.Exam.Id,
-                    item.Exam.Code,
-                    item.Exam.Title,
-                    item.Revision.VersionNumber,
-                    total,
-                    listening,
-                    total - listening,
-                    item.Revision.CreatedAtUtc);
-            })
+        var latest = revisions
+            .GroupBy(revision => revision.ExamId)
+            .Select(group => group.OrderByDescending(revision => revision.VersionNumber).First())
+            .OrderByDescending(revision => revision.CreatedAtUtc)
             .ToList();
-    }
+        if (latest.Count == 0) return [];
 
+        var examIds = latest.Select(revision => revision.ExamId).ToList();
+        var revisionIds = latest.Select(revision => revision.Id).ToList();
+        var exams = await db.Exams.AsNoTracking()
+            .Where(exam => examIds.Contains(exam.Id))
+            .ToDictionaryAsync(exam => exam.Id, cancellationToken);
+        var blockCounts = await db.ExamBlocks.AsNoTracking()
+            .Where(block => revisionIds.Contains(block.RevisionId))
+            .Select(block => new { block.RevisionId, block.Part, QuestionCount = block.Questions.Count })
+            .ToListAsync(cancellationToken);
+        var countsByRevision = blockCounts.GroupBy(block => block.RevisionId)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        return latest.Select(revision =>
+        {
+            var blocks = countsByRevision.TryGetValue(revision.Id, out var found) ? found : [];
+            var total = blocks.Sum(block => block.QuestionCount);
+            var listening = blocks.Where(block => block.Part is >= 1 and <= 4).Sum(block => block.QuestionCount);
+            var exam = exams[revision.ExamId];
+            return new PublishedLrExamDto(
+                exam.Id, exam.Code, exam.Title, revision.VersionNumber, total, listening, total - listening, revision.CreatedAtUtc);
+        }).ToList();
+    }
     public async Task<ExamHeader?> GetExamHeaderAsync(Guid examId, CancellationToken cancellationToken)
     {
         return await db.Exams
