@@ -8,13 +8,14 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
 {
     public async Task<IReadOnlyList<PublishedLrExamDto>> GetPublishedExamsAsync(CancellationToken cancellationToken)
     {
-        var revisions = await db.ExamRevisions
-            .AsNoTracking()
-            .Where(revision => revision.Status == ExamRevisionStatus.Published)
-            .Select(revision => new
+        var revisions = await (
+            from revision in db.ExamRevisions.AsNoTracking()
+            join exam in db.Exams.AsNoTracking() on revision.ExamId equals exam.Id
+            where revision.Status == ExamRevisionStatus.Published
+            select new
             {
                 Revision = revision,
-                Exam = revision.Exam,
+                Exam = exam,
                 Blocks = revision.Blocks.Select(block => new
                 {
                     block.Part,
