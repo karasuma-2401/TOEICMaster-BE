@@ -13,6 +13,7 @@ using TOEICMaster.Application.Accounts;
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
+using TOEICMaster.Application.ExamAttempts;
 using TOEICMaster.Application.Exams;
 using TOEICMaster.Application.ExerciseBank;
 using TOEICMaster.Application.Profile;
@@ -27,6 +28,7 @@ using TOEICMaster.Infrastructure.Health;
 using TOEICMaster.Infrastructure.Persistence;
 using TOEICMaster.Infrastructure.Persistence.Accounts;
 using TOEICMaster.Infrastructure.Persistence.Exams;
+using TOEICMaster.Infrastructure.Persistence.ExamAttempts;
 using TOEICMaster.Infrastructure.Persistence.ExerciseBank;
 using TOEICMaster.Infrastructure.Persistence.Profiles;
 using TOEICMaster.Infrastructure.Persistence.Speaking;
@@ -48,6 +50,7 @@ public static class DependencyInjection
         services.AddDbContext<ToeicDbContext>((provider, options) => options.UseNpgsql(
             provider.GetRequiredService<IOptions<ConnectionStringsOptions>>().Value.Postgres,
             provider => provider.EnableRetryOnFailure(3)));
+        services.AddScoped<IExamAttemptRepository, EfExamAttemptRepository>();
         services.AddScoped<IAccountReader, AccountReader>();
         services.AddScoped<IAdminUserReader, AdminUserReader>();
         services.AddScoped<IExamRepository, EfExamRepository>();

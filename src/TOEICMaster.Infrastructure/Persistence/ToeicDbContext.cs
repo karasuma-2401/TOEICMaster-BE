@@ -5,6 +5,8 @@ namespace TOEICMaster.Infrastructure.Persistence;
 
 public sealed class ToeicDbContext(DbContextOptions<ToeicDbContext> options) : DbContext(options)
 {
+    public DbSet<ExamAttempt> ExamAttempts => Set<ExamAttempt>();
+    public DbSet<ExamAttemptAnswer> ExamAttemptAnswers => Set<ExamAttemptAnswer>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();

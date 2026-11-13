@@ -172,6 +172,36 @@ Response `200 OK`:
 - `avatarUrl` luôn `null` vì endpoint ảnh đại diện chỉ phục vụ người đang đăng nhập.
 - `stats` tính trên toàn bộ người dùng, không phụ thuộc bộ lọc.
 
+## Thi thử TOEIC Listening & Reading (learner)
+
+Tất cả endpoint yêu cầu Bearer token và chỉ truy cập được lượt làm bài của chính người dùng đó. Server là nguồn thời gian duy nhất: giới hạn 120 phút do server đặt (client không gửi), thời gian còn lại tính từ `startedAtUtc`.
+
+| Method | Đường dẫn | Mục đích |
+| ------ | --------- | -------- |
+| GET | `/api/v1/exams/{examId}/lr-overview` | Màn hướng dẫn: tên đề, 200 câu, 120 phút, thang 10–990, `activeAttemptId` nếu có lượt đang làm dở |
+| POST | `/api/v1/exams/{examId}/attempts` | Bắt đầu lượt mới, hoặc tiếp tục lượt đang làm. Lượt cũ đã quá hạn được nộp tự động tại hạn chót rồi mở lượt mới |
+| GET | `/api/v1/exams/{examId}/current-attempt` | Lượt đang làm dở, `404` nếu không có |
+| GET | `/api/v1/exam-attempts/{attemptId}` | Tải lại đề và đáp án đã lưu (`phase`: `listening` hoặc `reading`) |
+| POST | `/api/v1/exam-attempts/{attemptId}/start-reading` | Chuyển sang Reading. Từ đây câu 1–100 bị khóa |
+| PUT | `/api/v1/exam-attempts/{attemptId}/answers` | Autosave: `[{ "questionId", "selectedKey", "isFlagged" }]`, tối đa 200 câu mỗi lần. `selectedKey` null hoặc rỗng là bỏ chọn |
+| PUT | `/api/v1/exam-attempts/{attemptId}/questions/{questionId}/flag` | Gắn hoặc bỏ cờ: `{ "isFlagged": true }` |
+| POST | `/api/v1/exam-attempts/{attemptId}/submit` | Nộp bài, trả kết quả |
+| POST | `/api/v1/exam-attempts/{attemptId}/abandon` | Hủy lượt đang làm |
+| GET | `/api/v1/exam-attempts/{attemptId}/result` | Báo cáo điểm: Listening/Reading, tổng, số đúng/sai/bỏ qua, hiệu suất theo Part (`parts`) |
+| GET | `/api/v1/exam-attempts/{attemptId}/review?filter=All` | Xem lại: `All`, `Incorrect` (sai hoặc bỏ qua), `Flagged`. Câu được nhóm theo `blocks` kèm đoạn văn (`contextBlocks`); `status` là `correct`, `wrong` hoặc `skipped` |
+| GET | `/api/v1/exam-attempts/history` | Lịch sử các lượt làm |
+
+Quy tắc server:
+
+- Đáp án phải là `A`–`D` (Part 2 chỉ `A`–`C`) và câu hỏi phải thuộc đề của lượt làm, nếu không trả `400`.
+- Sau `start-reading`, sửa hoặc gắn cờ câu Listening trả `409`.
+- Quá hạn chót cộng 5 giây, lưu đáp án trả `409`. Mở lại hoặc nộp sau hạn chót: bài được chấm tại hạn chót và `isTimeExpired = true`.
+- Chưa có `review` và `result` trước khi nộp (`409`).
+- Câu bỏ trống tính là `skipped`. Điểm quy đổi dùng barem của đề, barem thiếu mốc thì `400` thay vì tự suy ra điểm.
+- `explanation` và `translation` là hai trường văn bản duy nhất hiện có cho mỗi câu. Phần Bẫy, Ghi chú, Kỹ năng trên màn Review chưa có dữ liệu.
+
+Migration `AddExamAttemptReadingPhase` thêm cột `ExamAttempts.ReadingStartedAtUtc`.
+
 ## Giới hạn request xác thực
 
 Các endpoint xác thực có fixed-window rate limit theo địa chỉ IP trong từng API instance:
