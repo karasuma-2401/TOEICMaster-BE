@@ -91,6 +91,9 @@ public sealed class InMemoryExamAttempts : IExamAttemptRepository
     public Task<ExamAttempt?> GetAttemptAsync(Guid attemptId, Guid userId, CancellationToken cancellationToken) =>
         FindAttemptForUpdateAsync(attemptId, userId, cancellationToken);
 
+    public Task<string?> GetAttemptMediaObjectKeyAsync(Guid attemptId, Guid userId, Guid? assetId, ExamMediaKind kind, CancellationToken cancellationToken) =>
+        Task.FromResult<string?>(null);
+
     public Task<Guid?> FindActiveAttemptIdAsync(Guid userId, Guid examId, CancellationToken cancellationToken) =>
         Task.FromResult(_attempts
             .Where(a => a.UserId == userId && a.Status == ExamAttemptStatus.InProgress)
