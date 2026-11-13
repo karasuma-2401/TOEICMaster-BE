@@ -117,6 +117,42 @@ public sealed class ExamAttemptsController(ISender sender) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Returns a short-lived URL for the master Listening audio owned by this attempt.</summary>
+    [HttpGet("exam-attempts/{attemptId:guid}/audio")]
+    public async Task<ActionResult<ExamAttemptMediaUrlDto>> GetMasterAudio(Guid attemptId, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new GetExamAttemptMediaUrlQuery(GetUserId(), attemptId, TOEICMaster.Domain.Entities.ExamMediaKind.Audio),
+            cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Returns a short-lived URL for a Listening audio block attached to this attempt.</summary>
+    [HttpGet("exam-attempts/{attemptId:guid}/audio/{assetId:guid}")]
+    public async Task<ActionResult<ExamAttemptMediaUrlDto>> GetAudioAsset(
+        Guid attemptId,
+        Guid assetId,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new GetExamAttemptMediaUrlQuery(GetUserId(), attemptId, TOEICMaster.Domain.Entities.ExamMediaKind.Audio, assetId),
+            cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Returns a short-lived URL for an image attached to this attempt.</summary>
+    [HttpGet("exam-attempts/{attemptId:guid}/images/{assetId:guid}")]
+    public async Task<ActionResult<ExamAttemptMediaUrlDto>> GetImageAsset(
+        Guid attemptId,
+        Guid assetId,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new GetExamAttemptMediaUrlQuery(GetUserId(), attemptId, TOEICMaster.Domain.Entities.ExamMediaKind.Image, assetId),
+            cancellationToken);
+        return Ok(result);
+    }
+
     [HttpGet("exam-attempts/history")]
     public async Task<ActionResult<ExamAttemptHistoryPagedDto>> GetAttemptHistory(
         [FromQuery] int pageIndex = 1,
