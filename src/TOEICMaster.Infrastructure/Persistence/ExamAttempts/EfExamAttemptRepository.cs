@@ -172,8 +172,8 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
             x.Attempt.IsTimeExpired,
             x.Attempt.StartedAtUtc,
             x.Attempt.SubmittedAtUtc,
-            x.Attempt.SubmittedAtUtc.HasValue 
-                ? (int)(x.Attempt.SubmittedAtUtc.Value - x.Attempt.StartedAtUtc).TotalSeconds 
+            x.Attempt.SubmittedAtUtc.HasValue
+                ? (int)(x.Attempt.SubmittedAtUtc.Value - x.Attempt.StartedAtUtc).TotalSeconds
                 : null
         )).ToList();
 
