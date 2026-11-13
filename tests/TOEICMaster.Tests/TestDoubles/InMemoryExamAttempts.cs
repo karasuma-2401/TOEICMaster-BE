@@ -43,6 +43,23 @@ public sealed class InMemoryExamAttempts : IExamAttemptRepository
         new(code, "Stem", "Option A", "Option B", "Option C", withOptionD ? "Option D" : null, correctKey,
             "Translation", "Explanation", null);
 
+    public Task<IReadOnlyList<PublishedLrExamDto>> GetPublishedExamsAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<PublishedLrExamDto> items =
+        [
+            new PublishedLrExamDto(
+                Exam.Id,
+                Exam.Code,
+                Exam.Title,
+                Revision.VersionNumber,
+                200,
+                100,
+                100,
+                Revision.CreatedAtUtc)
+        ];
+        return Task.FromResult(items);
+    }
+
     public Task<ExamHeader?> GetExamHeaderAsync(Guid examId, CancellationToken cancellationToken) =>
         Task.FromResult<ExamHeader?>(examId == Exam.Id ? new ExamHeader(Exam.Id, Exam.Code, Exam.Title) : null);
 
