@@ -19,6 +19,14 @@ public sealed class ExamAttemptsController(ISender sender) : ControllerBase
         return Guid.Parse(idClaim);
     }
 
+    /// <summary>Published Listening and Reading exams available to learners.</summary>
+    [HttpGet("exams/lr")]
+    public async Task<ActionResult<IReadOnlyList<PublishedLrExamDto>>> GetPublishedExams(CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetPublishedLrExamsQuery(), cancellationToken);
+        return Ok(result);
+    }
+
     /// <summary>Instructions screen: exam facts plus an in-progress attempt to resume, if any.</summary>
     [HttpGet("exams/{examId:guid}/lr-overview")]
     public async Task<ActionResult<LrExamOverviewDto>> GetOverview(Guid examId, CancellationToken cancellationToken)
