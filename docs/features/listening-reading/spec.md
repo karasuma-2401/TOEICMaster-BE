@@ -1,6 +1,6 @@
 # Feature Specification: TOEIC Listening & Reading Module
 
-> **Trạng thái:** FE + BE hiện có luồng quản trị đề, barem đọc để chọn, ngân hàng bài tập và media workspace L&R; chưa có route/API attempt L&R cho học viên.
+ > **Trạng thái:** Backend đã triển khai learner attempt lifecycle và FE đã có BFF, catalog, phòng thi, autosave, submit, result và review. Learner audio/image delivery và practice API vẫn còn thiếu.
 > **Ánh xạ Figma:** Màn hình learner 12, 15–19; Admin 33–35, 40, 43, 44 (thiết kế UI, không đồng nghĩa API đã có).
 > **Quyết định kiến trúc:** [decisions/001-admin-lr-exam-revisions.md](../../decisions/001-admin-lr-exam-revisions.md)
 > **Tài liệu liên quan:** [Admin API](./admin-api.md) · [Attempt API](./attempt-api.md) · [Barem điểm](./scoring.md) · [Checklist](./tasks.md) · [API contract chung](../../contracts/api-contract.md#quản-trị-đề-toeic-listening--reading)
@@ -18,11 +18,11 @@ Mục tiêu sản phẩm là bài thi thử TOEIC Listening & Reading gồm **20
 - Admin tạo `ScoreProfile` với mapping Listening/Reading; publish chỉ qua khi đủ 101 mốc cho mỗi kỹ năng.
 - Hai loại media của đề: revision legacy dùng Master Audio; Draft mới và import chỉ có workbook dùng media workspace, upload audio theo block Listening và ảnh qua presigned PUT.
 
-### Ngoài phạm vi backend hiện tại
+### Phần backend còn thiếu
 
-- Chưa có API học viên lấy đề, làm bài, lưu đáp án, nộp bài, chấm điểm, xem kết quả, review hoặc lịch sử L&R.
-- Chưa có cơ chế phát media cho học viên, đồng hồ server, khóa câu Listening, tự nộp hoặc bảo vệ đáp án trong response learner.
-- Chưa có AI evaluation cho L&R; L&R dự kiến chấm trắc nghiệm theo barem, không theo luồng AI của Speaking/Writing.
+- Chưa có API cấp presigned GET URL cho learner audio/image từ media storage private; attempt sheet hiện mới có object key Master Audio legacy và chưa trả audio asset URL theo block workspace.
+- Chưa có API learner luyện tập theo Part từ exercise bank hoặc API lắp đề từ ngân hàng.
+- Chưa có AI evaluation cho L&R; L&R chấm trắc nghiệm theo barem, không theo luồng AI của Speaking/Writing.
 
 ### Cấu trúc 103 Blocks & 200 Slots:
 - **Part 1 (Photographs):** 6 blocks đơn (6 câu: 1–6, 4 lựa chọn A–D).
@@ -92,17 +92,17 @@ Scenario: Admin import ngân hàng bài tập theo Part
   Then API trả số item và số câu đã tạo cùng summary mới
 ```
 
-### Tiêu chí sản phẩm chưa được backend đáp ứng
+### Tiêu chí learner đã được triển khai ở Backend
 
 ```gherkin
-Scenario: Thí sinh làm bài thi L&R (chưa triển khai)
+Scenario: Thí sinh làm bài thi L&R
   Given thí sinh bắt đầu lượt thi hợp lệ trên một revision đã Published
   When hết 120 phút hoặc thí sinh bấm nộp bài
   Then hệ thống chấm điểm theo barem gắn với revision
   And trả về Listening 5–495, Reading 5–495, tổng điểm 10–990
 ```
 
-Endpoint và payload cho scenario này cần được chốt trước khi triển khai; xem [Attempt API](./attempt-api.md).
+Các endpoint và payload được mô tả tại [Attempt API](./attempt-api.md).
 
 ## 4. Luồng Frontend & BFF hiện có
 
@@ -155,6 +155,6 @@ sequenceDiagram
 
 `DataBankCenter` cho phép xem summary, lọc/phân trang theo Part, tạo thủ công một item và import XLSX. Các trường `audioUrl`/`imageUrl` của item ngân hàng là URL text trong dữ liệu item; chúng không đi qua media workspace của revision. UI hiện không dùng item ngân hàng để lắp tự động vào đề.
 
-### Phần FE không tồn tại
+### Phần FE learner đã có và còn thiếu
 
-Không có route learner L&R trong `src/app`, không có BFF `/api/lr/*`, và không có player/room thi, autosave đáp án, nộp bài, kết quả hay review. Các màn hình Figma/PRD về learner chỉ là đầu vào thiết kế, không được ghi là luồng đã triển khai.
+FE đã có BFF `/api/lr/*`, catalog đề Published, trang hướng dẫn, attempt room, autosave, chuyển Reading, submit, result và review. Những phần còn thiếu là audio player dùng URL an toàn, hiển thị ảnh từ asset ID, attempt history trên library và practice Part 1–7. Xem checklist cập nhật tại [tasks.md](./tasks.md).
