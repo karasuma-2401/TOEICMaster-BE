@@ -18,7 +18,7 @@ public sealed class GetExamAttemptMediaUrlHandler(
     TimeProvider timeProvider)
     : IRequestHandler<GetExamAttemptMediaUrlQuery, ExamAttemptMediaUrlDto>
 {
-    private static readonly TimeSpan UrlLifetime = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan UrlLifetime = TimeSpan.FromHours(3);
 
     public async Task<ExamAttemptMediaUrlDto> Handle(
         GetExamAttemptMediaUrlQuery request,
