@@ -9,6 +9,7 @@ public sealed record ExamQuestionMetadata(Guid RevisionId, int Number, int Part,
 
 public interface IExamAttemptRepository
 {
+    Task<IReadOnlyList<PublishedLrExamDto>> GetPublishedExamsAsync(CancellationToken cancellationToken);
     Task<ExamHeader?> GetExamHeaderAsync(Guid examId, CancellationToken cancellationToken);
     Task<ExamRevision?> FindPublishedRevisionForExamAsync(Guid examId, CancellationToken cancellationToken);
     Task<ExamRevision?> FindRevisionAsync(Guid revisionId, CancellationToken cancellationToken);
