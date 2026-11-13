@@ -6,6 +6,44 @@ namespace TOEICMaster.Infrastructure.Persistence.ExamAttempts;
 
 public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRepository
 {
+    public async Task<IReadOnlyList<PublishedLrExamDto>> GetPublishedExamsAsync(CancellationToken cancellationToken)
+    {
+        var revisions = await db.ExamRevisions
+            .AsNoTracking()
+            .Where(revision => revision.Status == ExamRevisionStatus.Published)
+            .Select(revision => new
+            {
+                Revision = revision,
+                Exam = revision.Exam,
+                Blocks = revision.Blocks.Select(block => new
+                {
+                    block.Part,
+                    QuestionCount = block.Questions.Count
+                }).ToList()
+            })
+            .ToListAsync(cancellationToken);
+
+        return revisions
+            .GroupBy(item => item.Exam.Id)
+            .Select(group => group.OrderByDescending(item => item.Revision.VersionNumber).First())
+            .OrderByDescending(item => item.Revision.CreatedAtUtc)
+            .Select(item =>
+            {
+                var total = item.Blocks.Sum(block => block.QuestionCount);
+                var listening = item.Blocks.Where(block => block.Part is >= 1 and <= 4).Sum(block => block.QuestionCount);
+                return new PublishedLrExamDto(
+                    item.Exam.Id,
+                    item.Exam.Code,
+                    item.Exam.Title,
+                    item.Revision.VersionNumber,
+                    total,
+                    listening,
+                    total - listening,
+                    item.Revision.CreatedAtUtc);
+            })
+            .ToList();
+    }
+
     public async Task<ExamHeader?> GetExamHeaderAsync(Guid examId, CancellationToken cancellationToken)
     {
         return await db.Exams
