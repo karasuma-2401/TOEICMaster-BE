@@ -112,6 +112,42 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
             .FirstOrDefaultAsync(a => a.Id == attemptId && a.UserId == userId, cancellationToken);
     }
 
+    public async Task<string?> GetAttemptMediaObjectKeyAsync(
+        Guid attemptId,
+        Guid userId,
+        Guid? assetId,
+        ExamMediaKind kind,
+        CancellationToken cancellationToken)
+    {
+        var attempt = await db.ExamAttempts.AsNoTracking()
+            .Where(item => item.Id == attemptId && item.UserId == userId)
+            .Select(item => new { item.RevisionId, item.Status })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (attempt is null || attempt.Status is not (ExamAttemptStatus.InProgress or ExamAttemptStatus.Completed))
+            return null;
+
+        var revision = await db.ExamRevisions.AsNoTracking()
+            .Include(item => item.Blocks).ThenInclude(block => block.Questions)
+            .Include(item => item.Blocks).ThenInclude(block => block.ContextBlocks)
+            .FirstOrDefaultAsync(item => item.Id == attempt.RevisionId, cancellationToken);
+        if (revision is null) return null;
+
+        if (assetId is null)
+            return kind == ExamMediaKind.Audio ? revision.MasterAudioObjectKey : null;
+
+        var isAttached = revision.Blocks.Any(block =>
+            kind == ExamMediaKind.Audio
+                ? block.AudioAssetId == assetId
+                : block.Questions.Any(question => question.ImageAssetId == assetId)
+                    || block.ContextBlocks.Any(context => context.ImageAssetId == assetId));
+        if (!isAttached) return null;
+
+        return await db.ExamMediaAssets.AsNoTracking()
+            .Where(asset => asset.Id == assetId && asset.Kind == kind)
+            .Select(asset => asset.ObjectKey)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<Guid?> FindActiveAttemptIdAsync(Guid userId, Guid examId, CancellationToken cancellationToken)
     {
         var id = await (
