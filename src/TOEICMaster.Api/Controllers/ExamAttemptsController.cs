@@ -1,7 +1,7 @@
+using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 using TOEICMaster.Application.ExamAttempts;
 
 namespace TOEICMaster.Api.Controllers;
