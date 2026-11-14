@@ -31,4 +31,4 @@ public partial class AddExamAttemptReadingPhase : Migration
             table: "ExamAttempts");
     }
 }
-}
+

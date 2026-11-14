@@ -88,4 +88,4 @@ public partial class AddCompleteExamTakingModule : Migration
             name: "ExamAttempts");
     }
 }
-}
+
