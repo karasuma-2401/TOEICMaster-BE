@@ -1,3 +1,4 @@
+using TOEICMaster.Application.ExamAttempts;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,6 +50,7 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<ISpeakingEvaluationSettings, StaticSpeakingEvaluationSettings>();
         services.AddSingleton<IExamRepository, EmptyExamRepository>();
         services.AddSingleton<IExamMediaStore, EmptyExamMediaStore>();
+        services.AddSingleton<IExamAttemptRepository, InMemoryExamAttempts>();
         services.AddSingleton<ILrExerciseBankRepository, EmptyLrExerciseBankRepository>();
         services.AddSingleton<ILrExerciseBankImportParser, EmptyLrExerciseBankImportParser>();
         services.AddSingleton<RecordingMailSender>();

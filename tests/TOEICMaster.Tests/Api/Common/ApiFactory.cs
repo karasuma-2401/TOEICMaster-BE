@@ -14,7 +14,10 @@ public class ApiFactory : WebApplicationFactory<Program>
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
             new Dictionary<string, string?>
             {
-                ["ConnectionStrings:Postgres"] = "Host=127.0.0.1;Database=test;Username=test;Password=test;Timeout=1",
+                ["ConnectionStrings:Postgres"] =
+    Environment.GetEnvironmentVariable("TOEICMASTER_TEST_POSTGRES")
+    ?? throw new InvalidOperationException(
+        "Environment variable TOEICMASTER_TEST_POSTGRES is required for API tests."),
                 ["ConnectionStrings:Redis"] = "127.0.0.1:1,abortConnect=false,connectTimeout=100,syncTimeout=100",
                 ["Minio:Endpoint"] = "127.0.0.1:1",
                 ["Minio:AccessKey"] = "test-access",
