@@ -1,7 +1,7 @@
+using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 using TOEICMaster.Application.ExamAttempts;
 
 namespace TOEICMaster.Api.Controllers;
@@ -17,6 +17,14 @@ public sealed class ExamAttemptsController(ISender sender) : ControllerBase
             ?? User.FindFirstValue("sub")
             ?? throw new UnauthorizedAccessException("User identifier not found in claims.");
         return Guid.Parse(idClaim);
+    }
+
+    /// <summary>Published Listening and Reading exams available to learners.</summary>
+    [HttpGet("exams/lr")]
+    public async Task<ActionResult<IReadOnlyList<PublishedLrExamDto>>> GetPublishedExams(CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetPublishedLrExamsQuery(), cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>Instructions screen: exam facts plus an in-progress attempt to resume, if any.</summary>
@@ -106,6 +114,42 @@ public sealed class ExamAttemptsController(ISender sender) : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var result = await sender.Send(new GetExamAttemptReviewQuery(GetUserId(), attemptId, filter), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Returns a short-lived URL for the master Listening audio owned by this attempt.</summary>
+    [HttpGet("exam-attempts/{attemptId:guid}/audio")]
+    public async Task<ActionResult<ExamAttemptMediaUrlDto>> GetMasterAudio(Guid attemptId, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new GetExamAttemptMediaUrlQuery(GetUserId(), attemptId, TOEICMaster.Domain.Entities.ExamMediaKind.Audio),
+            cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Returns a short-lived URL for a Listening audio block attached to this attempt.</summary>
+    [HttpGet("exam-attempts/{attemptId:guid}/audio/{assetId:guid}")]
+    public async Task<ActionResult<ExamAttemptMediaUrlDto>> GetAudioAsset(
+        Guid attemptId,
+        Guid assetId,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new GetExamAttemptMediaUrlQuery(GetUserId(), attemptId, TOEICMaster.Domain.Entities.ExamMediaKind.Audio, assetId),
+            cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Returns a short-lived URL for an image attached to this attempt.</summary>
+    [HttpGet("exam-attempts/{attemptId:guid}/images/{assetId:guid}")]
+    public async Task<ActionResult<ExamAttemptMediaUrlDto>> GetImageAsset(
+        Guid attemptId,
+        Guid assetId,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new GetExamAttemptMediaUrlQuery(GetUserId(), attemptId, TOEICMaster.Domain.Entities.ExamMediaKind.Image, assetId),
+            cancellationToken);
         return Ok(result);
     }
 

@@ -6,6 +6,43 @@ namespace TOEICMaster.Infrastructure.Persistence.ExamAttempts;
 
 public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRepository
 {
+    public async Task<IReadOnlyList<PublishedLrExamDto>> GetPublishedExamsAsync(CancellationToken cancellationToken)
+    {
+        var revisions = await db.ExamRevisions
+            .AsNoTracking()
+            .Where(revision => revision.Status == ExamRevisionStatus.Published)
+            .Select(revision => new { revision.Id, revision.ExamId, revision.VersionNumber, revision.CreatedAtUtc })
+            .ToListAsync(cancellationToken);
+
+        var latest = revisions
+            .GroupBy(revision => revision.ExamId)
+            .Select(group => group.OrderByDescending(revision => revision.VersionNumber).First())
+            .OrderByDescending(revision => revision.CreatedAtUtc)
+            .ToList();
+        if (latest.Count == 0) return [];
+
+        var examIds = latest.Select(revision => revision.ExamId).ToList();
+        var revisionIds = latest.Select(revision => revision.Id).ToList();
+        var exams = await db.Exams.AsNoTracking()
+            .Where(exam => examIds.Contains(exam.Id))
+            .ToDictionaryAsync(exam => exam.Id, cancellationToken);
+        var blockCounts = await db.ExamBlocks.AsNoTracking()
+            .Where(block => revisionIds.Contains(block.RevisionId))
+            .Select(block => new { block.RevisionId, block.Part, QuestionCount = block.Questions.Count })
+            .ToListAsync(cancellationToken);
+        var countsByRevision = blockCounts.GroupBy(block => block.RevisionId)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        return latest.Select(revision =>
+        {
+            var blocks = countsByRevision.TryGetValue(revision.Id, out var found) ? found : [];
+            var total = blocks.Sum(block => block.QuestionCount);
+            var listening = blocks.Where(block => block.Part is >= 1 and <= 4).Sum(block => block.QuestionCount);
+            var exam = exams[revision.ExamId];
+            return new PublishedLrExamDto(
+                exam.Id, exam.Code, exam.Title, revision.VersionNumber, total, listening, total - listening, revision.CreatedAtUtc);
+        }).ToList();
+    }
     public async Task<ExamHeader?> GetExamHeaderAsync(Guid examId, CancellationToken cancellationToken)
     {
         return await db.Exams
@@ -75,6 +112,42 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
             .FirstOrDefaultAsync(a => a.Id == attemptId && a.UserId == userId, cancellationToken);
     }
 
+    public async Task<string?> GetAttemptMediaObjectKeyAsync(
+        Guid attemptId,
+        Guid userId,
+        Guid? assetId,
+        ExamMediaKind kind,
+        CancellationToken cancellationToken)
+    {
+        var attempt = await db.ExamAttempts.AsNoTracking()
+            .Where(item => item.Id == attemptId && item.UserId == userId)
+            .Select(item => new { item.RevisionId, item.Status })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (attempt is null || attempt.Status is not (ExamAttemptStatus.InProgress or ExamAttemptStatus.Completed))
+            return null;
+
+        var revision = await db.ExamRevisions.AsNoTracking()
+            .Include(item => item.Blocks).ThenInclude(block => block.Questions)
+            .Include(item => item.Blocks).ThenInclude(block => block.ContextBlocks)
+            .FirstOrDefaultAsync(item => item.Id == attempt.RevisionId, cancellationToken);
+        if (revision is null) return null;
+
+        if (assetId is null)
+            return kind == ExamMediaKind.Audio ? revision.MasterAudioObjectKey : null;
+
+        var isAttached = revision.Blocks.Any(block =>
+            kind == ExamMediaKind.Audio
+                ? block.AudioAssetId == assetId
+                : block.Questions.Any(question => question.ImageAssetId == assetId)
+                    || block.ContextBlocks.Any(context => context.ImageAssetId == assetId));
+        if (!isAttached) return null;
+
+        return await db.ExamMediaAssets.AsNoTracking()
+            .Where(asset => asset.Id == assetId && asset.Kind == kind)
+            .Select(asset => asset.ObjectKey)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<Guid?> FindActiveAttemptIdAsync(Guid userId, Guid examId, CancellationToken cancellationToken)
     {
         var id = await (
@@ -135,8 +208,8 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
             x.Attempt.IsTimeExpired,
             x.Attempt.StartedAtUtc,
             x.Attempt.SubmittedAtUtc,
-            x.Attempt.SubmittedAtUtc.HasValue 
-                ? (int)(x.Attempt.SubmittedAtUtc.Value - x.Attempt.StartedAtUtc).TotalSeconds 
+            x.Attempt.SubmittedAtUtc.HasValue
+                ? (int)(x.Attempt.SubmittedAtUtc.Value - x.Attempt.StartedAtUtc).TotalSeconds
                 : null
         )).ToList();
 

@@ -264,4 +264,17 @@ public sealed class ExamAttemptApplicationTests
         Assert.True(_repository.Attempts[0].IsTimeExpired);
         Assert.Equal(7200, second.RemainingSeconds);
     }
+    [Fact]
+    public async Task Published_exam_catalog_returns_only_the_published_exam_summary()
+    {
+        var items = await new GetPublishedLrExamsHandler(_repository)
+            .Handle(new GetPublishedLrExamsQuery(), CancellationToken.None);
+
+        var item = Assert.Single(items);
+        Assert.Equal(_repository.Exam.Id, item.ExamId);
+        Assert.Equal("LR-TEST-001", item.Code);
+        Assert.Equal(200, item.TotalQuestions);
+        Assert.Equal(100, item.ListeningQuestions);
+        Assert.Equal(100, item.ReadingQuestions);
+    }
 }

@@ -8,6 +8,8 @@ public interface IExamMediaStore
     Task DeleteAsync(string objectKey, CancellationToken cancellationToken);
     Task<string> CreatePresignedPutUrlAsync(string objectKey, TimeSpan lifetime, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
+    Task<string> CreatePresignedGetUrlAsync(string objectKey, TimeSpan lifetime, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
     Task<ExamMediaObjectMetadata?> GetMetadataAsync(string objectKey, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 }

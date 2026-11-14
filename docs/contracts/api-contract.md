@@ -178,6 +178,7 @@ Tất cả endpoint yêu cầu Bearer token và chỉ truy cập được lượ
 
 | Method | Đường dẫn | Mục đích |
 | ------ | --------- | -------- |
+| GET | `/api/v1/exams/lr` | Danh sách revision Published mới nhất của từng đề, không chứa đáp án đúng |
 | GET | `/api/v1/exams/{examId}/lr-overview` | Màn hướng dẫn: tên đề, 200 câu, 120 phút, thang 10–990, `activeAttemptId` nếu có lượt đang làm dở |
 | POST | `/api/v1/exams/{examId}/attempts` | Bắt đầu lượt mới, hoặc tiếp tục lượt đang làm. Lượt cũ đã quá hạn được nộp tự động tại hạn chót rồi mở lượt mới |
 | GET | `/api/v1/exams/{examId}/current-attempt` | Lượt đang làm dở, `404` nếu không có |

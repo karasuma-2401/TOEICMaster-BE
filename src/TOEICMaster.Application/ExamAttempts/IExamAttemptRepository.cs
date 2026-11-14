@@ -9,6 +9,7 @@ public sealed record ExamQuestionMetadata(Guid RevisionId, int Number, int Part,
 
 public interface IExamAttemptRepository
 {
+    Task<IReadOnlyList<PublishedLrExamDto>> GetPublishedExamsAsync(CancellationToken cancellationToken);
     Task<ExamHeader?> GetExamHeaderAsync(Guid examId, CancellationToken cancellationToken);
     Task<ExamRevision?> FindPublishedRevisionForExamAsync(Guid examId, CancellationToken cancellationToken);
     Task<ExamRevision?> FindRevisionAsync(Guid revisionId, CancellationToken cancellationToken);
@@ -18,6 +19,7 @@ public interface IExamAttemptRepository
         CancellationToken cancellationToken);
     Task<ExamAttempt?> FindAttemptForUpdateAsync(Guid attemptId, Guid userId, CancellationToken cancellationToken);
     Task<ExamAttempt?> GetAttemptAsync(Guid attemptId, Guid userId, CancellationToken cancellationToken);
+    Task<string?> GetAttemptMediaObjectKeyAsync(Guid attemptId, Guid userId, Guid? assetId, ExamMediaKind kind, CancellationToken cancellationToken);
     Task<Guid?> FindActiveAttemptIdAsync(Guid userId, Guid examId, CancellationToken cancellationToken);
     Task<(IReadOnlyList<ExamAttemptHistoryItemDto> Items, int TotalCount)> GetAttemptHistoryAsync(
         Guid userId,

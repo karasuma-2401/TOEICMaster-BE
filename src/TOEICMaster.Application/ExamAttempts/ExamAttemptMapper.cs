@@ -38,6 +38,7 @@ public static class ExamAttemptMapper
             block.Id,
             block.Part,
             block.FirstQuestionNumber,
+            block.AudioAssetId,
             Contexts(block),
             block.Questions.OrderBy(question => question.Number).Select(question =>
             {
