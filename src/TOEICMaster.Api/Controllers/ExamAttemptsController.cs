@@ -20,6 +20,7 @@ public sealed class ExamAttemptsController(ISender sender) : ControllerBase
     }
 
     /// <summary>Published Listening and Reading exams available to learners.</summary>
+    [AllowAnonymous]
     [HttpGet("exams/lr")]
     public async Task<ActionResult<IReadOnlyList<PublishedLrExamDto>>> GetPublishedExams(CancellationToken cancellationToken)
     {

@@ -37,6 +37,8 @@ public sealed class ToeicDbContext(DbContextOptions<ToeicDbContext> options) : D
     public DbSet<ScoreConversion> ScoreConversions => Set<ScoreConversion>();
     public DbSet<LrExerciseBankItem> LrExerciseBankItems => Set<LrExerciseBankItem>();
     public DbSet<LrExerciseBankQuestion> LrExerciseBankQuestions => Set<LrExerciseBankQuestion>();
+    public DbSet<LrPracticeAttempt> LrPracticeAttempts => Set<LrPracticeAttempt>();
+    public DbSet<LrPracticeAttemptAnswer> LrPracticeAttemptAnswers => Set<LrPracticeAttemptAnswer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

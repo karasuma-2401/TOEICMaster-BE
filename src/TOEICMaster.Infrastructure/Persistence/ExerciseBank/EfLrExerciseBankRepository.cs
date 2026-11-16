@@ -29,7 +29,45 @@ public sealed class EfLrExerciseBankRepository(ToeicDbContext context) : ILrExer
         return new LrExerciseItemPageDto(items.Select(LrExerciseBankMapping.ToDto).ToArray(), filter.PageNumber,
             filter.PageSize, totalCount);
     }
+	public async Task<(IReadOnlyList<LrExerciseBankItem> Items, int TotalCount)> GetPublishedPageAsync(
+    int part,
+    int pageNumber,
+    int pageSize,
+    CancellationToken cancellationToken)
+{
+    var parsedPart = LrExerciseBankMapping.ParsePart(part);
 
+    var query = context.LrExerciseBankItems
+        .AsNoTracking()
+        .Include(item => item.Questions)
+        .Where(item =>
+            item.Part == parsedPart &&
+            item.Status == LrExerciseStatus.Published);
+
+    var totalCount = await query.CountAsync(cancellationToken);
+
+    var items = await query
+        .OrderBy(item => item.Code)
+        .ThenBy(item => item.Id)
+        .Skip((pageNumber - 1) * pageSize)
+        .Take(pageSize)
+        .ToListAsync(cancellationToken);
+
+    return (items, totalCount);
+}
+
+public Task<LrExerciseBankItem?> GetPublishedByIdAsync(
+    Guid itemId,
+    CancellationToken cancellationToken)
+{
+    return context.LrExerciseBankItems
+        .AsNoTracking()
+        .Include(item => item.Questions)
+        .FirstOrDefaultAsync(
+            item => item.Id == itemId &&
+                    item.Status == LrExerciseStatus.Published,
+            cancellationToken);
+}
     public async Task<LrExerciseBankSummaryDto> GetSummaryAsync(CancellationToken cancellationToken)
     {
         var summaries = await context.LrExerciseBankItems.AsNoTracking().GroupBy(item => item.Part)
