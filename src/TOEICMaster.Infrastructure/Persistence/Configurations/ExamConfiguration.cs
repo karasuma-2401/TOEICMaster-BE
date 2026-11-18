@@ -28,8 +28,8 @@ public sealed class ExamRevisionConfiguration : IEntityTypeConfiguration<ExamRev
         builder.HasKey(revision => revision.Id);
         builder.Property(revision => revision.VersionNumber).IsRequired();
         builder.Property(revision => revision.Status).HasConversion<string>().HasMaxLength(16).IsRequired();
-        builder.Property(revision => revision.MasterAudioObjectKey).HasMaxLength(256);
-        builder.Property(revision => revision.UsesMediaWorkspace).HasDefaultValue(false).IsRequired();
+        builder.Ignore(revision => revision.MasterAudioObjectKey);
+        builder.Ignore(revision => revision.UsesMediaWorkspace);
         builder.Property(revision => revision.CreatedAtUtc).IsRequired();
         builder.HasIndex(revision => new { revision.ExamId, revision.VersionNumber }).IsUnique();
         builder.HasIndex(revision => new { revision.ExamId, revision.Status });
@@ -110,6 +110,7 @@ public sealed class ExamMediaAssetConfiguration : IEntityTypeConfiguration<ExamM
         builder.Property(asset => asset.ContentType).HasMaxLength(64).IsRequired();
         builder.Property(asset => asset.Kind).HasConversion<string>().HasMaxLength(16).IsRequired();
         builder.Property(asset => asset.ByteSize).IsRequired();
+        builder.Property(asset => asset.DurationMs);
         builder.Property(asset => asset.CreatedAtUtc).IsRequired();
         builder.HasIndex(asset => asset.ObjectKey).IsUnique();
     }
@@ -127,6 +128,7 @@ public sealed class ExamMediaUploadIntentConfiguration : IEntityTypeConfiguratio
         builder.Property(intent => intent.ContentType).HasMaxLength(64).IsRequired();
         builder.Property(intent => intent.Status).HasConversion<string>().HasMaxLength(16).IsRequired();
         builder.Property(intent => intent.ExpectedByteSize).IsRequired();
+        builder.Property(intent => intent.ExpectedDurationMs);
         builder.Property(intent => intent.ExpiresAtUtc).IsRequired();
         builder.Property(intent => intent.CreatedAtUtc).IsRequired();
         builder.HasIndex(intent => intent.ObjectKey).IsUnique();

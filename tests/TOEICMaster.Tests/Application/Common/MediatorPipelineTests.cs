@@ -1,4 +1,3 @@
-using TOEICMaster.Application.ExamAttempts;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +7,7 @@ using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Email.Commands.SendEmail;
+using TOEICMaster.Application.ExamAttempts;
 using TOEICMaster.Application.Exams;
 using TOEICMaster.Application.ExerciseBank;
 using TOEICMaster.Application.Profile;

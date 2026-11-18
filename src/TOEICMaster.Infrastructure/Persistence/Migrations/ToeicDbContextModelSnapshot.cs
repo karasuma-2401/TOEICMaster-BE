@@ -281,6 +281,9 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("DurationMs")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -318,6 +321,9 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
 
                     b.Property<long>("ExpectedByteSize")
                         .HasColumnType("bigint");
+
+                    b.Property<int?>("ExpectedDurationMs")
+                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -426,10 +432,6 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ExamId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("MasterAudioObjectKey")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
                     b.Property<Guid>("ScoreProfileId")
                         .HasColumnType("uuid");
 
@@ -437,11 +439,6 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
-
-                    b.Property<bool>("UsesMediaWorkspace")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
 
                     b.Property<int>("VersionNumber")
                         .HasColumnType("integer");
