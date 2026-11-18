@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
@@ -20,13 +19,18 @@ namespace TOEICMaster.Tests.Api.Exams;
 public sealed class ExamsApiFactory : ApiFactory
 {
     public ScoreProfile ScoreProfile { get; } = ScoreProfile.Create("Reference profile", DateTimeOffset.UtcNow);
+    internal FakeExamRepository Repository { get; }
+    internal FakeExamMediaStore MediaStore { get; } = new();
+
+    public ExamsApiFactory() => Repository = new FakeExamRepository(ScoreProfile);
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
         builder.ConfigureTestServices(services =>
         {
-            services.AddSingleton<IExamRepository>(new FakeExamRepository(ScoreProfile));
+            services.AddSingleton<IExamRepository>(Repository);
+            services.AddSingleton<IExamMediaStore>(MediaStore);
             services.AddAuthentication(options =>
                 {
                     options.DefaultAuthenticateScheme = "Test";
@@ -53,6 +57,26 @@ public sealed class ExamTestAuthenticationHandler(IOptionsMonitor<Authentication
 
 public sealed class ExamsApiTests(ExamsApiFactory factory) : IClassFixture<ExamsApiFactory>
 {
+    private HttpClient CreateAdminClient()
+    {
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-Role", "Admin");
+        return client;
+    }
+
+    private async Task<(Guid ExamId, Guid RevisionId)> CreateDraftAsync(HttpClient client, string code)
+    {
+        using var response = await client.PostAsJsonAsync("/api/v1/admin/exams", new
+        {
+            code,
+            title = "Practice test",
+            scoreProfileId = factory.ScoreProfile.Id
+        });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        return (result.GetProperty("examId").GetGuid(), result.GetProperty("revisionId").GetGuid());
+    }
+
     [Theory]
     [InlineData(null, HttpStatusCode.Unauthorized)]
     [InlineData("User", HttpStatusCode.Forbidden)]
@@ -75,8 +99,7 @@ public sealed class ExamsApiTests(ExamsApiFactory factory) : IClassFixture<Exams
     [Fact]
     public async Task Admin_creates_a_draft_with_200_slots()
     {
-        using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Test-Role", "Admin");
+        using var client = CreateAdminClient();
 
         using var response = await client.PostAsJsonAsync("/api/v1/admin/exams", new
         {
@@ -95,8 +118,7 @@ public sealed class ExamsApiTests(ExamsApiFactory factory) : IClassFixture<Exams
     [Fact]
     public async Task Admin_lists_reusable_score_profiles()
     {
-        using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Test-Role", "Admin");
+        using var client = CreateAdminClient();
 
         using var response = await client.GetAsync("/api/v1/admin/score-profiles");
 
@@ -108,8 +130,7 @@ public sealed class ExamsApiTests(ExamsApiFactory factory) : IClassFixture<Exams
     [Fact]
     public async Task Admin_creates_a_score_profile_with_string_skill_values()
     {
-        using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Test-Role", "Admin");
+        using var client = CreateAdminClient();
 
         using var response = await client.PostAsJsonAsync("/api/v1/admin/score-profiles", new
         {
@@ -125,13 +146,9 @@ public sealed class ExamsApiTests(ExamsApiFactory factory) : IClassFixture<Exams
     [Fact]
     public async Task Import_rejects_an_invalid_workbook_without_creating_a_draft()
     {
-        using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Test-Role", "Admin");
+        using var client = CreateAdminClient();
         using var form = new MultipartFormDataContent();
         form.Add(new ByteArrayContent(Encoding.UTF8.GetBytes("not an XLSX")), "workbook", "exam.xlsx");
-        var audio = new ByteArrayContent("RIFF"u8.ToArray().Concat(new byte[4]).Concat("WAVEfmt "u8.ToArray()).ToArray());
-        audio.Headers.ContentType = new MediaTypeHeaderValue("audio/wav");
-        form.Add(audio, "masterAudio", "listening.wav");
 
         using var response = await client.PostAsync("/api/v1/admin/exams/import", form);
 
@@ -139,11 +156,134 @@ public sealed class ExamsApiTests(ExamsApiFactory factory) : IClassFixture<Exams
         var result = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(result.GetProperty("errors").TryGetProperty("workbook", out _));
     }
+
+    [Fact]
+    public async Task Audio_upload_intent_persists_duration_and_revision_detail_returns_audio_duration_without_legacy_flags()
+    {
+        using var client = CreateAdminClient();
+        var (examId, revisionId) = await CreateDraftAsync(client, "LR-2026-DUR-1");
+        factory.MediaStore.NextMetadata = new ExamMediaObjectMetadata(1024, "audio/mpeg", "etag-1");
+
+        using var intentResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents",
+            new
+            {
+                ownerKind = "AudioGroup",
+                ownerKey = "P1-Q1",
+                contentType = "audio/mp3",
+                byteSize = 1024,
+                durationMs = 31_250
+            });
+        Assert.Equal(HttpStatusCode.Created, intentResponse.StatusCode);
+        var intentJson = await intentResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var intentId = intentJson.GetProperty("intentId").GetGuid();
+        Assert.Equal("audio/mpeg", intentJson.GetProperty("requiredHeaders").GetProperty("Content-Type").GetString());
+
+        using var completeResponse = await client.PostAsync(
+            $"/api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents/{intentId}/complete",
+            content: null);
+        Assert.Equal(HttpStatusCode.Created, completeResponse.StatusCode);
+        var assetJson = await completeResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(31_250, assetJson.GetProperty("durationMs").GetInt32());
+
+        using var detailResponse = await client.GetAsync($"/api/v1/admin/exams/{examId}/revisions/{revisionId}");
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+        var detailJson = await detailResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(detailJson.TryGetProperty("hasMasterAudio", out _));
+        Assert.False(detailJson.TryGetProperty("usesMediaWorkspace", out _));
+        var p1Block = detailJson.GetProperty("blocks").EnumerateArray()
+            .Single(block => block.GetProperty("key").GetString() == "P1-Q1");
+        Assert.Equal(31_250, p1Block.GetProperty("audioDurationMs").GetInt32());
+    }
+
+    [Fact]
+    public async Task Question_image_upload_intent_is_allowed_for_part_1()
+    {
+        using var client = CreateAdminClient();
+        var (examId, revisionId) = await CreateDraftAsync(client, "LR-2026-IMG-P1");
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents",
+            new
+            {
+                ownerKind = "QuestionImage",
+                ownerKey = "1",
+                contentType = "image/png",
+                byteSize = 2048
+            });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("AudioGroup", "P1-Q1", "audio/mpeg", 0)]
+    [InlineData("AudioGroup", "P1-Q1", "audio/mpeg", 3_600_001)]
+    [InlineData("QuestionImage", "1", "image/png", 5_000)]
+    public async Task Media_upload_intent_rejects_invalid_duration_with_validation_problem_details(
+        string ownerKind, string ownerKey, string contentType, int durationMs)
+    {
+        using var client = CreateAdminClient();
+        var (examId, revisionId) = await CreateDraftAsync(client, $"LR-2026-VAL-{Guid.NewGuid():N}"[..16]);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents",
+            new
+            {
+                ownerKind,
+                ownerKey,
+                contentType,
+                byteSize = 1024,
+                durationMs
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(problem.TryGetProperty("errors", out _));
+    }
+
+    [Fact]
+    public async Task Legacy_master_audio_upload_endpoint_is_removed()
+    {
+        using var client = CreateAdminClient();
+        var (examId, revisionId) = await CreateDraftAsync(client, "LR-2026-LEG-1");
+        using var form = new MultipartFormDataContent();
+        form.Add(new ByteArrayContent([1, 2, 3, 4]), "file", "master.mp3");
+
+        using var response = await client.PutAsync(
+            $"/api/v1/admin/exams/{examId}/revisions/{revisionId}/master-audio", form);
+
+        Assert.True(response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed);
+    }
+}
+
+internal sealed class FakeExamMediaStore : IExamMediaStore
+{
+    public ExamMediaObjectMetadata? NextMetadata { get; set; }
+
+    public Task UploadAsync(string objectKey, byte[] content, string contentType, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+
+    public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task<string> CreatePresignedPutUrlAsync(string objectKey, TimeSpan lifetime,
+        CancellationToken cancellationToken) => Task.FromResult($"https://minio.local/put/{objectKey}");
+
+    public Task<string> CreatePresignedGetUrlAsync(string objectKey, TimeSpan lifetime,
+        CancellationToken cancellationToken) => Task.FromResult($"https://minio.local/get/{objectKey}");
+
+    public Task<IReadOnlyList<string>> CreatePresignedGetUrlsAsync(IReadOnlyList<string> objectKeys, TimeSpan lifetime,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<string>>(objectKeys.Select(key => $"https://minio.local/get/{key}").ToArray());
+
+    public Task<ExamMediaObjectMetadata?> GetMetadataAsync(string objectKey, CancellationToken cancellationToken) =>
+        Task.FromResult(NextMetadata);
 }
 
 internal sealed class FakeExamRepository(ScoreProfile scoreProfile) : IExamRepository
 {
     private readonly List<Exam> _exams = [];
+    private readonly Dictionary<Guid, ExamMediaUploadIntent> _intents = [];
+    private readonly Dictionary<Guid, ExamMediaAsset> _assets = [];
 
     public Task<bool> ExamCodeExistsAsync(string code, CancellationToken cancellationToken) =>
         Task.FromResult(_exams.Any(exam => string.Equals(exam.Code, code, StringComparison.OrdinalIgnoreCase)));
@@ -163,16 +303,38 @@ internal sealed class FakeExamRepository(ScoreProfile scoreProfile) : IExamRepos
     public Task<bool> ImageAssetsExistAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken cancellationToken) =>
         Task.FromResult(true);
 
+    public Task<IReadOnlyDictionary<Guid, int?>> GetMediaDurationsAsync(IReadOnlyCollection<Guid> assetIds,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyDictionary<Guid, int?> durations = assetIds
+            .Where(_assets.ContainsKey)
+            .ToDictionary(id => id, id => _assets[id].DurationMs);
+        return Task.FromResult(durations);
+    }
+
     public Task AddExamAsync(Exam exam, CancellationToken cancellationToken)
     {
         _exams.Add(exam);
         return Task.CompletedTask;
     }
 
-    public Task AddScoreProfileAsync(ScoreProfile scoreProfile, CancellationToken cancellationToken) =>
+    public Task AddScoreProfileAsync(ScoreProfile profile, CancellationToken cancellationToken) =>
         Task.CompletedTask;
 
-    public Task AddExamMediaAssetAsync(ExamMediaAsset asset, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task AddExamMediaAssetAsync(ExamMediaAsset asset, CancellationToken cancellationToken)
+    {
+        _assets[asset.Id] = asset;
+        return Task.CompletedTask;
+    }
+
+    public Task AddExamMediaUploadIntentAsync(ExamMediaUploadIntent intent, CancellationToken cancellationToken)
+    {
+        _intents[intent.Id] = intent;
+        return Task.CompletedTask;
+    }
+
+    public Task<ExamMediaUploadIntent?> FindExamMediaUploadIntentAsync(Guid intentId, CancellationToken cancellationToken) =>
+        Task.FromResult(_intents.GetValueOrDefault(intentId));
 
     public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

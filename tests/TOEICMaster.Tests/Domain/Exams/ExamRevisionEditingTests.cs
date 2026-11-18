@@ -49,7 +49,8 @@ public sealed class ExamRevisionEditingTests
 
         var errors = revision.GetPublicationErrors(scoreProfileIsComplete: false);
 
-        Assert.Contains(errors, error => error.Contains("Master Audio", StringComparison.Ordinal));
+        Assert.DoesNotContain(errors, error => error.Contains("Master Audio", StringComparison.Ordinal));
+        Assert.Contains(errors, error => error.Contains("P1-Q1", StringComparison.Ordinal));
         Assert.Contains(errors, error => error.Contains("barem", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(errors, error => error.Contains("Question 1", StringComparison.Ordinal));
         Assert.Contains(errors, error => error.Contains("P3-G32", StringComparison.Ordinal));
