@@ -18,8 +18,8 @@ public sealed class CompleteMediaUploadIntentCommandHandler(IExamRepository repo
         var exam = await repository.FindExamAsync(request.ExamId, cancellationToken) ?? throw new ExamNotFoundException();
         var revision = exam.Revisions.SingleOrDefault(candidate => candidate.Id == request.RevisionId)
             ?? throw new ExamNotFoundException();
-        if (revision.Status != ExamRevisionStatus.Draft || !revision.UsesMediaWorkspace)
-            throw new ExamMediaUploadIntentConflictException("This revision does not use the media workspace.");
+        if (revision.Status != ExamRevisionStatus.Draft)
+            throw new ExamMediaUploadIntentConflictException("Only a draft revision can accept media uploads.");
 
         var now = timeProvider.GetUtcNow();
         if (intent.Status != ExamMediaUploadIntentStatus.Pending || now > intent.ExpiresAtUtc)
@@ -31,7 +31,8 @@ public sealed class CompleteMediaUploadIntentCommandHandler(IExamRepository repo
         intent.Complete(now);
 
         var kind = intent.OwnerKind == ExamMediaOwnerKind.AudioGroup ? ExamMediaKind.Audio : ExamMediaKind.Image;
-        var asset = ExamMediaAsset.Create(intent.ObjectKey, intent.ContentType, now, kind, metadata.ByteSize);
+        var asset = ExamMediaAsset.Create(intent.ObjectKey, intent.ContentType, now, kind, metadata.ByteSize,
+            intent.ExpectedDurationMs);
         switch (intent.OwnerKind)
         {
             case ExamMediaOwnerKind.AudioGroup:

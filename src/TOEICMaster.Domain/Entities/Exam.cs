@@ -106,8 +106,6 @@ public sealed class ExamRevision
     public int VersionNumber { get; private set; }
     public ExamRevisionStatus Status { get; private set; }
     public Guid ScoreProfileId { get; private set; }
-    public string? MasterAudioObjectKey { get; private set; }
-    public bool UsesMediaWorkspace { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public IReadOnlyCollection<ExamBlock> Blocks => _blocks.AsReadOnly();
 
@@ -120,11 +118,7 @@ public sealed class ExamRevision
 
     internal ExamRevision Clone(Guid id, int versionNumber, DateTimeOffset createdAtUtc)
     {
-        var clone = new ExamRevision(id, ExamId, versionNumber, ExamRevisionStatus.Draft, ScoreProfileId, createdAtUtc)
-        {
-            MasterAudioObjectKey = MasterAudioObjectKey,
-            UsesMediaWorkspace = UsesMediaWorkspace
-        };
+        var clone = new ExamRevision(id, ExamId, versionNumber, ExamRevisionStatus.Draft, ScoreProfileId, createdAtUtc);
         clone._blocks.AddRange(_blocks.Select(block => block.Clone(id)));
         return clone;
     }
@@ -152,21 +146,7 @@ public sealed class ExamRevision
             ?? throw new ArgumentException("Unknown block key.", nameof(blockKey));
         if (!block.IsGrouped)
             throw new ArgumentException("Only grouped blocks can have shared contexts.", nameof(blockKey));
-        block.ReplaceContextBlocks(contexts, allowMissingImages: UsesMediaWorkspace);
-    }
-
-    public void SetMasterAudioObjectKey(string objectKey)
-    {
-        EnsureDraft();
-        ArgumentException.ThrowIfNullOrWhiteSpace(objectKey);
-        MasterAudioObjectKey = objectKey;
-    }
-
-    public void EnableMediaWorkspace()
-    {
-        EnsureDraft();
-        UsesMediaWorkspace = true;
-        MasterAudioObjectKey = null;
+        block.ReplaceContextBlocks(contexts);
     }
 
     public void ConfigureQuestionImageRequirement(int questionNumber, bool imageRequired)
@@ -215,14 +195,12 @@ public sealed class ExamRevision
     public IReadOnlyList<string> GetPublicationErrors(bool scoreProfileIsComplete)
     {
         var errors = new List<string>();
-        if (!UsesMediaWorkspace && string.IsNullOrWhiteSpace(MasterAudioObjectKey))
-            errors.Add("Master Audio is required.");
         if (!scoreProfileIsComplete)
             errors.Add("Barem điểm chưa đủ 101 mốc cho Listening và Reading.");
 
         foreach (var block in _blocks)
         {
-            if (UsesMediaWorkspace && block.Part is >= 1 and <= 4 && block.AudioAssetId is null)
+            if (block.Part is >= 1 and <= 4 && block.AudioAssetId is null)
                 errors.Add($"Audio group {block.Key} requires an audio asset.");
             if (block.IsGrouped && block.ContextBlocks.Count == 0)
                 errors.Add($"Block {block.Key} requires at least one shared context.");
@@ -232,8 +210,6 @@ public sealed class ExamRevision
             {
                 if (!IsQuestionComplete(block.Part, question))
                     errors.Add($"Question {question.Number} is incomplete.");
-                if (!UsesMediaWorkspace && block.Part == 1 && (question.ImageAssetId is null || question.ImageAssetId == Guid.Empty))
-                    errors.Add($"Question {question.Number} requires an image asset.");
                 if (question.ImageRequired && question.ImageAssetId is null)
                     errors.Add($"Question {question.Number} requires an image asset.");
             }
@@ -373,7 +349,7 @@ public sealed class ExamBlock
         return clone;
     }
 
-    internal void ReplaceContextBlocks(IReadOnlyCollection<ExamContextContent> contexts, bool allowMissingImages = false)
+    internal void ReplaceContextBlocks(IReadOnlyCollection<ExamContextContent> contexts)
     {
         ArgumentNullException.ThrowIfNull(contexts);
         if (contexts.Count == 0)
@@ -386,9 +362,6 @@ public sealed class ExamBlock
         {
             if (context.Type == ExamContextType.Text && string.IsNullOrWhiteSpace(context.Text))
                 throw new ArgumentException("A text context requires text.", nameof(contexts));
-            if (context.Type == ExamContextType.Image && !allowMissingImages &&
-                (context.ImageAssetId is null || context.ImageAssetId == Guid.Empty))
-                throw new ArgumentException("An image context requires an image asset.", nameof(contexts));
         }
 
         _contextBlocks.Clear();

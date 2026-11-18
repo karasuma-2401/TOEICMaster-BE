@@ -112,40 +112,90 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
             .FirstOrDefaultAsync(a => a.Id == attemptId && a.UserId == userId, cancellationToken);
     }
 
-    public async Task<string?> GetAttemptMediaObjectKeyAsync(
+    public async Task<AttemptMediaLookupResult> GetAttemptMediaAccessAsync(
         Guid attemptId,
         Guid userId,
-        Guid? assetId,
+        Guid assetId,
         ExamMediaKind kind,
         CancellationToken cancellationToken)
     {
         var attempt = await db.ExamAttempts.AsNoTracking()
             .Where(item => item.Id == attemptId && item.UserId == userId)
-            .Select(item => new { item.RevisionId, item.Status })
+            .Select(item => new { item.RevisionId, item.Status, item.IsListeningLocked })
             .FirstOrDefaultAsync(cancellationToken);
         if (attempt is null || attempt.Status is not (ExamAttemptStatus.InProgress or ExamAttemptStatus.Completed))
-            return null;
+            return new AttemptMediaLookupResult(AttemptMediaLookupStatus.NotFound, null);
 
-        var revision = await db.ExamRevisions.AsNoTracking()
-            .Include(item => item.Blocks).ThenInclude(block => block.Questions)
-            .Include(item => item.Blocks).ThenInclude(block => block.ContextBlocks)
-            .FirstOrDefaultAsync(item => item.Id == attempt.RevisionId, cancellationToken);
-        if (revision is null) return null;
+        var isAttached = kind == ExamMediaKind.Audio
+            ? await db.ExamBlocks.AsNoTracking()
+                .AnyAsync(block => block.RevisionId == attempt.RevisionId && block.AudioAssetId == assetId,
+                    cancellationToken)
+            : await db.ExamBlocks.AsNoTracking()
+                .AnyAsync(block => block.RevisionId == attempt.RevisionId &&
+                    (block.Questions.Any(question => question.ImageAssetId == assetId) ||
+                     block.ContextBlocks.Any(context => context.ImageAssetId == assetId)), cancellationToken);
+        if (!isAttached)
+            return new AttemptMediaLookupResult(AttemptMediaLookupStatus.NotFound, null);
 
-        if (assetId is null)
-            return kind == ExamMediaKind.Audio ? revision.MasterAudioObjectKey : null;
-
-        var isAttached = revision.Blocks.Any(block =>
-            kind == ExamMediaKind.Audio
-                ? block.AudioAssetId == assetId
-                : block.Questions.Any(question => question.ImageAssetId == assetId)
-                    || block.ContextBlocks.Any(context => context.ImageAssetId == assetId));
-        if (!isAttached) return null;
-
-        return await db.ExamMediaAssets.AsNoTracking()
+        var objectKey = await db.ExamMediaAssets.AsNoTracking()
             .Where(asset => asset.Id == assetId && asset.Kind == kind)
             .Select(asset => asset.ObjectKey)
             .FirstOrDefaultAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(objectKey))
+            return new AttemptMediaLookupResult(AttemptMediaLookupStatus.NotFound, null);
+
+        if (kind == ExamMediaKind.Audio && attempt.Status == ExamAttemptStatus.InProgress && attempt.IsListeningLocked)
+            return new AttemptMediaLookupResult(AttemptMediaLookupStatus.ListeningLocked, null);
+
+        return new AttemptMediaLookupResult(AttemptMediaLookupStatus.Found, objectKey);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, int?>> GetMediaDurationsAsync(
+        IReadOnlyCollection<Guid> assetIds,
+        CancellationToken cancellationToken)
+    {
+        if (assetIds.Count == 0)
+            return new Dictionary<Guid, int?>();
+        var distinctAssetIds = assetIds.Distinct().ToArray();
+        return await db.ExamMediaAssets.AsNoTracking()
+            .Where(asset => distinctAssetIds.Contains(asset.Id))
+            .Select(asset => new { asset.Id, asset.DurationMs })
+            .ToDictionaryAsync(asset => asset.Id, asset => asset.DurationMs, cancellationToken);
+    }
+
+    public async Task<ExamAttemptListeningPlaylistSource?> GetListeningPlaylistSourceAsync(
+        Guid attemptId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var attempt = await db.ExamAttempts.AsNoTracking()
+            .Where(item => item.Id == attemptId && item.UserId == userId)
+            .Select(item => new { item.RevisionId, item.Status, item.IsListeningLocked })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (attempt is null)
+            return null;
+
+        if (attempt.Status != ExamAttemptStatus.InProgress || attempt.IsListeningLocked)
+            return new ExamAttemptListeningPlaylistSource(attempt.Status, attempt.IsListeningLocked, []);
+
+        var blocks = await (
+            from block in db.ExamBlocks.AsNoTracking()
+            join asset in db.ExamMediaAssets.AsNoTracking() on block.AudioAssetId equals asset.Id
+            where block.RevisionId == attempt.RevisionId
+                && block.Part >= 1
+                && block.Part <= 4
+                && asset.Kind == ExamMediaKind.Audio
+            orderby block.FirstQuestionNumber
+            select new ExamAttemptListeningBlockSource(
+                block.Id,
+                block.Part,
+                block.FirstQuestionNumber,
+                asset.Id,
+                asset.ObjectKey,
+                asset.DurationMs)
+        ).ToListAsync(cancellationToken);
+
+        return new ExamAttemptListeningPlaylistSource(attempt.Status, attempt.IsListeningLocked, blocks);
     }
 
     public async Task<Guid?> FindActiveAttemptIdAsync(Guid userId, Guid examId, CancellationToken cancellationToken)

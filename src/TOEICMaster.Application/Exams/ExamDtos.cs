@@ -15,10 +15,10 @@ public sealed record ScoreProfileDto(Guid Id, string Name, bool IsComplete, int 
         profile.Conversions.Count);
 }
 
-public sealed record ExamMediaAssetDto(Guid Id, string ContentType, string Kind, long ByteSize)
+public sealed record ExamMediaAssetDto(Guid Id, string ContentType, string Kind, long ByteSize, int? DurationMs = null)
 {
     public static ExamMediaAssetDto From(TOEICMaster.Domain.Entities.ExamMediaAsset asset) => new(asset.Id,
-        asset.ContentType, asset.Kind.ToString(), asset.ByteSize);
+        asset.ContentType, asset.Kind.ToString(), asset.ByteSize, asset.DurationMs);
 }
 
 public sealed record ExamMediaUploadIntentDto(Guid IntentId, string UploadUrl, DateTimeOffset ExpiresAtUtc,
@@ -40,23 +40,31 @@ public sealed record ExamPageDto(IReadOnlyList<ExamListItemDto> Items, int PageN
 }
 
 public sealed record ExamRevisionDetailDto(Guid ExamId, string Code, string Title, Guid RevisionId, int VersionNumber,
-    ExamRevisionStatus Status, Guid ScoreProfileId, bool HasMasterAudio, bool UsesMediaWorkspace,
-    IReadOnlyList<ExamBlockDto> Blocks)
+    ExamRevisionStatus Status, Guid ScoreProfileId, IReadOnlyList<ExamBlockDto> Blocks)
 {
-    public static ExamRevisionDetailDto From(Exam exam, ExamRevision revision) => new(exam.Id, exam.Code, exam.Title,
+    public static ExamRevisionDetailDto From(Exam exam, ExamRevision revision,
+        IReadOnlyDictionary<Guid, int?>? mediaDurations = null) => new(exam.Id, exam.Code, exam.Title,
         revision.Id, revision.VersionNumber, revision.Status, revision.ScoreProfileId,
-        !string.IsNullOrWhiteSpace(revision.MasterAudioObjectKey), revision.UsesMediaWorkspace,
         revision.Blocks.OrderBy(block => block.FirstQuestionNumber)
-            .Select(ExamBlockDto.From).ToArray());
+            .Select(block => ExamBlockDto.From(block, mediaDurations)).ToArray());
 }
 
 public sealed record ExamBlockDto(string Key, int Part, ExamBlockType Type, int FirstQuestionNumber,
-    Guid? AudioAssetId, IReadOnlyList<ExamContextBlockDto> ContextBlocks, IReadOnlyList<ExamQuestionDto> Questions)
+    Guid? AudioAssetId, IReadOnlyList<ExamContextBlockDto> ContextBlocks, IReadOnlyList<ExamQuestionDto> Questions,
+    int? AudioDurationMs = null)
 {
-    public static ExamBlockDto From(ExamBlock block) => new(block.Key, block.Part, block.Type, block.FirstQuestionNumber,
-        block.AudioAssetId,
-        block.ContextBlocks.OrderBy(context => context.Ordinal).Select(ExamContextBlockDto.From).ToArray(),
-        block.Questions.OrderBy(question => question.Number).Select(ExamQuestionDto.From).ToArray());
+    public static ExamBlockDto From(ExamBlock block, IReadOnlyDictionary<Guid, int?>? mediaDurations = null)
+    {
+        int? audioDurationMs = block.AudioAssetId is { } assetId &&
+            mediaDurations is not null &&
+            mediaDurations.TryGetValue(assetId, out var durationMs)
+            ? durationMs
+            : null;
+        return new(block.Key, block.Part, block.Type, block.FirstQuestionNumber, block.AudioAssetId,
+            block.ContextBlocks.OrderBy(context => context.Ordinal).Select(ExamContextBlockDto.From).ToArray(),
+            block.Questions.OrderBy(question => question.Number).Select(ExamQuestionDto.From).ToArray(),
+            audioDurationMs);
+    }
 }
 
 public sealed record ExamContextBlockDto(int Ordinal, ExamContextType Type, string? Text, Guid? ImageAssetId,

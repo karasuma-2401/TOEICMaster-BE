@@ -30,31 +30,43 @@ public static class ExamAttemptMapper
         ExamAttempt attempt,
         ExamRevision revision,
         ExamHeader header,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        IReadOnlyDictionary<Guid, int?>? mediaDurations = null)
     {
         var saved = attempt.Answers.ToDictionary(answer => answer.QuestionId);
 
-        var blocks = Ordered(revision).Select(block => new ExamBlockSheetDto(
-            block.Id,
-            block.Part,
-            block.FirstQuestionNumber,
-            block.AudioAssetId,
-            Contexts(block),
-            block.Questions.OrderBy(question => question.Number).Select(question =>
-            {
-                saved.TryGetValue(question.Id, out var answer);
-                return new ExamQuestionSheetDto(
-                    question.Id,
-                    question.Number,
-                    question.Stem,
-                    question.OptionA,
-                    question.OptionB,
-                    question.OptionC,
-                    question.OptionD,
-                    question.ImageAssetId,
-                    answer?.SelectedKey,
-                    answer?.IsFlagged ?? false);
-            }).ToList())).ToList();
+        var blocks = Ordered(revision).Select(block =>
+        {
+            int? audioDurationMs = ExamAttempt.IsListeningPart(block.Part) &&
+                block.AudioAssetId is { } audioAssetId &&
+                mediaDurations is not null &&
+                mediaDurations.TryGetValue(audioAssetId, out var durationMs)
+                ? durationMs
+                : null;
+
+            return new ExamBlockSheetDto(
+                block.Id,
+                block.Part,
+                block.FirstQuestionNumber,
+                block.AudioAssetId,
+                Contexts(block),
+                block.Questions.OrderBy(question => question.Number).Select(question =>
+                {
+                    saved.TryGetValue(question.Id, out var answer);
+                    return new ExamQuestionSheetDto(
+                        question.Id,
+                        question.Number,
+                        question.Stem,
+                        question.OptionA,
+                        question.OptionB,
+                        question.OptionC,
+                        question.OptionD,
+                        question.ImageAssetId,
+                        answer?.SelectedKey,
+                        answer?.IsFlagged ?? false);
+                }).ToList(),
+                audioDurationMs);
+        }).ToList();
 
         return new ExamAttemptSheetDto(
             attempt.Id,
@@ -62,7 +74,6 @@ public static class ExamAttemptMapper
             header.Code,
             header.Title,
             revision.VersionNumber,
-            revision.MasterAudioObjectKey,
             PhaseOf(attempt),
             attempt.StartedAtUtc,
             attempt.ReadingStartedAtUtc,
@@ -123,7 +134,8 @@ public static class ExamAttemptMapper
         ExamAttempt attempt,
         ExamRevision revision,
         ExamHeader header,
-        ExamReviewFilter filter)
+        ExamReviewFilter filter,
+        IReadOnlyDictionary<Guid, int?>? mediaDurations = null)
     {
         var answers = attempt.Answers.ToDictionary(answer => answer.QuestionId);
 
@@ -170,7 +182,20 @@ public static class ExamAttemptMapper
             }
 
             if (questions.Count == 0) continue;
-            blocks.Add(new ExamAttemptReviewBlockDto(block.Id, block.Part, block.FirstQuestionNumber, Contexts(block), questions));
+            Guid? audioAssetId = ExamAttempt.IsListeningPart(block.Part) ? block.AudioAssetId : null;
+            int? audioDurationMs = audioAssetId is { } assetId &&
+                mediaDurations is not null &&
+                mediaDurations.TryGetValue(assetId, out var durationMs)
+                ? durationMs
+                : null;
+            blocks.Add(new ExamAttemptReviewBlockDto(
+                block.Id,
+                block.Part,
+                block.FirstQuestionNumber,
+                Contexts(block),
+                questions,
+                audioAssetId,
+                audioDurationMs));
         }
 
         return new ExamAttemptReviewDto(

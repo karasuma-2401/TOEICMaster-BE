@@ -12,6 +12,14 @@ public sealed class GetExamRevisionQueryHandler(IExamRepository repository)
         var exam = await repository.FindExamAsync(request.ExamId, cancellationToken) ?? throw new ExamNotFoundException();
         var revision = exam.Revisions.SingleOrDefault(candidate => candidate.Id == request.RevisionId)
             ?? throw new ExamNotFoundException();
-        return ExamRevisionDetailDto.From(exam, revision);
+        var audioAssetIds = revision.Blocks
+            .Where(block => block.AudioAssetId is not null)
+            .Select(block => block.AudioAssetId!.Value)
+            .Distinct()
+            .ToArray();
+        var mediaDurations = audioAssetIds.Length == 0
+            ? null
+            : await repository.GetMediaDurationsAsync(audioAssetIds, cancellationToken);
+        return ExamRevisionDetailDto.From(exam, revision, mediaDurations);
     }
 }

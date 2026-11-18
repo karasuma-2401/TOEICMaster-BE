@@ -28,8 +28,6 @@ public sealed class ExamRevisionConfiguration : IEntityTypeConfiguration<ExamRev
         builder.HasKey(revision => revision.Id);
         builder.Property(revision => revision.VersionNumber).IsRequired();
         builder.Property(revision => revision.Status).HasConversion<string>().HasMaxLength(16).IsRequired();
-        builder.Ignore(revision => revision.MasterAudioObjectKey);
-        builder.Ignore(revision => revision.UsesMediaWorkspace);
         builder.Property(revision => revision.CreatedAtUtc).IsRequired();
         builder.HasIndex(revision => new { revision.ExamId, revision.VersionNumber }).IsUnique();
         builder.HasIndex(revision => new { revision.ExamId, revision.Status });

@@ -18,6 +18,22 @@ internal static class ExamAttemptSupport
         await repository.GetExamHeaderAsync(examId, cancellationToken)
         ?? throw ExamAttemptNotFoundException.ForExam(examId);
 
+    public static async Task<IReadOnlyDictionary<Guid, int?>> LoadAudioDurationsAsync(
+        IExamAttemptRepository repository,
+        ExamRevision revision,
+        CancellationToken cancellationToken)
+    {
+        var assetIds = revision.Blocks
+            .Where(block => ExamAttempt.IsListeningPart(block.Part) && block.AudioAssetId is not null)
+            .Select(block => block.AudioAssetId!.Value)
+            .Distinct()
+            .ToArray();
+
+        return assetIds.Length == 0
+            ? new Dictionary<Guid, int?>()
+            : await repository.GetMediaDurationsAsync(assetIds, cancellationToken);
+    }
+
     public static async Task<ExamAttemptSheetDto> LoadSheetAsync(
         IExamAttemptRepository repository,
         ExamAttempt attempt,
@@ -27,7 +43,8 @@ internal static class ExamAttemptSupport
         var revision = await repository.FindRevisionAsync(attempt.RevisionId, cancellationToken)
             ?? throw ExamAttemptNotFoundException.ForExam(attempt.RevisionId);
         var header = await RequireHeaderAsync(repository, revision.ExamId, cancellationToken);
-        return ExamAttemptMapper.ToSheet(attempt, revision, header, now);
+        var mediaDurations = await LoadAudioDurationsAsync(repository, revision, cancellationToken);
+        return ExamAttemptMapper.ToSheet(attempt, revision, header, now, mediaDurations);
     }
 
     /// <summary>
@@ -185,7 +202,8 @@ public sealed class StartExamAttemptHandler(IExamAttemptRepository repository, T
         repository.AddAttempt(attempt);
         await repository.SaveChangesAsync(cancellationToken);
 
-        return ExamAttemptMapper.ToSheet(attempt, revision, header, now);
+        var mediaDurations = await ExamAttemptSupport.LoadAudioDurationsAsync(repository, revision, cancellationToken);
+        return ExamAttemptMapper.ToSheet(attempt, revision, header, now, mediaDurations);
     }
 }
 
@@ -396,7 +414,8 @@ public sealed class GetExamAttemptReviewHandler(IExamAttemptRepository repositor
         var revision = await repository.FindRevisionAsync(attempt.RevisionId, cancellationToken)
             ?? throw ExamAttemptNotFoundException.ForExam(attempt.RevisionId);
         var header = await ExamAttemptSupport.RequireHeaderAsync(repository, revision.ExamId, cancellationToken);
-        return ExamAttemptMapper.ToReview(attempt, revision, header, request.Filter);
+        var mediaDurations = await ExamAttemptSupport.LoadAudioDurationsAsync(repository, revision, cancellationToken);
+        return ExamAttemptMapper.ToReview(attempt, revision, header, request.Filter, mediaDurations);
     }
 }
 

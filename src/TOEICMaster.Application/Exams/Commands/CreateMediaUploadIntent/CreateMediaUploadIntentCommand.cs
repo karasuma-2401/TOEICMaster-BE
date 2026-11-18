@@ -5,7 +5,7 @@ using TOEICMaster.Domain.Entities;
 namespace TOEICMaster.Application.Exams.Commands.CreateMediaUploadIntent;
 
 public sealed record CreateMediaUploadIntentCommand(Guid ExamId, Guid RevisionId, ExamMediaOwnerKind OwnerKind,
-    string OwnerKey, string ContentType, long ByteSize) : IRequest<ExamMediaUploadIntentDto>;
+    string OwnerKey, string ContentType, long ByteSize, int? DurationMs = null) : IRequest<ExamMediaUploadIntentDto>;
 
 public sealed class CreateMediaUploadIntentCommandValidator : AbstractValidator<CreateMediaUploadIntentCommand>
 {
@@ -17,20 +17,32 @@ public sealed class CreateMediaUploadIntentCommandValidator : AbstractValidator<
         RuleFor(command => command.OwnerKey).NotEmpty().MaximumLength(128);
         RuleFor(command => command.ContentType).NotEmpty().MaximumLength(64);
         RuleFor(command => command.ByteSize).GreaterThan(0);
+        When(command => command.OwnerKind == ExamMediaOwnerKind.AudioGroup, () =>
+        {
+            RuleFor(command => command.DurationMs)
+                .InclusiveBetween(1, 3_600_000)
+                .When(command => command.DurationMs is not null);
+        });
+        When(command => command.OwnerKind != ExamMediaOwnerKind.AudioGroup, () =>
+        {
+            RuleFor(command => command.DurationMs).Null();
+        });
     }
 }
 
 public sealed class CreateMediaUploadIntentCommandHandler(IExamRepository repository, IExamMediaStore store,
     TimeProvider timeProvider) : IRequestHandler<CreateMediaUploadIntentCommand, ExamMediaUploadIntentDto>
 {
-    private static readonly IReadOnlyDictionary<string, (ExamMediaKind Kind, string Extension, long MaxBytes)> AllowedMedia =
-        new Dictionary<string, (ExamMediaKind, string, long)>(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyDictionary<string, (ExamMediaKind Kind, string Extension, long MaxBytes, string NormalizedContentType)> AllowedMedia =
+        new Dictionary<string, (ExamMediaKind, string, long, string)>(StringComparer.OrdinalIgnoreCase)
         {
-            ["audio/mpeg"] = (ExamMediaKind.Audio, "mp3", 100 * 1024 * 1024),
-            ["audio/wav"] = (ExamMediaKind.Audio, "wav", 100 * 1024 * 1024),
-            ["image/png"] = (ExamMediaKind.Image, "png", 5 * 1024 * 1024),
-            ["image/jpeg"] = (ExamMediaKind.Image, "jpg", 5 * 1024 * 1024),
-            ["image/webp"] = (ExamMediaKind.Image, "webp", 5 * 1024 * 1024)
+            ["audio/mpeg"] = (ExamMediaKind.Audio, "mp3", 100 * 1024 * 1024, "audio/mpeg"),
+            ["audio/mp3"] = (ExamMediaKind.Audio, "mp3", 100 * 1024 * 1024, "audio/mpeg"),
+            ["audio/wav"] = (ExamMediaKind.Audio, "wav", 100 * 1024 * 1024, "audio/wav"),
+            ["audio/x-wav"] = (ExamMediaKind.Audio, "wav", 100 * 1024 * 1024, "audio/wav"),
+            ["image/png"] = (ExamMediaKind.Image, "png", 5 * 1024 * 1024, "image/png"),
+            ["image/jpeg"] = (ExamMediaKind.Image, "jpg", 5 * 1024 * 1024, "image/jpeg"),
+            ["image/webp"] = (ExamMediaKind.Image, "webp", 5 * 1024 * 1024, "image/webp")
         };
 
     public async Task<ExamMediaUploadIntentDto> Handle(CreateMediaUploadIntentCommand request,
@@ -39,8 +51,8 @@ public sealed class CreateMediaUploadIntentCommandHandler(IExamRepository reposi
         var exam = await repository.FindExamAsync(request.ExamId, cancellationToken) ?? throw new ExamNotFoundException();
         var revision = exam.Revisions.SingleOrDefault(candidate => candidate.Id == request.RevisionId)
             ?? throw new ExamNotFoundException();
-        if (revision.Status != ExamRevisionStatus.Draft || !revision.UsesMediaWorkspace)
-            throw new ExamMediaUploadIntentConflictException("This revision does not use the media workspace.");
+        if (revision.Status != ExamRevisionStatus.Draft)
+            throw new ExamMediaUploadIntentConflictException("Only a draft revision can accept media uploads.");
         if (!AllowedMedia.TryGetValue(request.ContentType, out var media) || request.ByteSize > media.MaxBytes ||
             !IsOwnerValid(revision, request.OwnerKind, request.OwnerKey, media.Kind))
             throw new InvalidExamMediaException();
@@ -49,7 +61,7 @@ public sealed class CreateMediaUploadIntentCommandHandler(IExamRepository reposi
         var expiresAtUtc = now.AddMinutes(15);
         var objectKey = $"exam-media/{revision.Id:N}/{Guid.NewGuid():N}.{media.Extension}";
         var intent = ExamMediaUploadIntent.Create(exam.Id, revision.Id, request.OwnerKind, request.OwnerKey, objectKey,
-            request.ContentType.ToLowerInvariant(), request.ByteSize, expiresAtUtc, now);
+            media.NormalizedContentType, request.ByteSize, expiresAtUtc, now, request.DurationMs);
         var uploadUrl = await store.CreatePresignedPutUrlAsync(objectKey, expiresAtUtc - now, cancellationToken);
         await repository.AddExamMediaUploadIntentAsync(intent, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
@@ -63,7 +75,7 @@ public sealed class CreateMediaUploadIntentCommandHandler(IExamRepository reposi
             return mediaKind == ExamMediaKind.Audio && revision.Blocks.Any(block => block.Key == ownerKey && block.Part is >= 1 and <= 4);
         if (ownerKind == ExamMediaOwnerKind.QuestionImage)
             return mediaKind == ExamMediaKind.Image && int.TryParse(ownerKey, out var number) && revision.Blocks
-                .Where(block => block.Part >= 5).SelectMany(block => block.Questions).Any(question => question.Number == number);
+                .SelectMany(block => block.Questions).Any(question => question.Number == number);
         if (ownerKind != ExamMediaOwnerKind.ContextImage || mediaKind != ExamMediaKind.Image)
             return false;
         var separator = ownerKey.LastIndexOf(':');
