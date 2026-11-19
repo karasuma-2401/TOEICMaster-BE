@@ -15,7 +15,10 @@
 | PUT | `/api/v1/exam-attempts/{attemptId}/questions/{questionId}/flag` | Bật/tắt cờ một câu |
 | POST | `/api/v1/exam-attempts/{attemptId}/submit` | Nộp và chấm điểm |
 | GET | `/api/v1/exam-attempts/{attemptId}/result` | Xem kết quả sau khi nộp |
-| GET | `/api/v1/exam-attempts/{attemptId}/review?filter=All` | Xem đáp án/giải thích sau khi nộp |
+| GET | `/api/v1/exam-attempts/{attemptId}/review?filter=All` | Xem đáp án/giải thích sau khi nộp (`audioAssetId`, `audioDurationMs` cho Part 1-4) |
+| GET | `/api/v1/exam-attempts/{attemptId}/listening-audio-urls` | Danh sách presigned GET URL cho toàn bộ block Listening Part 1-4 theo thứ tự (`items`) |
+| GET | `/api/v1/exam-attempts/{attemptId}/audio/{assetId}` | Presigned GET URL cho một block audio của lượt làm (`409` khi Listening đã khóa) |
+| GET | `/api/v1/exam-attempts/{attemptId}/images/{assetId}` | Presigned GET URL cho ảnh của lượt làm |
 | GET | `/api/v1/exam-attempts/history` | Lịch sử lượt thi |
 | POST | `/api/v1/exam-attempts/{attemptId}/abandon` | Hủy lượt đang làm |
 
@@ -33,7 +36,12 @@
 
 ## Media
 
-Attempt DTO hiện trả `MasterAudioObjectKey` cho revision legacy nhưng chưa cung cấp URL phát media an toàn cho learner. Media workspace audio theo block cũng chưa được đưa vào sheet DTO learner. Do đó không được coi phần audio player là đã tích hợp hoàn chỉnh; cần bổ sung endpoint cấp presigned GET URL có kiểm tra quyền sở hữu attempt và phase trước khi bật phát audio production.
+Sheet DTO (`ExamAttemptSheetDto`) không còn `MasterAudioObjectKey`; mỗi `ExamBlockSheetDto` trả `audioAssetId` và `audioDurationMs` (ms) cho Part 1-4.
+Review DTO (`ExamAttemptReviewBlockDto`) trả `audioAssetId` và `audioDurationMs` cho Part 1-4 (`null` cho Part 5-7).
+Trong giai đoạn Listening (`InProgress` và `IsListeningLocked == false`), learner gọi `GET /api/v1/exam-attempts/{attemptId}/listening-audio-urls` để nhận danh sách presigned GET URL (hạn 3 giờ) cho toàn bộ block Listening Part 1-4 trong một lần gọi.
+Sau khi chuyển sang Reading (`IsListeningLocked == true`) hoặc khi attempt không ở trạng thái `InProgress`, endpoint playlist và endpoint `GET .../audio/{assetId}` trong lúc làm bài đều trả `409 Conflict`.
+Khi attempt đã `Completed`, learner vẫn gọi được `GET .../audio/{assetId}` trên màn Review.
+Endpoint legacy `GET /api/v1/exam-attempts/{attemptId}/audio` đã được loại bỏ.
 
 ## Frontend
 

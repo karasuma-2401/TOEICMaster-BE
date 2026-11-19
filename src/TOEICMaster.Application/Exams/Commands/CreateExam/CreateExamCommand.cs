@@ -30,7 +30,6 @@ public sealed class CreateExamCommandHandler(IExamRepository repository, TimePro
 
         var exam = Exam.Create(code, request.Title, request.ScoreProfileId, timeProvider.GetUtcNow());
         var revision = exam.Revisions.Single();
-        revision.EnableMediaWorkspace();
         await repository.AddExamAsync(exam, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
         return ExamDraftDto.From(exam, revision);

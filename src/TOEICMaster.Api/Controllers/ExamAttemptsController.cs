@@ -117,13 +117,16 @@ public sealed class ExamAttemptsController(ISender sender) : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>Returns a short-lived URL for the master Listening audio owned by this attempt.</summary>
-    [HttpGet("exam-attempts/{attemptId:guid}/audio")]
-    public async Task<ActionResult<ExamAttemptMediaUrlDto>> GetMasterAudio(Guid attemptId, CancellationToken cancellationToken)
+    /// <summary>Returns ordered presigned audio URLs for all Part 1-4 Listening blocks of an active attempt.</summary>
+    [HttpGet("exam-attempts/{attemptId:guid}/listening-audio-urls")]
+    [ProducesResponseType<ExamAttemptListeningPlaylistDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ExamAttemptListeningPlaylistDto>> GetListeningAudioUrls(
+        Guid attemptId,
+        CancellationToken cancellationToken)
     {
-        var result = await sender.Send(
-            new GetExamAttemptMediaUrlQuery(GetUserId(), attemptId, TOEICMaster.Domain.Entities.ExamMediaKind.Audio),
-            cancellationToken);
+        var result = await sender.Send(new GetExamAttemptListeningPlaylistQuery(GetUserId(), attemptId), cancellationToken);
         return Ok(result);
     }
 

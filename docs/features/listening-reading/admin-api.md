@@ -47,39 +47,46 @@ Prefix: `/api/v1/admin/exams`.
 | --- | --- |
 | `GET /?status=Draft&pageNumber=1&pageSize=20` | Danh sách theo trạng thái revision mới nhất; `pageSize` 1–100. |
 | `POST /` | Body `{ "code": "LR-2026-001", "title": "Practice test", "scoreProfileId": "<uuid>" }`; trả `201` với Draft version 1 và 200 slot. `code` tối đa 64 ký tự, gồm chữ/số/`_`/`-` và bắt đầu bằng chữ hoặc số. |
-| `GET /{examId}/revisions/{revisionId}` | Preview Admin toàn bộ 103 block, 200 câu, context, đáp án, `usesMediaWorkspace`, `hasMasterAudio`, `audioAssetId`, `imageRequired`. |
+| `GET /{examId}/revisions/{revisionId}` | Preview Admin toàn bộ 103 block, 200 câu, context, đáp án, `audioAssetId`, `audioDurationMs`, `imageRequired`. |
 | `PUT /{examId}/revisions/{revisionId}/questions/{questionNumber}` | Ghi nội dung một câu trong Draft; trả `204`. |
 | `PUT /{examId}/revisions/{revisionId}/blocks/{blockKey}/contexts` | Thay toàn bộ context của block nhóm trong Draft; body `{ "contexts": [...] }`, `ordinal` liên tiếp từ 1; trả `204`. |
 | `PUT /{examId}/revisions/{revisionId}/score-profile` | Chọn profile khác cho Draft; body `{ "scoreProfileId": "<uuid>" }`; trả `204`. |
 | `POST /{examId}/revisions/{revisionId}/publish` | Kiểm tra điều kiện publish, trả `200` với trạng thái `Published`. Revision published trước đó chuyển thành `Superseded`. |
 | `POST /{examId}/revisions` | Body `{ "sourceRevisionId": "<published-revision-uuid>" }`; fork một published revision thành Draft version mới, trả `201`. |
 
-`UpdateQuestion` nhận `code`, `stem`, `optionA`, `optionB`, `optionC`, `optionD`, `correctKey`, `translation`, `explanation`, `imageAssetId`, `imageRequired`. Part 2 chỉ có A–C; các Part khác cần A–D. `ReplaceContexts` nhận context kiểu `Text` hoặc `Image` với `ordinal`, `type`, `text`, `imageAssetId`, `altText`, `imageRequired`. `imageRequired=true` trì hoãn yêu cầu gắn ảnh tới lúc publish; asset UUID được gắn trực tiếp phải tồn tại.
+`UpdateQuestion` nhận `code`, `stem`, `optionA`, `optionB`, `optionC`, `optionD`, `correctKey`, `translation`, `explanation`, `imageAssetId`, `imageRequired`. Part 2 chỉ có A-C; các Part khác cần A-D. `ReplaceContexts` nhận context kiểu `Text` hoặc `Image` với `ordinal`, `type`, `text`, `imageAssetId`, `altText`, `imageRequired`. `imageRequired=true` trì hoãn yêu cầu gắn ảnh tới lúc publish; asset UUID được gắn trực tiếp phải tồn tại.
 
-Revision `Published` không chỉnh nội dung tại chỗ. Revision fork sao chép nội dung, barem và trạng thái media của revision nguồn. Xem [đặc tả](./spec.md) để biết điều kiện publish theo từng loại media.
+Revision `Published` không chỉnh nội dung tại chỗ. Revision fork sao chép nội dung, barem và trạng thái media của revision nguồn. Xem [đặc tả](./spec.md) để biết điều kiện publish.
 
 ## 4. Import đề hoàn chỉnh
 
 - `GET /import-template`: tải `.xlsx` mẫu với 4 sheet `Manifest`, `Blocks`, `ContextBlocks`, `Questions`.
-- `POST /import`: `multipart/form-data`; `workbook` bắt buộc, tối đa 10 MiB; `masterAudio` tùy chọn, `.mp3`/`.wav`, tối đa 100 MiB. Trả `201` với Draft nếu hợp lệ.
+- `POST /import`: `multipart/form-data`; `workbook` bắt buộc, tối đa 10 MiB. Trả `201` với Draft nếu hợp lệ.
 
-`Manifest` cần `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, `ScoreProfileId`. Import kiểm tra đúng 103 block và 200 cặp `BlockKey`/`QuestionNumber`, không dựa vào thứ tự dòng. `ImageRequired` là cột tùy chọn trong `ContextBlocks` và `Questions`. Có `masterAudio` thì tạo revision theo luồng master audio cũ; chỉ có `workbook` thì tạo media workspace. File mẫu chứa placeholder, cần điền nội dung và barem thực trước khi import. Không có endpoint preview/validate import riêng.
+`Manifest` cần `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, `ScoreProfileId`.
+Import kiểm tra đúng 103 block và 200 cặp `BlockKey`/`QuestionNumber`, không dựa vào thứ tự dòng.
+`ImageRequired` là cột tùy chọn trong `ContextBlocks` và `Questions`.
+File mẫu chứa placeholder, cần điền nội dung và barem thực trước khi import.
+Không có endpoint preview/validate import riêng.
 
 ## 5. Media đề thi
 
-`POST /api/v1/admin/exam-media/images` nhận `multipart/form-data` field `file`, ảnh PNG/JPEG/WebP tối đa 5 MiB, kiểm tra chữ ký file và trả `{ id, contentType, kind, byteSize }`. UUID `id` có thể gắn vào câu/context theo các endpoint chỉnh Draft.
+`POST /api/v1/admin/exam-media/images` nhận `multipart/form-data` field `file`, ảnh PNG/JPEG/WebP tối đa 5 MiB, kiểm tra chữ ký file và trả `{ id, contentType, kind, byteSize, durationMs }`. UUID `id` có thể gắn vào câu/context theo các endpoint chỉnh Draft.
 
-Draft mới và import không kèm `masterAudio` có `usesMediaWorkspace=true`. Upload theo ba bước:
+Upload media cho mọi Draft theo ba bước qua presigned URL:
 
-1. `POST /{examId}/revisions/{revisionId}/media-upload-intents` với `{ ownerKind, ownerKey, contentType, byteSize }`; trả `201` với `intentId`, `uploadUrl`, `expiresAtUtc`, `requiredHeaders`.
+1. `POST /{examId}/revisions/{revisionId}/media-upload-intents` với `{ ownerKind, ownerKey, contentType, byteSize, durationMs? }`; trả `201` với `intentId`, `uploadUrl`, `expiresAtUtc`, `requiredHeaders`.
 2. Client `PUT` bytes tới `uploadUrl`, gửi đúng `requiredHeaders`.
-3. `POST /{examId}/revisions/{revisionId}/media-upload-intents/{intentId}/complete`; backend kiểm tra object, content type và kích thước rồi gắn asset vào owner; trả `201` với `{ id, contentType, kind, byteSize }`.
+3. `POST /{examId}/revisions/{revisionId}/media-upload-intents/{intentId}/complete`; backend kiểm tra object, content type và kích thước rồi tạo `ExamMediaAsset` (kèm `durationMs` từ `expectedDurationMs`) và gắn vào owner; trả `201` với `{ id, contentType, kind, byteSize, durationMs }`.
 
-`ownerKind` nhận `AudioGroup`, `QuestionImage`, `ContextImage`. `ownerKey` tương ứng là `blockKey` của Listening Part 1–4, số câu Reading Part 5–7 dưới dạng chuỗi, hoặc `<blockKey>:<ordinal>` của context ảnh Reading Part 5–7. MIME hỗ trợ `audio/mpeg`, `audio/wav` (100 MiB) và `image/png`, `image/jpeg`, `image/webp` (5 MiB). Intent hết hạn sau 15 phút; intent hết hạn/đã hoàn tất hoặc revision không còn là Draft workspace trả `409`.
+`ownerKind` nhận `AudioGroup`, `QuestionImage`, `ContextImage`.
+`ownerKey` tương ứng là `blockKey` của Listening Part 1-4, số câu Part 1-7 dưới dạng chuỗi, hoặc `<blockKey>:<ordinal>` của context ảnh Reading Part 5-7.
+MIME hỗ trợ `audio/mpeg` (alias `audio/mp3`), `audio/wav` (alias `audio/x-wav`) tối đa 100 MiB và `image/png`, `image/jpeg`, `image/webp` tối đa 5 MiB.
+`durationMs` là tùy chọn (`1..3_600_000` ms) cho `AudioGroup` và phải là `null` cho intent ảnh.
+Intent hết hạn sau 15 phút; intent hết hạn/đã hoàn tất hoặc revision không còn là Draft trả `409`.
 
-Intent ảnh hiện chỉ gắn vào câu/context Reading. Ảnh Part 1 vẫn có thể upload qua `/api/v1/admin/exam-media/images` rồi gắn `imageAssetId` khi sửa câu; trong code hiện tại, publish workspace chỉ bắt buộc ảnh Part 1 nếu câu có `imageRequired=true`.
-
-`PUT /{examId}/revisions/{revisionId}/master-audio` vẫn có trong API legacy, nhận `multipart/form-data` field `file`, tối đa 100 MiB, trả `204`. Với revision workspace, điều kiện publish vẫn kiểm tra audio từng block; riêng việc gọi endpoint master audio không thỏa điều kiện này.
+Publish bắt buộc có audio cho mọi block Part 1-4 và mọi câu/context có `imageRequired=true`.
+Endpoint legacy `PUT /{examId}/revisions/{revisionId}/master-audio` đã được loại bỏ.
 
 ## 6. Lỗi và giới hạn
 
@@ -98,8 +105,8 @@ FE gọi cùng-origin `/api/admin/*`, sau đó BFF chuyển tiếp tới prefix 
 | `/api/admin/exams/import`, `/import-template` | `POST`, `GET` | `/api/v1/admin/exams/import`, `/import-template` | Import/tải mẫu đề. |
 | `/api/admin/exams/{examId}/revisions/{revisionId}` | `GET` | Cùng path BE | Mở workspace. |
 | `.../questions/{questionNumber}`, `.../blocks/{blockKey}/contexts` | `PUT` | Cùng path BE | Lưu question và context Draft. |
-| `.../master-audio`, `.../publish` | `PUT`, `POST` | Cùng path BE | Media legacy và xuất bản. |
-| `.../media-upload-intents`, `.../media-upload-intents/{intentId}/complete` | `POST` | Cùng path BE | Bước 1 và 3 của media workspace. |
+| `.../publish` | `POST` | Cùng path BE | Xuất bản revision. |
+| `.../media-upload-intents`, `.../media-upload-intents/{intentId}/complete` | `POST` | Cùng path BE | Bước 1 và 3 của upload media presigned URL. |
 | `/api/admin/exam-media/images` | `POST` | `/api/v1/admin/exam-media/images` | Upload ảnh legacy. |
 | `/api/admin/score-profiles` | `GET` | `/api/v1/admin/score-profiles` | Chỉ đọc barem để chọn khi tạo đề. |
 | `/api/admin/lr-exercise-bank/summary`, `parts/{part}/items`, `parts/{part}/imports`, `templates/{part}` | `GET`/`POST` | Cùng hậu tố trên `/api/v1/admin/lr-exercise-bank` | Summary, list/create, import và tải mẫu ngân hàng. |

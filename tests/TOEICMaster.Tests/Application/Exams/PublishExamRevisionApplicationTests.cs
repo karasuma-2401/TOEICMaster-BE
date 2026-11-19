@@ -18,7 +18,8 @@ public sealed class PublishExamRevisionApplicationTests
         var exception = await Assert.ThrowsAsync<ExamPublicationException>(() => handler.Handle(
             new PublishExamRevisionCommand(exam.Id, revision.Id), CancellationToken.None));
 
-        Assert.Contains(exception.Errors, error => error.Contains("Master Audio", StringComparison.Ordinal));
+        Assert.DoesNotContain(exception.Errors, error => error.Contains("Master Audio", StringComparison.Ordinal));
+        Assert.Contains(exception.Errors, error => error.Contains("P1-Q1", StringComparison.Ordinal));
         Assert.False(repository.Saved);
         Assert.Equal(ExamRevisionStatus.Draft, revision.Status);
     }

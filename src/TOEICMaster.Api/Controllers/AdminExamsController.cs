@@ -12,7 +12,6 @@ using TOEICMaster.Application.Exams.Commands.PublishExamRevision;
 using TOEICMaster.Application.Exams.Commands.ReplaceExamContextBlocks;
 using TOEICMaster.Application.Exams.Commands.UpdateExamQuestion;
 using TOEICMaster.Application.Exams.Commands.UpdateExamScoreProfile;
-using TOEICMaster.Application.Exams.Commands.UploadMasterAudio;
 using TOEICMaster.Application.Exams.Importing;
 using TOEICMaster.Application.Exams.Queries.GetExamRevision;
 using TOEICMaster.Application.Exams.Queries.GetExams;
@@ -66,29 +65,18 @@ public sealed class AdminExamsController(ISender sender, IWebHostEnvironment env
 
     [HttpPost("import")]
     [Consumes("multipart/form-data")]
-    [RequestSizeLimit(XlsxExamWorkbookReader.MaxBytes + UploadMasterAudioCommandHandler.MaxBytes + 128 * 1024)]
+    [RequestSizeLimit(XlsxExamWorkbookReader.MaxBytes + 128 * 1024)]
     [ProducesResponseType<ExamDraftResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ExamDraftResponse>> Import([FromForm] IFormFile workbook,
-        [FromForm] IFormFile? masterAudio, CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
         if (workbook is null || workbook.Length == 0 || workbook.Length > XlsxExamWorkbookReader.MaxBytes)
             throw new ExamWorkbookFormatException(["Workbook phải là tệp XLSX không rỗng, tối đa 10 MiB."]);
-        if (masterAudio is not null && (masterAudio.Length == 0 ||
-            masterAudio.Length > UploadMasterAudioCommandHandler.MaxBytes))
-            throw new InvalidExamMediaException();
 
         await using var workbookStream = new MemoryStream();
         await workbook.CopyToAsync(workbookStream, cancellationToken);
-        byte[]? masterAudioContent = null;
-        if (masterAudio is not null)
-        {
-            await using var audioStream = new MemoryStream();
-            await masterAudio.CopyToAsync(audioStream, cancellationToken);
-            masterAudioContent = audioStream.ToArray();
-        }
-        var draft = await sender.Send(new ImportExamCommand(workbookStream.ToArray(), masterAudioContent,
-            masterAudio?.ContentType), cancellationToken);
+        var draft = await sender.Send(new ImportExamCommand(workbookStream.ToArray()), cancellationToken);
         return Created($"/api/v1/admin/exams/{draft.ExamId}/revisions/{draft.RevisionId}", ExamDraftResponse.From(draft));
     }
 
@@ -151,7 +139,7 @@ public sealed class AdminExamsController(ISender sender, IWebHostEnvironment env
         CreateMediaUploadIntentRequest request, CancellationToken cancellationToken)
     {
         var intent = await sender.Send(new CreateMediaUploadIntentCommand(examId, revisionId, request.OwnerKind,
-            request.OwnerKey, request.ContentType, request.ByteSize), cancellationToken);
+            request.OwnerKey, request.ContentType, request.ByteSize, request.DurationMs), cancellationToken);
         return Created($"/api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents/{intent.IntentId}", intent);
     }
 
@@ -163,22 +151,6 @@ public sealed class AdminExamsController(ISender sender, IWebHostEnvironment env
         var asset = await sender.Send(new CompleteMediaUploadIntentCommand(examId, revisionId, intentId),
             cancellationToken);
         return Created($"/api/v1/admin/exam-media/assets/{asset.Id}", asset);
-    }
-
-    [HttpPut("{examId:guid}/revisions/{revisionId:guid}/master-audio")]
-    [Consumes("multipart/form-data")]
-    [RequestSizeLimit(UploadMasterAudioCommandHandler.MaxBytes + 64 * 1024)]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> UploadMasterAudio(Guid examId, Guid revisionId, [FromForm] IFormFile file,
-        CancellationToken cancellationToken)
-    {
-        if (file is null || file.Length == 0 || file.Length > UploadMasterAudioCommandHandler.MaxBytes)
-            throw new InvalidExamMediaException();
-        await using var stream = new MemoryStream();
-        await file.CopyToAsync(stream, cancellationToken);
-        await sender.Send(new UploadMasterAudioCommand(examId, revisionId, stream.ToArray(), file.ContentType),
-            cancellationToken);
-        return NoContent();
     }
 }
 
@@ -202,4 +174,4 @@ public sealed record ExamContextBlockRequest(int Ordinal,
 public sealed record ForkExamRevisionRequest(Guid SourceRevisionId);
 public sealed record CreateMediaUploadIntentRequest(
     [property: JsonConverter(typeof(JsonStringEnumConverter<ExamMediaOwnerKind>))] ExamMediaOwnerKind OwnerKind,
-    string OwnerKey, string ContentType, long ByteSize);
+    string OwnerKey, string ContentType, long ByteSize, int? DurationMs = null);

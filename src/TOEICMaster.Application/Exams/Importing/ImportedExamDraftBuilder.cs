@@ -5,16 +5,7 @@ namespace TOEICMaster.Application.Exams.Importing;
 
 public static partial class ImportedExamDraftBuilder
 {
-    public static Exam Build(ImportedExamWorkbook workbook, DateTimeOffset createdAtUtc) =>
-        BuildCore(workbook, masterAudioObjectKey: null, createdAtUtc);
-
-    public static Exam Build(ImportedExamWorkbook workbook, string masterAudioObjectKey, DateTimeOffset createdAtUtc)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(masterAudioObjectKey);
-        return BuildCore(workbook, masterAudioObjectKey, createdAtUtc);
-    }
-
-    private static Exam BuildCore(ImportedExamWorkbook workbook, string? masterAudioObjectKey, DateTimeOffset createdAtUtc)
+    public static Exam Build(ImportedExamWorkbook workbook, DateTimeOffset createdAtUtc)
     {
         ArgumentNullException.ThrowIfNull(workbook);
 
@@ -25,8 +16,6 @@ public static partial class ImportedExamDraftBuilder
 
         var exam = Exam.Create(workbook.TestCode, workbook.Title, workbook.ScoreProfileId, createdAtUtc);
         var revision = exam.Revisions.Single();
-        if (masterAudioObjectKey is null)
-            revision.EnableMediaWorkspace();
         var expectedBlocks = revision.Blocks.ToDictionary(block => block.Key, StringComparer.Ordinal);
         ValidateBlocks(workbook.Blocks, expectedBlocks, errors);
         ValidateQuestions(workbook.Questions, expectedBlocks, errors);
@@ -46,8 +35,6 @@ public static partial class ImportedExamDraftBuilder
 
             foreach (var question in workbook.Questions)
                 revision.UpdateQuestion(question.QuestionNumber, question.Content);
-            if (masterAudioObjectKey is not null)
-                revision.SetMasterAudioObjectKey(masterAudioObjectKey);
         }
         catch (ArgumentException exception)
         {
@@ -55,8 +42,8 @@ public static partial class ImportedExamDraftBuilder
         }
 
         var publicationErrors = revision.GetPublicationErrors(scoreProfileIsComplete: true)
-            .Where(error => !revision.UsesMediaWorkspace ||
-                (!error.StartsWith("Audio group ", StringComparison.Ordinal) && !error.Contains("requires an image asset", StringComparison.Ordinal)))
+            .Where(error => !error.StartsWith("Audio group ", StringComparison.Ordinal) &&
+                !error.Contains("requires an image asset", StringComparison.Ordinal))
             .ToArray();
         if (publicationErrors.Length > 0)
             throw new ExamWorkbookFormatException(publicationErrors);

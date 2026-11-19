@@ -25,9 +25,7 @@ public sealed class MinioExamMediaStore(IMinioClient client, IOptions<MinioOptio
         CancellationToken cancellationToken)
     {
         await EnsureBucketAsync(cancellationToken);
-        var settings = options.Value;
-        var publicClient = new MinioClient().WithEndpoint(settings.PublicEndpoint)
-            .WithCredentials(settings.AccessKey, settings.SecretKey).WithSSL(settings.UseSsl).Build();
+        var publicClient = CreatePublicClient();
         return await publicClient.PresignedPutObjectAsync(new PresignedPutObjectArgs().WithBucket(Bucket)
             .WithObject(objectKey).WithExpiry((int)lifetime.TotalSeconds));
     }
@@ -36,11 +34,35 @@ public sealed class MinioExamMediaStore(IMinioClient client, IOptions<MinioOptio
         CancellationToken cancellationToken)
     {
         await EnsureBucketAsync(cancellationToken);
-        var settings = options.Value;
-        var publicClient = new MinioClient().WithEndpoint(settings.PublicEndpoint)
-            .WithCredentials(settings.AccessKey, settings.SecretKey).WithSSL(settings.UseSsl).Build();
+        var publicClient = CreatePublicClient();
         return await publicClient.PresignedGetObjectAsync(new PresignedGetObjectArgs().WithBucket(Bucket)
             .WithObject(objectKey).WithExpiry((int)lifetime.TotalSeconds));
+    }
+
+    public async Task<IReadOnlyList<string>> CreatePresignedGetUrlsAsync(IReadOnlyList<string> objectKeys,
+        TimeSpan lifetime, CancellationToken cancellationToken)
+    {
+        if (objectKeys.Count == 0)
+            return [];
+
+        await EnsureBucketAsync(cancellationToken);
+        var publicClient = CreatePublicClient();
+        var expirySeconds = (int)lifetime.TotalSeconds;
+        var urls = new string[objectKeys.Count];
+        for (var i = 0; i < objectKeys.Count; i++)
+        {
+            urls[i] = await publicClient.PresignedGetObjectAsync(new PresignedGetObjectArgs().WithBucket(Bucket)
+                .WithObject(objectKeys[i]).WithExpiry(expirySeconds));
+        }
+
+        return urls;
+    }
+
+    private IMinioClient CreatePublicClient()
+    {
+        var settings = options.Value;
+        return new MinioClient().WithEndpoint(settings.PublicEndpoint)
+            .WithCredentials(settings.AccessKey, settings.SecretKey).WithSSL(settings.UseSsl).Build();
     }
 
     public async Task<ExamMediaObjectMetadata?> GetMetadataAsync(string objectKey, CancellationToken cancellationToken)

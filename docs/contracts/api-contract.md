@@ -21,21 +21,25 @@ Trả `201` với Draft revision đã có đúng 200 slot. `GET /api/v1/admin/ex
 | `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/questions/{questionNumber}` | JSON nội dung câu hỏi và đáp án; Part 2 chỉ nhận A–C, các Part khác A–D. Có thêm `imageRequired`; khi `true`, Publish chỉ thành công sau khi ảnh được gắn. |
 | `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/score-profile` | JSON `{ "scoreProfileId": "<uuid>" }`; chọn lại barem cho Draft. |
 | `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/blocks/{blockKey}/contexts` | JSON `{ "contexts": [...] }`, với `ordinal` liên tiếp từ 1. Context có `imageRequired`; ảnh bắt buộc phải được gắn trước Publish. |
-| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/master-audio` | `multipart/form-data`, field `file`; `.mp3`/`.wav`, tối đa 100 MiB. |
 | `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/publish` | Publish nếu revision đầy đủ. |
 | `POST /api/v1/admin/exams/{examId}/revisions` | JSON `{ "sourceRevisionId": "<published-revision-uuid>" }`; fork published revision thành Draft mới. |
 
 `POST /api/v1/admin/exam-media/images` nhận `multipart/form-data`, field `file`, chỉ PNG/JPEG/WebP tối đa 5 MiB. API kiểm tra signature file và trả asset UUID; client dùng UUID đó trong `ImageAssetId`, không dùng tên file hoặc URL.
 
-### Media workspace cho đề mới
+### Media workspace cho đề thi
 
-Draft mới và import chỉ có `workbook` dùng media workspace riêng. `GET revision` trả `usesMediaWorkspace`, `audioAssetId` của block và `imageRequired` của question/context. Revision cũ giữ `usesMediaWorkspace=false`, tiếp tục dùng UI/API master-audio cũ và không được migration trong phạm vi này.
+Mọi revision Draft đều dùng kiến trúc media thống nhất gắn qua presigned URL.
+`GET revision` trả `audioAssetId` và `audioDurationMs` của block, cùng `imageRequired` của question/context (không còn `usesMediaWorkspace` hay `hasMasterAudio`).
 
-1. `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents` nhận JSON `{ ownerKind, ownerKey, contentType, byteSize }`, trả `201` với `{ intentId, uploadUrl, expiresAtUtc, requiredHeaders }`. `ownerKind` là `AudioGroup`, `QuestionImage` hoặc `ContextImage`. Server chỉ cấp URL cho Draft workspace, key do server tạo, audio MP3/WAV tối đa 100 MiB và image PNG/JPEG/WebP tối đa 5 MiB.
+1. `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents` nhận JSON `{ ownerKind, ownerKey, contentType, byteSize, durationMs? }`, trả `201` với `{ intentId, uploadUrl, expiresAtUtc, requiredHeaders }`.
+`ownerKind` là `AudioGroup` (Part 1-4), `QuestionImage` (Part 1-7) hoặc `ContextImage` (Part 5-7).
+Server chỉ cấp URL cho Draft revision, key do server tạo, audio MP3/WAV (`audio/mpeg`, `audio/mp3`, `audio/wav`, `audio/x-wav`) tối đa 100 MiB (kèm `durationMs` tùy chọn trong `1..3_600_000`), và image PNG/JPEG/WebP tối đa 5 MiB (`durationMs` phải `null`).
 2. Browser `PUT` bytes trực tiếp tới `uploadUrl` với `requiredHeaders`; không gửi credential storage qua FE.
-3. `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents/{intentId}/complete` xác minh object tồn tại, MIME và kích thước, rồi gắn `ExamMediaAsset` vào owner; trả `201`. Intent hết hạn, đã hoàn tất hoặc Draft không còn hợp lệ trả `409`.
+3. `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents/{intentId}/complete` xác minh object tồn tại, MIME và kích thước, lưu `durationMs` từ `expectedDurationMs` sang `ExamMediaAsset` và gắn vào owner; trả `201` với `{ id, contentType, kind, byteSize, durationMs }`.
+Intent hết hạn, đã hoàn tất hoặc Draft không còn hợp lệ trả `409`.
 
-Publish workspace yêu cầu audio cho mọi block Listening Part 1–4 và mọi ảnh có `imageRequired=true`. Intent chưa hoàn tất được dọn sau khi hết hạn; bucket private và URL ký sẵn không được lưu vào database.
+Publish yêu cầu audio cho mọi block Listening Part 1-4 và mọi ảnh có `imageRequired=true`.
+Intent chưa hoàn tất được dọn sau khi hết hạn; bucket private và URL ký sẵn không được lưu vào database.
 
 ### Import một đề L&R hoàn chỉnh
 
@@ -43,13 +47,15 @@ Publish workspace yêu cầu audio cho mọi block Listening Part 1–4 và mọ
 
 - `workbook`: XLSX, tối đa 10 MiB.
 
-`masterAudio` vẫn được chấp nhận tùy chọn để giữ tương thích import legacy; import chỉ có `workbook` tạo Draft media workspace mới.
+Import tạo một Draft revision tiêu chuẩn; audio cho từng block Part 1-4 được upload sau qua `media-upload-intents`.
 
-Workbook có bốn sheet bắt buộc: `Manifest`, `Blocks`, `ContextBlocks`, `Questions`. `Manifest` có `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, `ScoreProfileId`. `ContextBlocks` và `Questions` hỗ trợ cột `ImageRequired` (true/false; cột cũ không có vẫn hợp lệ). Importer đối chiếu chính xác 103 block và 200 câu theo `BlockKey` + `QuestionNumber`; không dựa vào thứ tự dòng. Lỗi workbook trả `400 ValidationProblemDetails` với key `workbook`; lỗi Master Audio trả `400 ProblemDetails`. Cả hai trường hợp đều không tạo Draft. Lỗi ghi DB sau upload thực hiện cleanup object audio tốt nhất có thể.
+Workbook có bốn sheet bắt buộc: `Manifest`, `Blocks`, `ContextBlocks`, `Questions`. `Manifest` có `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, `ScoreProfileId`. `ContextBlocks` và `Questions` hỗ trợ cột `ImageRequired` (true/false; cột cũ không có vẫn hợp lệ). Importer đối chiếu chính xác 103 block và 200 câu theo `BlockKey` + `QuestionNumber`; không dựa vào thứ tự dòng. Lỗi workbook trả `400 ValidationProblemDetails` với key `workbook` và không tạo Draft.
 
 Thay toàn bộ placeholder nội dung, `ScoreProfileId` và `ImageAssetId` trước khi import; template cố ý không thể publish nguyên trạng.
 
-`GET /api/v1/admin/exams/import-template` tải mẫu XLSX 200 câu, 103 block với đủ Part 1–7. Mẫu được phân phối từ API sau khi admin đăng nhập. Thay `ScoreProfileId`, các `ImageAssetId` của Part 1 và nội dung demo, rồi đính kèm Master Audio khi gọi endpoint import.
+`GET /api/v1/admin/exams/import-template` tải mẫu XLSX 200 câu, 103 block với đủ Part 1-7.
+Mẫu được phân phối từ API sau khi admin đăng nhập.
+Thay `ScoreProfileId`, các `ImageAssetId` và nội dung demo trước khi gọi endpoint import.
 
 Các endpoint trong tài liệu này dùng prefix `/api/v1`. Frontend gọi backend qua Next.js route handler và cấu hình
 server-side `API_BASE_URL`; không đưa URL backend hoặc credential vào browser bundle.
@@ -188,8 +194,11 @@ Tất cả endpoint yêu cầu Bearer token và chỉ truy cập được lượ
 | PUT | `/api/v1/exam-attempts/{attemptId}/questions/{questionId}/flag` | Gắn hoặc bỏ cờ: `{ "isFlagged": true }` |
 | POST | `/api/v1/exam-attempts/{attemptId}/submit` | Nộp bài, trả kết quả |
 | POST | `/api/v1/exam-attempts/{attemptId}/abandon` | Hủy lượt đang làm |
+| GET | `/api/v1/exam-attempts/{attemptId}/listening-audio-urls` | Danh sách presigned URL audio Part 1-4 theo thứ tự (`items: [{ blockId, part, firstQuestionNumber, audioAssetId, durationMs, url, expiresAtUtc }]`); trả `409` nếu đã khóa Listening hoặc không ở trạng thái `InProgress` |
+| GET | `/api/v1/exam-attempts/{attemptId}/audio/{assetId}` | Presigned URL cho một audio asset thuộc lượt làm (`409` nếu `InProgress` và đã khóa Listening; hợp lệ khi Review ở trạng thái `Completed`) |
+| GET | `/api/v1/exam-attempts/{attemptId}/images/{assetId}` | Presigned URL cho ảnh thuộc lượt làm |
 | GET | `/api/v1/exam-attempts/{attemptId}/result` | Báo cáo điểm: Listening/Reading, tổng, số đúng/sai/bỏ qua, hiệu suất theo Part (`parts`) |
-| GET | `/api/v1/exam-attempts/{attemptId}/review?filter=All` | Xem lại: `All`, `Incorrect` (sai hoặc bỏ qua), `Flagged`. Câu được nhóm theo `blocks` kèm đoạn văn (`contextBlocks`); `status` là `correct`, `wrong` hoặc `skipped` |
+| GET | `/api/v1/exam-attempts/{attemptId}/review?filter=All` | Xem lại: `All`, `Incorrect` (sai hoặc bỏ qua), `Flagged`. Câu được nhóm theo `blocks` kèm đoạn văn (`contextBlocks`), `audioAssetId` và `audioDurationMs` cho Part 1-4; `status` là `correct`, `wrong` hoặc `skipped` |
 | GET | `/api/v1/exam-attempts/history` | Lịch sử các lượt làm |
 
 Quy tắc server:
