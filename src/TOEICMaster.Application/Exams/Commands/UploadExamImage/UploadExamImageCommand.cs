@@ -38,11 +38,7 @@ public sealed class UploadExamImageCommandHandler(IExamRepository repository, IE
 public static class ExamMediaInspector
 {
     public static bool MatchesClaimedContentType(string claimedContentType, string detectedContentType) =>
-        string.Equals(claimedContentType, detectedContentType, StringComparison.OrdinalIgnoreCase) ||
-        (detectedContentType == "audio/mpeg" && string.Equals(claimedContentType, "audio/mp3",
-            StringComparison.OrdinalIgnoreCase)) ||
-        (detectedContentType == "audio/wav" && string.Equals(claimedContentType, "audio/x-wav",
-            StringComparison.OrdinalIgnoreCase));
+        string.Equals(claimedContentType, detectedContentType, StringComparison.OrdinalIgnoreCase);
 
     public static (string Extension, string ContentType)? DetectImage(byte[] bytes)
     {
@@ -57,16 +53,6 @@ public static class ExamMediaInspector
             (bytes.AsSpan(12, 4).SequenceEqual("VP8 "u8) || bytes.AsSpan(12, 4).SequenceEqual("VP8L"u8) ||
              bytes.AsSpan(12, 4).SequenceEqual("VP8X"u8)))
             return ("webp", "image/webp");
-        return null;
-    }
-
-    public static (string Extension, string ContentType)? DetectMasterAudio(byte[] bytes)
-    {
-        if (bytes.Length >= 12 && bytes.AsSpan(0, 4).SequenceEqual("RIFF"u8) && bytes.AsSpan(8, 4).SequenceEqual("WAVE"u8))
-            return ("wav", "audio/wav");
-        if (bytes.Length >= 3 && bytes.AsSpan(0, 3).SequenceEqual("ID3"u8) ||
-            bytes.Length >= 2 && bytes[0] == 0xff && (bytes[1] & 0xe0) == 0xe0)
-            return ("mp3", "audio/mpeg");
         return null;
     }
 }

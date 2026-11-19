@@ -21,6 +21,10 @@ public sealed class LrAudioEfRepositoryTests(ApiFactory factory) : IClassFixture
             2048, 19_200);
         var p2AudioNoDuration = ExamMediaAsset.Create($"exam-media/{suffix}/p2.mp3", "audio/mpeg", now,
             ExamMediaKind.Audio, 1024, null);
+        var p3Audio = ExamMediaAsset.Create($"exam-media/{suffix}/p3.mp3", "audio/mpeg", now, ExamMediaKind.Audio,
+            1024, 32_400);
+        var p4Audio = ExamMediaAsset.Create($"exam-media/{suffix}/p4.mp3", "audio/mpeg", now, ExamMediaKind.Audio,
+            1024, 45_600);
         var q1Image = ExamMediaAsset.Create($"exam-media/{suffix}/q1.png", "image/png", now, ExamMediaKind.Image,
             4096);
         var p3ContextImage = ExamMediaAsset.Create($"exam-media/{suffix}/p3-ctx.png", "image/png", now,
@@ -44,8 +48,10 @@ public sealed class LrAudioEfRepositoryTests(ApiFactory factory) : IClassFixture
         revision.ReplaceContextBlocks("P3-G32", [
             new ExamContextContent(1, ExamContextType.Image, null, p3ContextImage.Id, "Context diagram", false)
         ]);
-        revision.AttachAudioAsset("P1-Q1", p1Audio.Id);
+        revision.AttachAudioAsset("P4-G71", p4Audio.Id);
         revision.AttachAudioAsset("P2-Q7", p2AudioNoDuration.Id);
+        revision.AttachAudioAsset("P1-Q1", p1Audio.Id);
+        revision.AttachAudioAsset("P3-G32", p3Audio.Id);
 
         var listeningAttempt = new ExamAttempt(Guid.NewGuid(), ownerId, revision.Id, profile.Id, now);
         var readingLockedAttempt = new ExamAttempt(Guid.NewGuid(), ownerId, revision.Id, profile.Id, now);
@@ -57,7 +63,8 @@ public sealed class LrAudioEfRepositoryTests(ApiFactory factory) : IClassFixture
         {
             var db = seedScope.ServiceProvider.GetRequiredService<ToeicDbContext>();
             db.ScoreProfiles.Add(profile);
-            db.ExamMediaAssets.AddRange(p1Audio, p2AudioNoDuration, q1Image, p3ContextImage, unlinkedAudio);
+            db.ExamMediaAssets.AddRange(p1Audio, p2AudioNoDuration, p3Audio, p4Audio, q1Image, p3ContextImage,
+                unlinkedAudio);
             db.Exams.Add(exam);
             db.ExamAttempts.AddRange(listeningAttempt, readingLockedAttempt, completedAttempt);
             await db.SaveChangesAsync();
@@ -93,7 +100,9 @@ public sealed class LrAudioEfRepositoryTests(ApiFactory factory) : IClassFixture
         Assert.NotNull(listeningPlaylist);
         Assert.Equal(ExamAttemptStatus.InProgress, listeningPlaylist.Status);
         Assert.False(listeningPlaylist.IsListeningLocked);
-        Assert.Equal(2, listeningPlaylist.Blocks.Count);
+        Assert.Equal(4, listeningPlaylist.Blocks.Count);
+        Assert.Equal(new[] { 1, 2, 3, 4 }, listeningPlaylist.Blocks.Select(block => block.Part));
+        Assert.Equal(new[] { 1, 7, 32, 71 }, listeningPlaylist.Blocks.Select(block => block.FirstQuestionNumber));
         Assert.Equal(1, listeningPlaylist.Blocks[0].Part);
         Assert.Equal(1, listeningPlaylist.Blocks[0].FirstQuestionNumber);
         Assert.Equal(p1Audio.Id, listeningPlaylist.Blocks[0].AudioAssetId);
@@ -103,6 +112,12 @@ public sealed class LrAudioEfRepositoryTests(ApiFactory factory) : IClassFixture
         Assert.Equal(7, listeningPlaylist.Blocks[1].FirstQuestionNumber);
         Assert.Equal(p2AudioNoDuration.Id, listeningPlaylist.Blocks[1].AudioAssetId);
         Assert.Null(listeningPlaylist.Blocks[1].DurationMs);
+        Assert.Equal(3, listeningPlaylist.Blocks[2].Part);
+        Assert.Equal(p3Audio.Id, listeningPlaylist.Blocks[2].AudioAssetId);
+        Assert.Equal(32_400, listeningPlaylist.Blocks[2].DurationMs);
+        Assert.Equal(4, listeningPlaylist.Blocks[3].Part);
+        Assert.Equal(p4Audio.Id, listeningPlaylist.Blocks[3].AudioAssetId);
+        Assert.Equal(45_600, listeningPlaylist.Blocks[3].DurationMs);
 
         var lockedPlaylist = await attemptRepository.GetListeningPlaylistSourceAsync(
             readingLockedAttempt.Id, ownerId, CancellationToken.None);
