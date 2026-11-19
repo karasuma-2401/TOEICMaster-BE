@@ -12,8 +12,9 @@
 - [x] Server-side deadline, auto-grade khi hết giờ, submit, result, review, history.
 - [x] Không trả correctKey/explanation/translation trước submit.
 - [x] Kiểm thử application cho lifecycle, quyền sở hữu, validation, deadline và scoring.
-- [ ] Presigned GET media learner cho legacy Master Audio và workspace audio theo block.
-- [ ] Kiểm thử tích hợp HTTP/DB và UAT với MinIO/production storage.
+- [x] Presigned GET media learner: playlist audio Part 1–4, audio đơn theo asset và ảnh của attempt. Master Audio legacy đã bị loại bỏ.
+- [x] Kiểm thử tích hợp HTTP/DB (Postgres) cho media, playlist Listening, khóa Listening và review.
+- [ ] UAT với MinIO/production storage.
 - [ ] API luyện tập từ L&R exercise bank và lắp đề từ ngân hàng.
 
 ## Frontend/BFF
@@ -25,8 +26,8 @@
 - [x] Trang attempt lấy snapshot thật, map question/options/context.
 - [x] Autosave đáp án/cờ; submit và chuyển Reading gọi Backend.
 - [x] Trang kết quả và review dùng dữ liệu Backend.
-- [ ] Player audio thật, tự phát và khóa pause/seek; phụ thuộc endpoint presigned GET media.
-- [ ] Render ảnh/context image từ media asset ID.
+- [ ] Player audio thật, tự phát và khóa pause/seek; dùng playlist presigned GET đã có ở Backend.
+- [ ] Render ảnh/context image từ media asset ID; dùng endpoint presigned GET ảnh đã có ở Backend.
 - [ ] Hiển thị attempt history và số lần thi/điểm tốt nhất trên library.
 - [ ] Tích hợp practice Part 1–7 với learner exercise API (Backend chưa có API learner cho exercise bank).
 - [ ] E2E test và UAT trên môi trường có dữ liệu đề Published thực tế.
@@ -34,5 +35,6 @@
 ## Rủi ro / giới hạn còn lại
 
 - Không dùng Admin preview API ở learner flow vì response có đáp án đúng.
-- Chưa có learner media URL; không hiển thị thông báo giả rằng audio đã phát hoặc đáp án đã lưu trước khi API xác nhận.
+- Learner media dùng presigned GET URL thời hạn 3 giờ; playlist và endpoint audio trong lúc làm bài trả `409` sau khi Listening bị khóa.
+- Backend chưa enforcement pause/seek của player; đây là ràng buộc UI, không phải kiểm tra server-side.
 - Cần chạy test/build ở cả hai repository và kiểm tra deployment env `API_BASE_URL` trước khi merge.

@@ -14,12 +14,11 @@ public sealed class ImportExamCommandValidator : AbstractValidator<ImportExamCom
     }
 }
 
-public sealed class ImportExamCommandHandler(IExamRepository repository, IExamMediaStore store, TimeProvider timeProvider)
+public sealed class ImportExamCommandHandler(IExamRepository repository, TimeProvider timeProvider)
     : IRequestHandler<ImportExamCommand, ExamDraftDto>
 {
     public async Task<ExamDraftDto> Handle(ImportExamCommand request, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(store);
         var workbook = XlsxExamWorkbookReader.Read(request.WorkbookContent);
         if (await repository.ExamCodeExistsAsync(workbook.TestCode.Trim(), cancellationToken))
             throw new ExamConflictException();

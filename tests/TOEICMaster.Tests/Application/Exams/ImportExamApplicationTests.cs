@@ -32,35 +32,31 @@ public sealed class ImportExamApplicationTests
     }
 
     [Fact]
-    public async Task Valid_complete_workbook_creates_one_standard_draft_without_uploading_legacy_audio()
+    public async Task Valid_complete_workbook_creates_one_standard_draft()
     {
         var profile = ScoreProfile.Create("Configured but not necessarily complete", DateTimeOffset.UtcNow);
         var source = ValidWorkbookData(profile.Id);
         var repository = new FakeExamRepository(profile);
-        var store = new RecordingMediaStore();
-        var handler = new ImportExamCommandHandler(repository, store, TimeProvider.System);
+        var handler = new ImportExamCommandHandler(repository, TimeProvider.System);
 
         var result = await handler.Handle(new ImportExamCommand(WorkbookBytes(source)), CancellationToken.None);
 
         var exam = Assert.Single(repository.AddedExams);
         Assert.Single(exam.Revisions);
         Assert.Equal(200, result.QuestionCount);
-        Assert.Empty(store.UploadedObjectKeys);
         Assert.True(repository.Saved);
     }
 
     [Fact]
-    public async Task Invalid_workbook_does_not_upload_or_persist_a_draft()
+    public async Task Invalid_workbook_does_not_persist_a_draft()
     {
         var repository = new FakeExamRepository(ScoreProfile.Create("Profile", DateTimeOffset.UtcNow));
-        var store = new RecordingMediaStore();
-        var handler = new ImportExamCommandHandler(repository, store, TimeProvider.System);
+        var handler = new ImportExamCommandHandler(repository, TimeProvider.System);
 
         await Assert.ThrowsAsync<ExamWorkbookFormatException>(() => handler.Handle(
             new ImportExamCommand("not a workbook"u8.ToArray()), CancellationToken.None));
 
         Assert.Empty(repository.AddedExams);
-        Assert.Empty(store.UploadedObjectKeys);
     }
 
     private static ImportedExamWorkbook ValidWorkbookData(Guid? scoreProfileId = null)
@@ -143,18 +139,6 @@ public sealed class ImportExamApplicationTests
         var entry = archive.CreateEntry(name);
         using var writer = new StreamWriter(entry.Open(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         writer.Write(text);
-    }
-
-    private sealed class RecordingMediaStore : IExamMediaStore
-    {
-        public List<string> UploadedObjectKeys { get; } = [];
-        public string ObjectKey => Assert.Single(UploadedObjectKeys);
-        public Task UploadAsync(string objectKey, byte[] content, string contentType, CancellationToken cancellationToken)
-        {
-            UploadedObjectKeys.Add(objectKey);
-            return Task.CompletedTask;
-        }
-        public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class FakeExamRepository(ScoreProfile profile) : IExamRepository

@@ -185,7 +185,7 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
                 && block.Part >= 1
                 && block.Part <= 4
                 && asset.Kind == ExamMediaKind.Audio
-            orderby block.FirstQuestionNumber
+            orderby block.Part, block.FirstQuestionNumber
             select new ExamAttemptListeningBlockSource(
                 block.Id,
                 block.Part,
