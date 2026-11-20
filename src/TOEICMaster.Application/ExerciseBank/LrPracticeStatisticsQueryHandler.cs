@@ -1,4 +1,3 @@
-
 using MediatR;
 
 namespace TOEICMaster.Application.ExerciseBank;
@@ -9,31 +8,19 @@ public sealed class GetLrPracticeStatisticsQueryHandler(
     GetLrPracticeStatisticsQuery,
     IReadOnlyList<LrPracticeItemStatisticsDto>>
 {
-    public async Task<IReadOnlyList<LrPracticeItemStatisticsDto>> Handle(
+    public Task<IReadOnlyList<LrPracticeItemStatisticsDto>> Handle(
         GetLrPracticeStatisticsQuery request,
         CancellationToken cancellationToken)
     {
         if (request.UserId == Guid.Empty)
-            throw new ArgumentException("Invalid user ID.");
+            throw new InvalidLrPracticeRequestException("Invalid user ID.");
 
         if (request.Part is < 1 or > 7)
-            throw new ArgumentOutOfRangeException(nameof(request.Part));
+            throw new InvalidLrPracticeRequestException("Part must be between 1 and 7.");
 
-        var attempts = await attemptRepository.GetByUserAndPartAsync(
+        return attemptRepository.GetStatisticsByUserAndPartAsync(
             request.UserId,
             request.Part,
             cancellationToken);
-
-        var statistics = attempts
-            .GroupBy(attempt => attempt.ItemId)
-            .Select(group => new LrPracticeItemStatisticsDto(
-                group.Key,
-                group.Count(),
-                group.Max(attempt => attempt.CorrectCount),
-                group.First().TotalQuestions
-            ))
-            .ToList();
-
-        return statistics;
     }
 }

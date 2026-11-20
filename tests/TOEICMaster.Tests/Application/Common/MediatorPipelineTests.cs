@@ -264,8 +264,11 @@ public sealed class MediatorPipelineTests
         public Task AddAsync(LrPracticeAttempt attempt, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<IReadOnlyList<LrPracticeAttempt>> GetByUserAndItemAsync(Guid userId, Guid itemId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<LrPracticeAttempt>>([]);
-        public Task<IReadOnlyList<LrPracticeAttempt>> GetByUserAndPartAsync(Guid userId, int part, CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<LrPracticeAttempt>>([]);
+        public Task<IReadOnlyList<LrPracticeItemStatisticsDto>> GetStatisticsByUserAndPartAsync(
+            Guid userId,
+            int part,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<LrPracticeItemStatisticsDto>>([]);
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

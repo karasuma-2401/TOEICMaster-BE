@@ -1,10 +1,10 @@
-
+using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TOEICMaster.Application.ExerciseBank;
-using System.Security.Claims;
 using Microsoft.IdentityModel.JsonWebTokens;
+using TOEICMaster.Application.ExerciseBank;
+
 namespace TOEICMaster.Api.Controllers;
 
 [ApiController]
@@ -21,13 +21,6 @@ public sealed class LrPracticeController(ISender sender) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        if (part is < 1 or > 7)
-            return BadRequest(new ProblemDetails
-            {
-                Status = 400,
-                Title = "Part phải nằm trong khoảng từ 1 đến 7."
-            });
-
         var result = await sender.Send(
             new GetLrPracticeItemsQuery(part, pageNumber, pageSize),
             cancellationToken);
@@ -47,62 +40,52 @@ public sealed class LrPracticeController(ISender sender) : ControllerBase
             new GetLrPracticeItemDetailQuery(id),
             cancellationToken);
 
-        if (result is null)
-            return NotFound();
-
-        return Ok(result);
+        return result is null ? NotFound() : Ok(result);
     }
 
     [HttpPost("items/{id:guid}/submit")]
     [Authorize]
     [ProducesResponseType<LrPracticeSubmitResultDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<LrPracticeSubmitResultDto>> Submit(
-    Guid id,
-    [FromBody] LrPracticeSubmitRequest request,
-    CancellationToken cancellationToken)
-  {
-    var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
-        ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+        Guid id,
+        [FromBody] LrPracticeSubmitRequest request,
+        CancellationToken cancellationToken)
+    {
+        var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-    if (!Guid.TryParse(subject, out var userId))
-        return Unauthorized();
+        if (!Guid.TryParse(subject, out var userId))
+            return Unauthorized();
 
-    var result = await sender.Send(
-        new SubmitLrPracticeCommand(userId, id, request),
-        cancellationToken);
+        var result = await sender.Send(
+            new SubmitLrPracticeCommand(userId, id, request),
+            cancellationToken);
 
-    return Ok(result);
-  }
+        return Ok(result);
+    }
 
-[HttpGet("parts/{part:int}/statistics")]
-[Authorize]
-[ProducesResponseType<IReadOnlyList<LrPracticeItemStatisticsDto>>(
-    StatusCodes.Status200OK)]
-public async Task<ActionResult<IReadOnlyList<LrPracticeItemStatisticsDto>>>
-    GetStatistics(
+    [HttpGet("parts/{part:int}/statistics")]
+    [Authorize]
+    [ProducesResponseType<IReadOnlyList<LrPracticeItemStatisticsDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IReadOnlyList<LrPracticeItemStatisticsDto>>> GetStatistics(
         int part,
         CancellationToken cancellationToken)
-{
-    if (part is < 1 or > 7)
-        return BadRequest(new ProblemDetails
-        {
-            Status = 400,
-            Title = "Part phải nằm trong khoảng từ 1 đến 7."
-        });
+    {
+        var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-    var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
-        ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(subject, out var userId))
+            return Unauthorized();
 
-    if (!Guid.TryParse(subject, out var userId))
-        return Unauthorized();
+        var result = await sender.Send(
+            new GetLrPracticeStatisticsQuery(userId, part),
+            cancellationToken);
 
-    var result = await sender.Send(
-        new GetLrPracticeStatisticsQuery(userId, part),
-        cancellationToken);
-
-    return Ok(result);
-}
-
+        return Ok(result);
+    }
 }

@@ -1,4 +1,3 @@
-
 using MediatR;
 using TOEICMaster.Domain.Entities;
 
@@ -14,51 +13,44 @@ public sealed class SubmitLrPracticeCommandHandler(
         CancellationToken cancellationToken)
     {
         if (request.UserId == Guid.Empty)
-            throw new ArgumentException("Invalid user ID.");
+            throw new InvalidLrPracticeSubmissionException("Invalid user ID.");
 
         var item = await repository.GetPublishedByIdAsync(
             request.ItemId,
             cancellationToken);
 
         if (item is null)
-            throw new KeyNotFoundException("Practice item not found.");
+            throw new LrPracticeItemNotFoundException("Practice item not found.");
 
         if (request.Request.Answers is null)
-            throw new ArgumentException("Answers are required.");
+            throw new InvalidLrPracticeSubmissionException("Answers are required.");
 
         var submittedAnswers = request.Request.Answers;
-
-        // Không cho phép gửi trùng QuestionId.
         if (submittedAnswers
             .GroupBy(answer => answer.QuestionId)
             .Any(group => group.Count() > 1))
         {
-            throw new ArgumentException("Duplicate question answers are not allowed.");
+            throw new InvalidLrPracticeSubmissionException(
+                "Duplicate question answers are not allowed.");
         }
 
-        var questionIds = item.Questions
-            .Select(question => question.Id)
-            .ToHashSet();
-
-        // Chỉ chấp nhận câu hỏi thuộc bài tập đang làm.
-        if (submittedAnswers.Any(answer =>
-                !questionIds.Contains(answer.QuestionId)))
+        var questionsById = item.Questions.ToDictionary(question => question.Id);
+        if (submittedAnswers.Any(answer => !questionsById.ContainsKey(answer.QuestionId)))
         {
-            throw new ArgumentException("An answer contains an invalid question ID.");
+            throw new InvalidLrPracticeSubmissionException(
+                "An answer contains an invalid question ID.");
         }
 
         var answerMap = submittedAnswers.ToDictionary(
             answer => answer.QuestionId,
-            answer => answer.SelectedKey?.Trim().ToUpperInvariant());
+            answer => NormalizeSelectedKey(answer.SelectedKey, questionsById[answer.QuestionId]));
 
         var results = item.Questions
             .OrderBy(question => question.Ordinal)
             .Select(question =>
             {
                 answerMap.TryGetValue(question.Id, out var selectedKey);
-
                 var correctKey = question.CorrectKey.Trim().ToUpperInvariant();
-
                 var isCorrect = selectedKey == correctKey;
 
                 return new LrPracticeQuestionResultDto(
@@ -68,14 +60,11 @@ public sealed class SubmitLrPracticeCommandHandler(
                     correctKey,
                     isCorrect,
                     question.Translation,
-                    question.Explanation
-                );
+                    question.Explanation);
             })
             .ToList();
 
         var correctCount = results.Count(result => result.IsCorrect);
-
-        // Tạo dữ liệu lịch sử làm bài.
         var attempt = LrPracticeAttempt.Create(
             request.UserId,
             item.Id,
@@ -86,22 +75,48 @@ public sealed class SubmitLrPracticeCommandHandler(
                 result.CorrectKey,
                 result.IsCorrect,
                 result.Translation,
-                result.Explanation
-            )).ToList(),
-            DateTimeOffset.UtcNow
-        );
+                result.Explanation)).ToList(),
+            DateTimeOffset.UtcNow);
 
-        // Lưu lần làm bài và câu trả lời.
         await attemptRepository.AddAsync(attempt, cancellationToken);
         await attemptRepository.SaveChangesAsync(cancellationToken);
 
-        // Trả kết quả về frontend như trước.
         return new LrPracticeSubmitResultDto(
             item.Id,
             results.Count,
             correctCount,
             results.Count - correctCount,
-            results
-        );
+            results);
+    }
+
+    private static string? NormalizeSelectedKey(
+        string? selectedKey,
+        LrExerciseBankQuestion question)
+    {
+        if (string.IsNullOrWhiteSpace(selectedKey))
+            return null;
+
+        var normalized = selectedKey.Trim().ToUpperInvariant();
+        if (normalized.Length > 8 || normalized.Length != 1 || normalized is not ("A" or "B" or "C" or "D"))
+        {
+            throw new InvalidLrPracticeSubmissionException(
+                "SelectedKey must be an available option key A, B, C, or D.");
+        }
+
+        var option = normalized switch
+        {
+            "A" => question.OptionA,
+            "B" => question.OptionB,
+            "C" => question.OptionC,
+            "D" => question.OptionD,
+            _ => null
+        };
+        if (string.IsNullOrWhiteSpace(option))
+        {
+            throw new InvalidLrPracticeSubmissionException(
+                "SelectedKey must reference an available option.");
+        }
+
+        return normalized;
     }
 }

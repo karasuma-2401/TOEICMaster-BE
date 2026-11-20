@@ -34,6 +34,15 @@
 - Đáp án phải hợp lệ theo lựa chọn của câu; Part 2 chỉ chấp nhận A–C.
 - Autosave chấp nhận grace period 5 giây sau deadline để xử lý độ trễ mạng.
 
+## Luyện tập Listening & Reading
+
+Learner có thể dùng các endpoint `/api/v1/lr-practice` để luyện từng item Published mà không cần mở một exam attempt.
+
+`GET /api/v1/lr-practice/parts/{part}/items` và `GET /api/v1/lr-practice/items/{id}` là anonymous và chỉ trả nội dung không có đáp án.
+`POST /api/v1/lr-practice/items/{id}/submit` và `GET /api/v1/lr-practice/parts/{part}/statistics` yêu cầu Bearer token.
+Submit lưu snapshot đáp án và statistics chỉ gồm dữ liệu của user trong JWT.
+Payload sai, câu hỏi không thuộc item, key trùng hoặc key không tồn tại trả `400 application/problem+json`; item không tồn tại hoặc chưa Published trả `404`.
+
 ## Media
 
 Sheet DTO (`ExamAttemptSheetDto`) không còn `MasterAudioObjectKey`; mỗi `ExamBlockSheetDto` trả `audioAssetId` và `audioDurationMs` (ms) cho Part 1-4.

@@ -31,21 +31,39 @@ public sealed class EfLrPracticeAttemptRepository(
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<LrPracticeAttempt>> GetByUserAndPartAsync(
+    public async Task<IReadOnlyList<LrPracticeItemStatisticsDto>> GetStatisticsByUserAndPartAsync(
         Guid userId,
         int part,
         CancellationToken cancellationToken)
     {
-        var itemIds = await dbContext.LrExerciseBankItems
-            .AsNoTracking()
-            .Where(x => (int)x.Part == part)
-            .Select(x => x.Id)
+        return await BuildStatisticsQuery(userId, part)
             .ToListAsync(cancellationToken);
+    }
 
-        return await dbContext.LrPracticeAttempts
+    internal IQueryable<LrPracticeItemStatisticsDto> BuildStatisticsQuery(Guid userId, int part)
+    {
+        var itemIds = dbContext.LrExerciseBankItems
             .AsNoTracking()
-            .Where(x => x.UserId == userId && itemIds.Contains(x.ItemId))
-            .ToListAsync(cancellationToken);
+            .Where(item => (int)item.Part == part)
+            .Select(item => item.Id);
+
+        return dbContext.LrPracticeAttempts
+            .AsNoTracking()
+            .Where(attempt => attempt.UserId == userId && itemIds.Contains(attempt.ItemId))
+            .GroupBy(attempt => attempt.ItemId)
+            .Select(group => new
+            {
+                ItemId = group.Key,
+                AttemptCount = group.Count(),
+                BestScore = group.Max(attempt => attempt.CorrectCount),
+                TotalQuestions = group.Max(attempt => attempt.TotalQuestions)
+            })
+            .OrderBy(statistics => statistics.ItemId)
+            .Select(statistics => new LrPracticeItemStatisticsDto(
+                statistics.ItemId,
+                statistics.AttemptCount,
+                statistics.BestScore,
+                statistics.TotalQuestions));
     }
 
     public async Task SaveChangesAsync(

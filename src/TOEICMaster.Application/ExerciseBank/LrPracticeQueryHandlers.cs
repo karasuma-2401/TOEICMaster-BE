@@ -1,4 +1,3 @@
-
 using MediatR;
 using TOEICMaster.Domain.Entities;
 
@@ -13,10 +12,13 @@ public sealed class GetLrPracticeItemsQueryHandler(
         CancellationToken cancellationToken)
     {
         if (request.Part is < 1 or > 7)
-            throw new ArgumentOutOfRangeException(nameof(request.Part));
+            throw new InvalidLrPracticeRequestException("Part must be between 1 and 7.");
 
         var pageNumber = Math.Max(1, request.PageNumber);
         var pageSize = Math.Clamp(request.PageSize, 1, 50);
+        var offset = (long)(pageNumber - 1) * pageSize;
+        if (offset > int.MaxValue)
+            throw new InvalidLrPracticeRequestException("The requested page is out of range.");
 
         var (items, totalCount) = await repository.GetPublishedPageAsync(
             request.Part,

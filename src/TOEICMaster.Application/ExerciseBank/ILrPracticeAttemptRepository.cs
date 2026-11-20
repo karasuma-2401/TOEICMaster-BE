@@ -12,10 +12,11 @@ public interface ILrPracticeAttemptRepository
         Guid userId,
         Guid itemId,
         CancellationToken cancellationToken);
-Task<IReadOnlyList<LrPracticeAttempt>> GetByUserAndPartAsync(
-    Guid userId,
-    int part,
-    CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<LrPracticeItemStatisticsDto>> GetStatisticsByUserAndPartAsync(
+        Guid userId,
+        int part,
+        CancellationToken cancellationToken);
 
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }
