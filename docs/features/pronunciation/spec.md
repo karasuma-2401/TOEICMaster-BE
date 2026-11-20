@@ -18,7 +18,7 @@ Học viên đọc một từ ví dụ của một âm IPA (ví dụ `think` cho
 
 - [x] `POST /api/v1/pronunciation/assessments`: nhận một bản thu ngắn, trả kết quả chấm.
 - [x] Chấm bằng Azure Pronunciation Assessment: có `ReferenceText`, `Granularity=Phoneme`, `PhonemeAlphabet=IPA`, `NBestPhonemeCount=5`.
-- [x] Yêu cầu đăng nhập, giới hạn 30 lần/phút cho mỗi token.
+- [x] Yêu cầu đăng nhập, giới hạn 30 lần/phút cho mỗi người dùng đã xác thực.
 
 ### Ngoài phạm vi
 
@@ -73,7 +73,8 @@ sequenceDiagram
 
 - **Auth:** Bearer token (người dùng đã đăng nhập). Chưa đăng nhập → `401`.
 - **Content-Type:** `multipart/form-data`.
-- **Rate limit:** 30 request/phút cho mỗi token (không có token thì theo địa chỉ IP). Vượt → `429` kèm `Retry-After`.
+- **Rate limit:** 30 request/phút cho mỗi người dùng đã xác thực hoặc theo địa chỉ IP kết nối khi thiếu token hay token không hợp lệ.
+  Vượt giới hạn trả `429` kèm `Retry-After`.
 
 | Field           | Bắt buộc | Ràng buộc                                                                                     |
 | --------------- | -------- | --------------------------------------------------------------------------------------------- |

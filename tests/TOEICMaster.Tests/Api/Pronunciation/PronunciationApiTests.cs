@@ -1,16 +1,12 @@
 using System.Net;
 using System.Net.Http.Headers;
-using System.Security.Claims;
-using System.Text.Encodings.Web;
 using System.Text.Json;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.JsonWebTokens;
+using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Pronunciation;
+using TOEICMaster.Domain.Entities;
 using TOEICMaster.Tests.Api.Common;
 
 namespace TOEICMaster.Tests.Api.Pronunciation;
@@ -22,29 +18,8 @@ public sealed class PronunciationApiFactory : ApiFactory
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
-        builder.ConfigureTestServices(services =>
-        {
-            services.AddSingleton<IPronunciationAssessor>(Assessor);
-            services.AddAuthentication(options =>
-                {
-                    options.DefaultAuthenticateScheme = "PronunciationTest";
-                    options.DefaultChallengeScheme = "PronunciationTest";
-                })
-                .AddScheme<AuthenticationSchemeOptions, PronunciationTestAuthenticationHandler>(
-                    "PronunciationTest", _ => { });
-        });
+        builder.ConfigureTestServices(services => services.AddSingleton<IPronunciationAssessor>(Assessor));
     }
-}
-
-// Test host only: the X-Test-User header signs the request in.
-public sealed class PronunciationTestAuthenticationHandler(IOptionsMonitor<AuthenticationSchemeOptions> options,
-    ILoggerFactory logger, UrlEncoder encoder) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
-{
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync() =>
-        Task.FromResult(Request.Headers.TryGetValue("X-Test-User", out var user)
-            ? AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(new ClaimsIdentity(
-                [new Claim(JwtRegisteredClaimNames.Sub, user.ToString())], Scheme.Name)), Scheme.Name))
-            : AuthenticateResult.NoResult());
 }
 
 public sealed class FakePronunciationAssessor : IPronunciationAssessor
@@ -78,10 +53,17 @@ public sealed class PronunciationApiTests : IDisposable
 
     public void Dispose() => _factory.Dispose();
 
-    private HttpClient SignedIn()
+    private static User CreateLearner() => User.CreateExternal("Learner", "learner@example.com",
+        "LEARNER@EXAMPLE.COM", DateTimeOffset.UtcNow);
+
+    private AuthenticationHeaderValue IssueBearerToken(User user) => new("Bearer",
+        _factory.Services.GetRequiredService<IAuthenticationTokenService>()
+            .IssueForLogin(user, DateTimeOffset.UtcNow, false).AccessToken);
+
+    private HttpClient SignedIn(User? user = null)
     {
         var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Test-User", Guid.NewGuid().ToString());
+        client.DefaultRequestHeaders.Authorization = IssueBearerToken(user ?? CreateLearner());
         return client;
     }
 
@@ -110,6 +92,66 @@ public sealed class PronunciationApiTests : IDisposable
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Null(_factory.Assessor.LastCall);
+    }
+
+    [Fact]
+    public async Task Rate_limit_on_the_31st_request_is_shared_by_tokens_for_the_same_user()
+    {
+        var learner = CreateLearner();
+        using var client = SignedIn(learner);
+        for (var requestNumber = 1; requestNumber <= 30; requestNumber++)
+        {
+            using var form = Form(WebM, "think");
+            using var response = await client.PostAsync(Endpoint, form);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        client.DefaultRequestHeaders.Authorization = IssueBearerToken(learner);
+        using var limitedForm = Form(WebM, "think");
+        using var limited = await client.PostAsync(Endpoint, limitedForm);
+        AssertRateLimited(limited);
+
+        using var otherClient = SignedIn();
+        using var otherForm = Form(WebM, "think");
+        using var otherResponse = await otherClient.PostAsync(Endpoint, otherForm);
+        Assert.Equal(HttpStatusCode.OK, otherResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Missing_and_invalid_credentials_share_the_client_ip_quota()
+    {
+        _factory.UseKestrel(0);
+        using var client = _factory.CreateClient();
+        for (var requestNumber = 1; requestNumber <= 29; requestNumber++)
+        {
+            using var form = Form(WebM, "think");
+            using var response = await client.PostAsync(Endpoint, form);
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "invalid-token");
+        using var unauthorizedForm = Form(WebM, "think");
+        using var unauthorized = await client.PostAsync(Endpoint, unauthorizedForm);
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "another-invalid-token");
+        using var limitedForm = Form(WebM, "think");
+        using var limited = await client.PostAsync(Endpoint, limitedForm);
+        AssertRateLimited(limited);
+
+        client.DefaultRequestHeaders.Authorization = null;
+        using var anonymousForm = Form(WebM, "think");
+        using var anonymous = await client.PostAsync(Endpoint, anonymousForm);
+        AssertRateLimited(anonymous);
+        Assert.Null(_factory.Assessor.LastCall);
+    }
+
+    private static void AssertRateLimited(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
+        var retryAfter = response.Headers.RetryAfter?.Delta;
+        Assert.NotNull(retryAfter);
+        Assert.InRange(retryAfter.Value, TimeSpan.Zero, TimeSpan.FromMinutes(1));
     }
 
     [Fact]

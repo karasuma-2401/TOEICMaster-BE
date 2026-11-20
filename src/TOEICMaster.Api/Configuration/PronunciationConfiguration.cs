@@ -1,7 +1,7 @@
-using System.Security.Cryptography;
-using System.Text;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.IdentityModel.JsonWebTokens;
 using TOEICMaster.Infrastructure.Pronunciation;
 
 namespace TOEICMaster.Api.Configuration;
@@ -17,7 +17,6 @@ public static class PronunciationConfigurationExtensions
     public static IServiceCollection AddPronunciation(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddPronunciationAssessment(configuration);
-        // Each assessment spends Azure quota: 30 per minute per signed-in token (or client address).
         services.AddRateLimiter(options => options.AddPolicy(PronunciationRateLimitPolicies.Assessment, context =>
             RateLimitPartition.GetFixedWindowLimiter(PartitionKey(context), _ => new FixedWindowRateLimiterOptions
             {
@@ -29,12 +28,13 @@ public static class PronunciationConfigurationExtensions
         return services;
     }
 
-    // Rate limiting runs before authentication, so the key comes from the raw Authorization header.
     private static string PartitionKey(HttpContext context)
     {
-        var authorization = context.Request.Headers.Authorization.ToString();
-        return string.IsNullOrEmpty(authorization)
-            ? $"pronunciation-address:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown-client"}"
-            : $"pronunciation-token:{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(authorization)))}";
+        if (context.User.Identity is ClaimsIdentity { IsAuthenticated: true } identity &&
+            Guid.TryParse(identity.FindFirst(JwtRegisteredClaimNames.Sub)?.Value ??
+                          identity.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+            return $"pronunciation-user:{userId:D}";
+
+        return $"pronunciation-address:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown-client"}";
     }
 }
