@@ -53,6 +53,7 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<IExamMediaStore, EmptyExamMediaStore>();
         services.AddSingleton<IExamAttemptRepository, InMemoryExamAttempts>();
         services.AddSingleton<ILrExerciseBankRepository, EmptyLrExerciseBankRepository>();
+        services.AddSingleton<ILrPracticeAttemptRepository, EmptyLrPracticeAttemptRepository>();
         services.AddSingleton<ILrExerciseBankImportParser, EmptyLrExerciseBankImportParser>();
         services.AddSingleton<IKnowledgeAdminRepository, InMemoryKnowledgeAdminRepository>();
         services.AddSingleton<IKnowledgeMediaStore, InMemoryKnowledgeMediaStore>();
@@ -233,6 +234,13 @@ public sealed class MediatorPipelineTests
         public Task<LrExerciseItemPageDto> GetPageAsync(LrExerciseItemFilter filter, CancellationToken cancellationToken) =>
             Task.FromResult(new LrExerciseItemPageDto([], filter.PageNumber, filter.PageSize, 0));
 
+        public Task<(IReadOnlyList<LrExerciseBankItem> Items, int TotalCount)> GetPublishedPageAsync(
+            int part, int pageNumber, int pageSize, CancellationToken cancellationToken) =>
+            Task.FromResult(((IReadOnlyList<LrExerciseBankItem>)[], 0));
+
+        public Task<LrExerciseBankItem?> GetPublishedByIdAsync(Guid itemId, CancellationToken cancellationToken) =>
+            Task.FromResult<LrExerciseBankItem?>(null);
+
         public Task<LrExerciseBankSummaryDto> GetSummaryAsync(CancellationToken cancellationToken) =>
             Task.FromResult(new LrExerciseBankSummaryDto(0, null, []));
 
@@ -249,5 +257,18 @@ public sealed class MediatorPipelineTests
     private sealed class EmptyLrExerciseBankImportParser : ILrExerciseBankImportParser
     {
         public IReadOnlyList<LrExerciseItemInput> Parse(int part, string fileName, byte[] content) => [];
+    }
+
+    private sealed class EmptyLrPracticeAttemptRepository : ILrPracticeAttemptRepository
+    {
+        public Task AddAsync(LrPracticeAttempt attempt, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<IReadOnlyList<LrPracticeAttempt>> GetByUserAndItemAsync(Guid userId, Guid itemId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<LrPracticeAttempt>>([]);
+        public Task<IReadOnlyList<LrPracticeItemStatisticsDto>> GetStatisticsByUserAndPartAsync(
+            Guid userId,
+            int part,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<LrPracticeItemStatisticsDto>>([]);
+        public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

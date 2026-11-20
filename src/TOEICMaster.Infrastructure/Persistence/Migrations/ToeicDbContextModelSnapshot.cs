@@ -939,6 +939,80 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.ToTable("lr_exercise_bank_questions", (string)null);
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.LrPracticeAttempt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CorrectCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IncorrectCount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("TotalQuestions")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ItemId");
+
+                    b.HasIndex("SubmittedAtUtc");
+
+                    b.HasIndex("UserId", "ItemId");
+
+                    b.ToTable("lr_practice_attempts", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.LrPracticeAttemptAnswer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AttemptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CorrectKey")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<string>("Explanation")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsCorrect")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("QuestionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SelectedKey")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<string>("Translation")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttemptId", "QuestionId")
+                        .IsUnique();
+
+                    b.ToTable("lr_practice_attempt_answers", (string)null);
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.PasswordResetChallenge", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -2468,6 +2542,30 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.LrPracticeAttempt", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.LrExerciseBankItem", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TOEICMaster.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.LrPracticeAttemptAnswer", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.LrPracticeAttempt", null)
+                        .WithMany("Answers")
+                        .HasForeignKey("AttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.PasswordResetChallenge", b =>
                 {
                     b.HasOne("TOEICMaster.Domain.Entities.User", null)
@@ -2653,6 +2751,11 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("TOEICMaster.Domain.Entities.LrExerciseBankItem", b =>
                 {
                     b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.LrPracticeAttempt", b =>
+                {
+                    b.Navigation("Answers");
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.ScoreProfile", b =>

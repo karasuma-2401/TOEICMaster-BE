@@ -6,30 +6,84 @@ namespace TOEICMaster.Infrastructure.Persistence.ExerciseBank;
 
 public sealed class EfLrExerciseBankRepository(ToeicDbContext context) : ILrExerciseBankRepository
 {
-    public async Task<LrExerciseItemPageDto> GetPageAsync(LrExerciseItemFilter filter,
+    public async Task<LrExerciseItemPageDto> GetPageAsync(
+        LrExerciseItemFilter filter,
         CancellationToken cancellationToken)
     {
-        IQueryable<LrExerciseBankItem> query = context.LrExerciseBankItems.AsNoTracking().Include(item => item.Questions)
+        IQueryable<LrExerciseBankItem> query = context.LrExerciseBankItems
+            .AsNoTracking()
+            .Include(item => item.Questions)
             .Where(item => item.Part == LrExerciseBankMapping.ParsePart(filter.Part));
         if (!string.IsNullOrWhiteSpace(filter.Query))
         {
             var term = filter.Query.Trim().ToUpperInvariant();
-            query = query.Where(item => item.Code.ToUpper().Contains(term) || item.Topic.ToUpper().Contains(term) ||
-                                        item.Questions.Any(question => question.Code.ToUpper().Contains(term) ||
-                                            question.Prompt.ToUpper().Contains(term)));
+            query = query.Where(item =>
+                item.Code.ToUpper().Contains(term) ||
+                item.Topic.ToUpper().Contains(term) ||
+                item.Questions.Any(question =>
+                    question.Code.ToUpper().Contains(term) ||
+                    question.Prompt.ToUpper().Contains(term)));
         }
         if (!string.IsNullOrWhiteSpace(filter.Difficulty))
-            query = query.Where(item => item.Difficulty == LrExerciseBankMapping.ParseDifficulty(filter.Difficulty));
+            query = query.Where(item =>
+                item.Difficulty == LrExerciseBankMapping.ParseDifficulty(filter.Difficulty));
         if (!string.IsNullOrWhiteSpace(filter.Status))
             query = query.Where(item => item.Status == LrExerciseBankMapping.ParseStatus(filter.Status));
+
         var totalCount = await query.CountAsync(cancellationToken);
         var offset = checked((filter.PageNumber - 1) * filter.PageSize);
-        var items = await query.OrderByDescending(item => item.UpdatedAtUtc).ThenBy(item => item.Id).Skip(offset)
-            .Take(filter.PageSize).ToListAsync(cancellationToken);
-        return new LrExerciseItemPageDto(items.Select(LrExerciseBankMapping.ToDto).ToArray(), filter.PageNumber,
-            filter.PageSize, totalCount);
+        var items = await query
+            .OrderByDescending(item => item.UpdatedAtUtc)
+            .ThenBy(item => item.Id)
+            .Skip(offset)
+            .Take(filter.PageSize)
+            .ToListAsync(cancellationToken);
+
+        return new LrExerciseItemPageDto(
+            items.Select(LrExerciseBankMapping.ToDto).ToArray(),
+            filter.PageNumber,
+            filter.PageSize,
+            totalCount);
     }
 
+    public async Task<(IReadOnlyList<LrExerciseBankItem> Items, int TotalCount)> GetPublishedPageAsync(
+        int part,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var parsedPart = LrExerciseBankMapping.ParsePart(part);
+        var query = context.LrExerciseBankItems
+            .AsNoTracking()
+            .Include(item => item.Questions)
+            .Where(item =>
+                item.Part == parsedPart &&
+                item.Status == LrExerciseStatus.Published);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var offset = checked((pageNumber - 1) * pageSize);
+        var items = await query
+            .OrderBy(item => item.Code)
+            .ThenBy(item => item.Id)
+            .Skip(offset)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
+    public Task<LrExerciseBankItem?> GetPublishedByIdAsync(
+        Guid itemId,
+        CancellationToken cancellationToken)
+    {
+        return context.LrExerciseBankItems
+            .AsNoTracking()
+            .Include(item => item.Questions)
+            .FirstOrDefaultAsync(
+                item => item.Id == itemId &&
+                        item.Status == LrExerciseStatus.Published,
+                cancellationToken);
+    }
     public async Task<LrExerciseBankSummaryDto> GetSummaryAsync(CancellationToken cancellationToken)
     {
         var summaries = await context.LrExerciseBankItems.AsNoTracking().GroupBy(item => item.Part)

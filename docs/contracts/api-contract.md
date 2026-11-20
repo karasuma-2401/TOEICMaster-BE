@@ -212,6 +212,20 @@ Quy tắc server:
 
 Migration `AddExamAttemptReadingPhase` thêm cột `ExamAttempts.ReadingStartedAtUtc`.
 
+## Luyện tập Listening & Reading (learner)
+
+| Method | Đường dẫn | Auth | Mục đích và trạng thái |
+| ------ | --------- | ---- | ---------------------- |
+| GET | `/api/v1/lr-practice/parts/{part}/items?pageNumber=1&pageSize=20` | Anonymous | Danh sách item Published của Part 1-7, tối đa 50 item mỗi trang; trả `400` khi Part hoặc trang không hợp lệ |
+| GET | `/api/v1/lr-practice/items/{id}` | Anonymous | Chi tiết item Published; không trả `correctKey`, `translation` hoặc `explanation`; item không tồn tại hoặc Draft trả `404` |
+| POST | `/api/v1/lr-practice/items/{id}/submit` | Bearer | Chấm bài và lưu attempt của learner; trả `200`, `400`, `401` hoặc `404` |
+| GET | `/api/v1/lr-practice/parts/{part}/statistics` | Bearer | Thống kê riêng của learner theo item trong Part; trả `200`, `400` hoặc `401` |
+
+Request submit có dạng `{ "answers": [{ "questionId": "<uuid>", "selectedKey": "A" }] }`.
+`selectedKey` không có hoặc rỗng được tính là bỏ qua, còn giá trị khác phải là option đang tồn tại của câu hỏi và không dài quá 8 ký tự.
+User ID luôn lấy từ JWT claim `sub` hoặc `NameIdentifier`.
+Statistics được tổng hợp trong PostgreSQL và không đọc attempt của user khác.
+
 ## Giới hạn request xác thực
 
 Các endpoint xác thực có fixed-window rate limit theo địa chỉ IP trong từng API instance:

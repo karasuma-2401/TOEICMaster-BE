@@ -14,12 +14,24 @@ public sealed class LrExerciseBankExceptionHandler(IProblemDetailsService proble
             LrExerciseBankConflictException conflict => (StatusCodes.Status409Conflict, conflict.Message),
             LrExerciseBankImportException import => (StatusCodes.Status400BadRequest, import.Message),
             InvalidLrExerciseBankItemException invalid => (StatusCodes.Status400BadRequest, invalid.Message),
+            LrPracticeItemNotFoundException notFound => (StatusCodes.Status404NotFound, notFound.Message),
+            InvalidLrPracticeSubmissionException submission => (StatusCodes.Status400BadRequest, submission.Message),
+            InvalidLrPracticeRequestException request => (StatusCodes.Status400BadRequest, request.Message),
             _ => (0, null)
         };
         if (title is null)
             return false;
         httpContext.Response.StatusCode = status;
-        var problem = new ProblemDetails { Status = status, Title = title };
+        var problem = new ProblemDetails
+        {
+            Status = status,
+            Title = title,
+            Type = status switch
+            {
+                StatusCodes.Status404NotFound => "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+                _ => "https://tools.ietf.org/html/rfc9110#section-15.5.1"
+            }
+        };
         if (!await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
         {
             HttpContext = httpContext,
