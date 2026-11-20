@@ -20,7 +20,9 @@ public sealed class GetAdminKnowledgeArticlesQueryValidator : AbstractValidator<
         RuleFor(x => x.Filter).NotNull();
         When(x => x.Filter is not null, () =>
         {
-            RuleFor(x => x.Filter.PageNumber).GreaterThanOrEqualTo(1);
+            RuleFor(x => x.Filter.PageNumber).Cascade(CascadeMode.Stop).GreaterThanOrEqualTo(1)
+                .Must((query, pageNumber) => KnowledgePagination.CanRepresentOffset(pageNumber, query.Filter.PageSize))
+                .WithMessage("Số trang vượt quá giới hạn cho kích thước trang đã chọn.");
             RuleFor(x => x.Filter.PageSize).InclusiveBetween(1, 100);
             RuleFor(x => x.Filter.Query).MaximumLength(200);
             RuleFor(x => x.Filter.Tag).MaximumLength(64);
@@ -70,6 +72,8 @@ internal sealed class KnowledgeArticleInputValidator : AbstractValidator<Knowled
             .Must(skill => KnowledgeEnumParsing.TryParseSkill(skill, out _))
             .WithMessage("Kỹ năng không hợp lệ. Giá trị hợp lệ: General, Listening, Reading, Speaking, Writing.");
         RuleFor(x => x.CategoryId).NotEmpty();
+        RuleFor(x => x.CoverImageAssetId).Must(assetId => assetId != Guid.Empty)
+            .WithMessage("Mã ảnh bìa không hợp lệ.");
         RuleFor(x => x.CoverImageAlt).MaximumLength(300);
         RuleFor(x => x.Tags)
             .Must(tags => tags is null || tags.Count <= 10)
@@ -101,14 +105,14 @@ public sealed class CreateKnowledgeArticleCommandHandler(
     {
         var input = request.Input;
         if (!KnowledgeEnumParsing.TryParseSkill(input.Skill, out var skill))
-            throw new InvalidKnowledgeContentException("Kỹ năng bài viết không hợp lệ.");
+            throw new InvalidKnowledgeContentException("Kỹ năng bài viết không hợp lệ.", "skill");
 
         if (!await repository.CategoryExistsAsync(input.CategoryId, cancellationToken))
             throw new KnowledgeNotFoundException("Không tìm thấy danh mục kiến thức được chọn.");
 
         var slug = KnowledgeSlug.Resolve(input.Slug, input.Title, 220);
         if (!KnowledgeSlug.IsValid(slug, 220))
-            throw new InvalidKnowledgeContentException("Không thể tạo slug hợp lệ từ tiêu đề. Hãy nhập slug thủ công.");
+            throw new InvalidKnowledgeContentException("Không thể tạo slug hợp lệ từ tiêu đề. Hãy nhập slug thủ công.", "slug");
 
         if (await repository.ArticleSlugExistsAsync(slug, null, cancellationToken))
             throw new KnowledgeConflictException($"Slug bài viết '{slug}' đã tồn tại.");
@@ -142,7 +146,7 @@ public sealed class CreateKnowledgeArticleCommandHandler(
 
         var existing = await repository.FindExistingMediaAssetIdsAsync(requested, cancellationToken);
         if (existing.Count != requested.Count)
-            throw new InvalidKnowledgeContentException("Có hình ảnh tham chiếu không tồn tại trong hệ thống.");
+            throw new InvalidKnowledgeContentException("Có hình ảnh tham chiếu không tồn tại trong hệ thống.", "content");
     }
 
     internal static async Task<IReadOnlyList<Guid>> ResolveTagsAsync(IKnowledgeAdminRepository repository,
@@ -159,7 +163,7 @@ public sealed class CreateKnowledgeArticleCommandHandler(
             var name = raw.Trim();
             var slug = KnowledgeSlug.Generate(name, 64);
             if (!KnowledgeSlug.IsValid(slug, 64))
-                throw new InvalidKnowledgeContentException($"Thẻ '{name}' không hợp lệ.");
+                throw new InvalidKnowledgeContentException($"Thẻ '{name}' không hợp lệ.", "tags");
             normalizedBySlug.TryAdd(slug, name);
         }
 
@@ -223,14 +227,14 @@ public sealed class UpdateKnowledgeArticleCommandHandler(
 
         var input = request.Input;
         if (!KnowledgeEnumParsing.TryParseSkill(input.Skill, out var skill))
-            throw new InvalidKnowledgeContentException("Kỹ năng bài viết không hợp lệ.");
+            throw new InvalidKnowledgeContentException("Kỹ năng bài viết không hợp lệ.", "skill");
 
         if (!await repository.CategoryExistsAsync(input.CategoryId, cancellationToken))
             throw new KnowledgeNotFoundException("Không tìm thấy danh mục kiến thức được chọn.");
 
         var slug = KnowledgeSlug.Resolve(input.Slug, input.Title, 220);
         if (!KnowledgeSlug.IsValid(slug, 220))
-            throw new InvalidKnowledgeContentException("Không thể tạo slug hợp lệ từ tiêu đề. Hãy nhập slug thủ công.");
+            throw new InvalidKnowledgeContentException("Không thể tạo slug hợp lệ từ tiêu đề. Hãy nhập slug thủ công.", "slug");
 
         if (await repository.ArticleSlugExistsAsync(slug, article.Id, cancellationToken))
             throw new KnowledgeConflictException($"Slug bài viết '{slug}' đã tồn tại.");

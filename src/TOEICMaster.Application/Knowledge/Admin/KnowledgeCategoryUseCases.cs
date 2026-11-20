@@ -20,7 +20,9 @@ public sealed class GetAdminKnowledgeCategoriesQueryValidator : AbstractValidato
         RuleFor(x => x.Filter).NotNull();
         When(x => x.Filter is not null, () =>
         {
-            RuleFor(x => x.Filter.PageNumber).GreaterThanOrEqualTo(1);
+            RuleFor(x => x.Filter.PageNumber).Cascade(CascadeMode.Stop).GreaterThanOrEqualTo(1)
+                .Must((query, pageNumber) => KnowledgePagination.CanRepresentOffset(pageNumber, query.Filter.PageSize))
+                .WithMessage("Số trang vượt quá giới hạn cho kích thước trang đã chọn.");
             RuleFor(x => x.Filter.PageSize).InclusiveBetween(1, 100);
             RuleFor(x => x.Filter.Query).MaximumLength(100);
             RuleFor(x => x.Filter.Sort)
@@ -69,7 +71,7 @@ public sealed class CreateKnowledgeCategoryCommandHandler(
     {
         var slug = KnowledgeSlug.Resolve(request.Input.Slug, request.Input.Name, 120);
         if (!KnowledgeSlug.IsValid(slug, 120))
-            throw new InvalidKnowledgeContentException("Không thể tạo slug hợp lệ từ tên danh mục. Hãy nhập slug thủ công.");
+            throw new InvalidKnowledgeContentException("Không thể tạo slug hợp lệ từ tên danh mục. Hãy nhập slug thủ công.", "slug");
 
         if (await repository.CategorySlugExistsAsync(slug, null, cancellationToken))
             throw new KnowledgeConflictException($"Slug danh mục '{slug}' đã tồn tại.");
@@ -126,7 +128,7 @@ public sealed class UpdateKnowledgeCategoryCommandHandler(
 
         var slug = KnowledgeSlug.Resolve(request.Input.Slug, request.Input.Name, 120);
         if (!KnowledgeSlug.IsValid(slug, 120))
-            throw new InvalidKnowledgeContentException("Không thể tạo slug hợp lệ từ tên danh mục. Hãy nhập slug thủ công.");
+            throw new InvalidKnowledgeContentException("Không thể tạo slug hợp lệ từ tên danh mục. Hãy nhập slug thủ công.", "slug");
 
         if (await repository.CategorySlugExistsAsync(slug, category.Id, cancellationToken))
             throw new KnowledgeConflictException($"Slug danh mục '{slug}' đã tồn tại.");

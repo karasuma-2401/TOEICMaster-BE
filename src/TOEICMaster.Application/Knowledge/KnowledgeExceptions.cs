@@ -8,4 +8,7 @@ public sealed class InvalidKnowledgeMediaException(string message) : Exception(m
 
 public sealed class KnowledgeMediaTooLargeException(string message) : Exception(message);
 
-public sealed class InvalidKnowledgeContentException(string message) : Exception(message);
+public sealed class InvalidKnowledgeContentException(string message, string field) : Exception(message)
+{
+    public string Field { get; } = field;
+}

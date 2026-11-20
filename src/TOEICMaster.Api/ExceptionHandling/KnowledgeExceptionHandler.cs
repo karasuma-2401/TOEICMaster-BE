@@ -22,17 +22,22 @@ public sealed class KnowledgeExceptionHandler(IProblemDetailsService problemDeta
             return false;
 
         httpContext.Response.StatusCode = status;
-        var problem = new ProblemDetails
+        var problem = exception switch
         {
-            Status = status,
-            Title = title,
-            Type = status switch
-            {
-                StatusCodes.Status404NotFound => "https://tools.ietf.org/html/rfc9110#section-15.5.5",
-                StatusCodes.Status409Conflict => "https://tools.ietf.org/html/rfc9110#section-15.5.10",
-                StatusCodes.Status413PayloadTooLarge => "https://tools.ietf.org/html/rfc9110#section-15.5.14",
-                _ => "https://tools.ietf.org/html/rfc9110#section-15.5.1"
-            }
+            InvalidKnowledgeMediaException => new ValidationProblemDetails(
+                new Dictionary<string, string[]> { ["file"] = [title] }),
+            InvalidKnowledgeContentException invalidContent => new ValidationProblemDetails(
+                new Dictionary<string, string[]> { [invalidContent.Field] = [title] }),
+            _ => new ProblemDetails()
+        };
+        problem.Status = status;
+        problem.Title = title;
+        problem.Type = status switch
+        {
+            StatusCodes.Status404NotFound => "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+            StatusCodes.Status409Conflict => "https://tools.ietf.org/html/rfc9110#section-15.5.10",
+            StatusCodes.Status413PayloadTooLarge => "https://tools.ietf.org/html/rfc9110#section-15.5.14",
+            _ => "https://tools.ietf.org/html/rfc9110#section-15.5.1"
         };
         if (!await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
         {
@@ -41,8 +46,16 @@ public sealed class KnowledgeExceptionHandler(IProblemDetailsService problemDeta
             ProblemDetails = problem
         }))
         {
-            await httpContext.Response.WriteAsJsonAsync(problem, options: null,
-                contentType: "application/problem+json", cancellationToken: cancellationToken);
+            if (problem is ValidationProblemDetails validationProblem)
+            {
+                await httpContext.Response.WriteAsJsonAsync(validationProblem, options: null,
+                    contentType: "application/problem+json", cancellationToken: cancellationToken);
+            }
+            else
+            {
+                await httpContext.Response.WriteAsJsonAsync(problem, options: null,
+                    contentType: "application/problem+json", cancellationToken: cancellationToken);
+            }
         }
 
         return true;

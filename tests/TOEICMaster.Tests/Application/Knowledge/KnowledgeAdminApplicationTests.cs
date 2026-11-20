@@ -73,6 +73,27 @@ public sealed class KnowledgeAdminApplicationTests
     }
 
     [Fact]
+    public void Content_processor_keeps_heading_ids_unique_when_generated_suffixes_collide()
+    {
+        var doc = ParseJson("""
+        {
+          "type": "doc",
+          "content": [
+            { "type": "heading", "content": [{ "type": "text", "text": "Part" }] },
+            { "type": "heading", "content": [{ "type": "text", "text": "Part 2" }] },
+            { "type": "heading", "content": [{ "type": "text", "text": "Part" }] },
+            { "type": "heading", "content": [{ "type": "text", "text": "Part 3" }] },
+            { "type": "heading", "content": [{ "type": "text", "text": "Part" }] }
+          ]
+        }
+        """);
+
+        var processed = KnowledgeContentProcessor.Process(doc);
+
+        Assert.Equal(["part", "part-2", "part-3", "part-3-2", "part-4"], processed.Toc.Select(item => item.Id));
+    }
+
+    [Fact]
     public void Content_processor_rejects_unsafe_javascript_links_and_non_doc_root()
     {
         var unsafeLink = ParseJson("""

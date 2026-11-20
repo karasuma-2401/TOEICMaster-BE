@@ -20,25 +20,26 @@ public static partial class KnowledgeContentProcessor
     public static ProcessedKnowledgeContent Process(JsonElement content)
     {
         if (content.ValueKind != JsonValueKind.Object)
-            throw new InvalidKnowledgeContentException("Nội dung bài viết phải là đối tượng JSON hợp lệ (Tiptap document).");
+            throw InvalidContent("Nội dung bài viết phải là đối tượng JSON hợp lệ (Tiptap document).");
 
         if (!content.TryGetProperty("type", out var typeProp) ||
             typeProp.ValueKind != JsonValueKind.String ||
             !string.Equals(typeProp.GetString(), "doc", StringComparison.Ordinal))
         {
-            throw new InvalidKnowledgeContentException("Nội dung bài viết phải có nút gốc với type = \"doc\".");
+            throw InvalidContent("Nội dung bài viết phải có nút gốc với type = \"doc\".");
         }
 
         var rawJson = content.GetRawText();
         if (Encoding.UTF8.GetByteCount(rawJson) > MaxContentBytes)
-            throw new InvalidKnowledgeContentException("Nội dung bài viết vượt quá dung lượng tối đa 512 KiB.");
+            throw InvalidContent("Nội dung bài viết vượt quá dung lượng tối đa 512 KiB.");
 
         var toc = new List<KnowledgeTocItemDto>();
+        var usedHeadingIds = new HashSet<string>(StringComparer.Ordinal);
         var headingIdCounts = new Dictionary<string, int>(StringComparer.Ordinal);
         var embeddedMediaIds = new HashSet<Guid>();
         var wordCount = 0;
 
-        WalkNode(content, toc, headingIdCounts, embeddedMediaIds, ref wordCount, depth: 0);
+        WalkNode(content, toc, usedHeadingIds, headingIdCounts, embeddedMediaIds, ref wordCount, depth: 0);
 
         var tocJson = JsonSerializer.Serialize(toc, SerializerOptions);
         var estimatedMinutes = Math.Max(1, (int)Math.Ceiling(wordCount / 200.0));
@@ -59,16 +60,15 @@ public static partial class KnowledgeContentProcessor
     }
 
     private static void WalkNode(JsonElement node, List<KnowledgeTocItemDto> toc,
-        Dictionary<string, int> headingIdCounts, HashSet<Guid> embeddedMediaIds, ref int wordCount, int depth)
+        HashSet<string> usedHeadingIds, Dictionary<string, int> headingIdCounts,
+        HashSet<Guid> embeddedMediaIds, ref int wordCount, int depth)
     {
         if (depth > 32)
-            throw new InvalidKnowledgeContentException("Cấu trúc nội dung lồng nhau quá sâu.");
+            throw InvalidContent("Cấu trúc nội dung lồng nhau quá sâu.");
         if (node.ValueKind != JsonValueKind.Object)
             return;
 
-        var nodeType = node.TryGetProperty("type", out var typeProp) && typeProp.ValueKind == JsonValueKind.String
-            ? typeProp.GetString()
-            : null;
+        var nodeType = ReadType(node);
 
         if (node.TryGetProperty("marks", out var marksProp) && marksProp.ValueKind == JsonValueKind.Array)
             ValidateMarks(marksProp);
@@ -95,17 +95,16 @@ public static partial class KnowledgeContentProcessor
                 if (baseId.Length == 0)
                     baseId = $"section-{toc.Count + 1}";
 
-                if (headingIdCounts.TryGetValue(baseId, out var count))
+                var count = headingIdCounts.GetValueOrDefault(baseId);
+                string id;
+                do
                 {
                     count++;
-                    headingIdCounts[baseId] = count;
-                    toc.Add(new KnowledgeTocItemDto($"{baseId}-{count}", level, headingText));
-                }
-                else
-                {
-                    headingIdCounts[baseId] = 1;
-                    toc.Add(new KnowledgeTocItemDto(baseId, level, headingText));
-                }
+                    id = count == 1 ? baseId : $"{baseId}-{count}";
+                } while (!usedHeadingIds.Add(id));
+
+                headingIdCounts[baseId] = count;
+                toc.Add(new KnowledgeTocItemDto(id, level, headingText));
             }
         }
         else if (string.Equals(nodeType, "image", StringComparison.Ordinal) &&
@@ -117,8 +116,18 @@ public static partial class KnowledgeContentProcessor
         if (node.TryGetProperty("content", out var children) && children.ValueKind == JsonValueKind.Array)
         {
             foreach (var child in children.EnumerateArray())
-                WalkNode(child, toc, headingIdCounts, embeddedMediaIds, ref wordCount, depth + 1);
+                WalkNode(child, toc, usedHeadingIds, headingIdCounts, embeddedMediaIds, ref wordCount, depth + 1);
         }
+    }
+
+    private static string? ReadType(JsonElement element)
+    {
+        if (!element.TryGetProperty("type", out var type))
+            return null;
+        if (type.ValueKind != JsonValueKind.String)
+            throw InvalidContent("Thuộc tính type trong nội dung bài viết phải là chuỗi.");
+
+        return type.GetString();
     }
 
     private static void ValidateMarks(JsonElement marks)
@@ -127,8 +136,7 @@ public static partial class KnowledgeContentProcessor
         {
             if (mark.ValueKind != JsonValueKind.Object)
                 continue;
-            if (!mark.TryGetProperty("type", out var markType) ||
-                !string.Equals(markType.GetString(), "link", StringComparison.Ordinal))
+            if (!string.Equals(ReadType(mark), "link", StringComparison.Ordinal))
                 continue;
             if (!mark.TryGetProperty("attrs", out var attrs) || attrs.ValueKind != JsonValueKind.Object)
                 continue;
@@ -145,7 +153,7 @@ public static partial class KnowledgeContentProcessor
                          href.StartsWith("/", StringComparison.Ordinal) ||
                          href.StartsWith("#", StringComparison.Ordinal);
             if (!isSafe)
-                throw new InvalidKnowledgeContentException("Liên kết trong bài viết chỉ chấp nhận http, https, mailto hoặc đường dẫn nội bộ.");
+                throw InvalidContent("Liên kết trong bài viết chỉ chấp nhận http, https, mailto hoặc đường dẫn nội bộ.");
         }
     }
 
@@ -184,8 +192,7 @@ public static partial class KnowledgeContentProcessor
     {
         if (node.ValueKind != JsonValueKind.Object)
             return;
-        if (node.TryGetProperty("type", out var typeProp) &&
-            string.Equals(typeProp.GetString(), "text", StringComparison.Ordinal) &&
+        if (string.Equals(ReadType(node), "text", StringComparison.Ordinal) &&
             node.TryGetProperty("text", out var textProp) && textProp.ValueKind == JsonValueKind.String)
         {
             sb.Append(textProp.GetString());
@@ -197,6 +204,8 @@ public static partial class KnowledgeContentProcessor
                 CollectText(child, sb);
         }
     }
+
+    private static InvalidKnowledgeContentException InvalidContent(string message) => new(message, "content");
 
     private static int CountWords(string? text)
     {

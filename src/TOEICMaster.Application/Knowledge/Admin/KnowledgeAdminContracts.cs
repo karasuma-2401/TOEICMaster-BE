@@ -201,6 +201,12 @@ public interface IKnowledgeMediaStore
     Task DeleteAsync(string objectKey, CancellationToken cancellationToken);
 }
 
+internal static class KnowledgePagination
+{
+    public static bool CanRepresentOffset(int pageNumber, int pageSize) =>
+        (pageNumber - 1L) * pageSize <= int.MaxValue;
+}
+
 public static class KnowledgeEnumParsing
 {
     public static bool TryParseSkill(string? value, out KnowledgeSkill skill) =>

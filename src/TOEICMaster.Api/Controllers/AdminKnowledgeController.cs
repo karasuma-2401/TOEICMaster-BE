@@ -88,13 +88,16 @@ public sealed class AdminKnowledgeController(ISender sender) : ControllerBase
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(KnowledgeImageSignature.MaxBytes + 64 * 1024)]
     [ProducesResponseType<KnowledgeMediaAssetDto>(StatusCodes.Status201Created)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status413PayloadTooLarge)]
     public async Task<ActionResult<KnowledgeMediaAssetDto>> UploadImage([FromForm] IFormFile? file,
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length <= 0)
-            return BadRequest(new ProblemDetails { Status = 400, Title = "Tệp hình ảnh không được để trống." });
+        {
+            ModelState.AddModelError(nameof(file), "Tệp hình ảnh không được để trống.");
+            return ValidationProblem(ModelState);
+        }
         if (file.Length > KnowledgeImageSignature.MaxBytes)
         {
             return StatusCode(StatusCodes.Status413PayloadTooLarge,
@@ -133,7 +136,7 @@ public sealed class AdminKnowledgeController(ISender sender) : ControllerBase
     [ProducesResponseType<KnowledgeArticlePageDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<KnowledgeArticlePageDto>> GetArticles(
-        [FromQuery] string? query,
+        [FromQuery(Name = "q")] string? query,
         [FromQuery] string? skill,
         [FromQuery] Guid? categoryId,
         [FromQuery] string? tag,
