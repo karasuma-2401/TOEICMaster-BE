@@ -43,6 +43,7 @@ builder.Services.AddExceptionHandler(options => options.StatusCodeSelector = _ =
 builder.Services.AddApplication(builder.Configuration["MediatR:LicenseKey"],
     builder.Configuration["AutoMapper:LicenseKey"], typeof(Program).Assembly);
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddPronunciation(builder.Configuration);
 builder.Services.AddAuthorization(options => options.AddPolicy("AccountAdministration",
     policy => policy.RequireAuthenticatedUser().RequireRole("Admin")));
 builder.Services.AddAuthorization(options => options.AddPolicy("WritingAdministration",

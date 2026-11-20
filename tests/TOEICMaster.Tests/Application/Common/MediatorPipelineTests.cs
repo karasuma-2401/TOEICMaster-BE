@@ -56,6 +56,7 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<ILrExerciseBankImportParser, EmptyLrExerciseBankImportParser>();
         services.AddSingleton<IKnowledgeAdminRepository, InMemoryKnowledgeAdminRepository>();
         services.AddSingleton<IKnowledgeMediaStore, InMemoryKnowledgeMediaStore>();
+        services.AddSingleton<TOEICMaster.Application.Pronunciation.IPronunciationAssessor, SilentPronunciationAssessor>();
         services.AddSingleton<RecordingMailSender>();
         services.AddSingleton<IMailSender>(provider => provider.GetRequiredService<RecordingMailSender>());
         services.AddSingleton<IUserRegistrationRepository, FakeUserRegistrationRepository>();
