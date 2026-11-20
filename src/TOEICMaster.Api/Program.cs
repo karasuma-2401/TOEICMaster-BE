@@ -38,6 +38,7 @@ builder.Services.AddExceptionHandler<LrExerciseBankExceptionHandler>();
 builder.Services.AddExceptionHandler<WritingAttemptExceptionHandler>();
 builder.Services.AddExceptionHandler<SpeakingExceptionHandler>();
 builder.Services.AddExceptionHandler<ExamExceptionHandler>();
+builder.Services.AddExceptionHandler<KnowledgeExceptionHandler>();
 builder.Services.AddExceptionHandler(options => options.StatusCodeSelector = _ => StatusCodes.Status500InternalServerError);
 builder.Services.AddApplication(builder.Configuration["MediatR:LicenseKey"],
     builder.Configuration["AutoMapper:LicenseKey"], typeof(Program).Assembly);
@@ -47,6 +48,8 @@ builder.Services.AddAuthorization(options => options.AddPolicy("AccountAdministr
 builder.Services.AddAuthorization(options => options.AddPolicy("WritingAdministration",
     policy => policy.RequireAuthenticatedUser().RequireRole("Admin")));
 builder.Services.AddAuthorization(options => options.AddPolicy("SpeakingAdministration",
+    policy => policy.RequireAuthenticatedUser().RequireRole("Admin")));
+builder.Services.AddAuthorization(options => options.AddPolicy("KnowledgeAdministration",
     policy => policy.RequireAuthenticatedUser().RequireRole("Admin")));
 builder.Services.AddCors(options => options.AddPolicy("Frontend", policy =>
 {
