@@ -43,6 +43,7 @@ builder.Services.AddExceptionHandler(options => options.StatusCodeSelector = _ =
 builder.Services.AddApplication(builder.Configuration["MediatR:LicenseKey"],
     builder.Configuration["AutoMapper:LicenseKey"], typeof(Program).Assembly);
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddPronunciation(builder.Configuration);
 builder.Services.AddAuthorization(options => options.AddPolicy("AccountAdministration",
     policy => policy.RequireAuthenticatedUser().RequireRole("Admin")));
 builder.Services.AddAuthorization(options => options.AddPolicy("WritingAdministration",
@@ -78,8 +79,8 @@ app.Use((context, next) =>
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseCors("Frontend");
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 if (app.Environment.IsDevelopment())
 {

@@ -470,3 +470,63 @@ Các endpoint `/api/v1/writing` xác định owner qua JWT hoặc header `X-Writ
 - `GET /attempts`, `GET /attempts/{id}`, `PUT /attempts/{id}/answers/{position}`, `POST /attempts/{id}/next`, `POST /attempts/{id}/submit` hỗ trợ lịch sử, lưu, chuyển câu và nộp.
 - `POST /attempts/{id}/evaluation-consent` chỉ gửi bài và ảnh cho AI sau khi được đồng ý; FE poll `GET /attempts/{id}`. Trạng thái gồm `CONSENT_REQUIRED`, `QUEUED`, `PROCESSING`, `RETRYING`, `COMPLETED`, `FAILED`; gửi lại consent khi `FAILED` để thử lại.
 - Guest được tạo tối đa một lượt chấm mới trong 24 giờ; retry của cùng attempt không tính quota mới. Bài mẫu không hiển thị cho học viên. Điểm AI chỉ để luyện tập.
+
+## Luyện phát âm IPA
+
+### `POST /api/v1/pronunciation/assessments`
+
+Yêu cầu Bearer JWT hợp lệ và `Content-Type: multipart/form-data`.
+Mỗi API instance áp dụng cửa sổ cố định một phút với tối đa 30 request theo ID người dùng đã xác thực, kể cả khi đổi token.
+Request thiếu token hoặc có token không hợp lệ dùng chung quota theo địa chỉ IP kết nối và nhận `401` khi còn quota.
+Request vượt quota nhận `429` với `Retry-After` là số nguyên chỉ số giây cần chờ.
+
+| Trường | Bắt buộc | Ràng buộc |
+| --- | --- | --- |
+| `file` | Có | Bản thu WebM, Ogg, MP4 hoặc WAV được nhận diện theo chữ ký tệp. Tối đa 1 MiB và 10 giây âm thanh sau giải mã. |
+| `referenceText` | Có | 1-40 ký tự sau khi bỏ khoảng trắng đầu và cuối. Chỉ chấp nhận chữ cái tiếng Anh, khoảng trắng, dấu nháy đơn và dấu gạch ngang. |
+| `locale` | Không | `en-US` (mặc định) hoặc `en-GB`. |
+
+`200 OK` trả `PronunciationAssessmentDto` dưới dạng `application/json` với cấu trúc sau.
+
+```json
+{
+  "recognitionStatus": "Recognized",
+  "referenceText": "think",
+  "recognizedText": "Think.",
+  "accuracyScore": 78.0,
+  "pronunciationScore": 80.5,
+  "completenessScore": 100.0,
+  "words": [
+    {
+      "word": "think",
+      "accuracyScore": 78.0,
+      "errorType": "None",
+      "phonemes": [
+        {
+          "phoneme": "θ",
+          "accuracyScore": 54.0,
+          "candidates": [{ "phoneme": "s", "score": 71.0 }]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Điểm nằm trong khoảng 0-100 và được làm tròn đến một chữ số thập phân.
+`recognitionStatus` là `Recognized` hoặc `NoSpeech`.
+Khi `NoSpeech`, tất cả điểm bằng 0, `recognizedText` là `""` và `words` là `[]`.
+
+Lỗi dùng `application/problem+json` với `traceId` và mã `code` khi có.
+
+| HTTP | `code` | Khi nào |
+| --- | --- | --- |
+| `400` | `INVALID_AUDIO` | Thiếu bản thu, sai định dạng, không giải mã được hoặc dài quá 10 giây. |
+| `400` | Không có | `referenceText` hoặc `locale` không hợp lệ. `ValidationProblemDetails` có trường `errors`. |
+| `401` | Không có | Thiếu Bearer JWT hợp lệ. |
+| `413` | `INVALID_AUDIO` | Bản thu vượt 1 MiB. |
+| `422` | `SPEECH_REJECTED` | Dịch vụ chấm từ chối bản thu. |
+| `429` | Không có | Vượt quota. Phản hồi có header `Retry-After`. |
+| `502` | `SPEECH_PROVIDER_ERROR` | Lỗi mạng, lỗi dịch vụ chấm hoặc phản hồi từ dịch vụ không đọc được. |
+| `503` | `NOT_CONFIGURED` | Dịch vụ chấm chưa cấu hình, xác thực với nhà cung cấp thất bại hoặc máy chủ thiếu `ffmpeg`. |
+| `504` | `SPEECH_TIMEOUT` | Quá thời gian chuyển đổi bản thu hoặc chờ nhà cung cấp chấm. |
