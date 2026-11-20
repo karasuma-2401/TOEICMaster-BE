@@ -39,6 +39,12 @@ public sealed class ToeicDbContext(DbContextOptions<ToeicDbContext> options) : D
     public DbSet<LrExerciseBankQuestion> LrExerciseBankQuestions => Set<LrExerciseBankQuestion>();
     public DbSet<LrPracticeAttempt> LrPracticeAttempts => Set<LrPracticeAttempt>();
     public DbSet<LrPracticeAttemptAnswer> LrPracticeAttemptAnswers => Set<LrPracticeAttemptAnswer>();
+    public DbSet<KnowledgeCategory> KnowledgeCategories => Set<KnowledgeCategory>();
+    public DbSet<KnowledgeTag> KnowledgeTags => Set<KnowledgeTag>();
+    public DbSet<KnowledgeMediaAsset> KnowledgeMediaAssets => Set<KnowledgeMediaAsset>();
+    public DbSet<KnowledgeArticle> KnowledgeArticles => Set<KnowledgeArticle>();
+    public DbSet<KnowledgeArticleTag> KnowledgeArticleTags => Set<KnowledgeArticleTag>();
+    public DbSet<KnowledgeArticleMediaAsset> KnowledgeArticleMediaAssets => Set<KnowledgeArticleMediaAsset>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

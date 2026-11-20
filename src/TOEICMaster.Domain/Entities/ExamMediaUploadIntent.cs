@@ -22,7 +22,7 @@ public sealed class ExamMediaUploadIntent
 
     private ExamMediaUploadIntent(Guid id, Guid examId, Guid revisionId, ExamMediaOwnerKind ownerKind,
         string ownerKey, string objectKey, string contentType, long expectedByteSize, DateTimeOffset expiresAtUtc,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc, int? expectedDurationMs)
     {
         Id = id;
         ExamId = examId;
@@ -34,6 +34,7 @@ public sealed class ExamMediaUploadIntent
         ExpectedByteSize = expectedByteSize;
         ExpiresAtUtc = expiresAtUtc;
         CreatedAtUtc = createdAtUtc;
+        ExpectedDurationMs = expectedDurationMs;
         Status = ExamMediaUploadIntentStatus.Pending;
     }
 
@@ -47,11 +48,12 @@ public sealed class ExamMediaUploadIntent
     public long ExpectedByteSize { get; private set; }
     public DateTimeOffset ExpiresAtUtc { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
+    public int? ExpectedDurationMs { get; private set; }
     public ExamMediaUploadIntentStatus Status { get; private set; }
 
     public static ExamMediaUploadIntent Create(Guid examId, Guid revisionId, ExamMediaOwnerKind ownerKind,
         string ownerKey, string objectKey, string contentType, long expectedByteSize, DateTimeOffset expiresAtUtc,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc, int? expectedDurationMs = null)
     {
         ArgumentOutOfRangeException.ThrowIfEqual(examId, Guid.Empty);
         ArgumentOutOfRangeException.ThrowIfEqual(revisionId, Guid.Empty);
@@ -61,8 +63,17 @@ public sealed class ExamMediaUploadIntent
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(expectedByteSize);
         if (expiresAtUtc <= createdAtUtc)
             throw new ArgumentOutOfRangeException(nameof(expiresAtUtc));
+        if (expectedDurationMs is not null)
+        {
+            if (ownerKind != ExamMediaOwnerKind.AudioGroup)
+                throw new ArgumentException("Expected duration is only supported for audio group upload intents.",
+                    nameof(expectedDurationMs));
+            if (expectedDurationMs is <= 0 or > 3_600_000)
+                throw new ArgumentOutOfRangeException(nameof(expectedDurationMs));
+        }
+
         return new ExamMediaUploadIntent(Guid.NewGuid(), examId, revisionId, ownerKind, ownerKey, objectKey,
-            contentType, expectedByteSize, expiresAtUtc, createdAtUtc);
+            contentType, expectedByteSize, expiresAtUtc, createdAtUtc, expectedDurationMs);
     }
 
     public void Complete(DateTimeOffset now)

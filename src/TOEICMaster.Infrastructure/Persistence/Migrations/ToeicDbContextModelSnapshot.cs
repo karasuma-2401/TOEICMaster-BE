@@ -281,6 +281,9 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("DurationMs")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -318,6 +321,9 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
 
                     b.Property<long>("ExpectedByteSize")
                         .HasColumnType("bigint");
+
+                    b.Property<int?>("ExpectedDurationMs")
+                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -426,10 +432,6 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ExamId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("MasterAudioObjectKey")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
                     b.Property<Guid>("ScoreProfileId")
                         .HasColumnType("uuid");
 
@@ -437,11 +439,6 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
-
-                    b.Property<bool>("UsesMediaWorkspace")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
 
                     b.Property<int>("VersionNumber")
                         .HasColumnType("integer");
@@ -488,6 +485,327 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("external_identities", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeArticle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<string>("ContentJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("content_json");
+
+                    b.Property<string>("CoverImageAlt")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("cover_image_alt");
+
+                    b.Property<Guid?>("CoverImageAssetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cover_image_asset_id");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<int>("EstimatedReadMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("estimated_read_minutes");
+
+                    b.Property<DateTimeOffset?>("PublishedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at_utc");
+
+                    b.Property<short>("Skill")
+                        .HasColumnType("smallint")
+                        .HasColumnName("skill");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(220)
+                        .HasColumnType("character varying(220)")
+                        .HasColumnName("slug");
+
+                    b.Property<short>("Status")
+                        .HasColumnType("smallint")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("summary");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("TocJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("toc_json");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_knowledge_articles_category_id");
+
+                    b.HasIndex("CoverImageAssetId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ux_knowledge_articles_slug");
+
+                    b.HasIndex("UpdatedByUserId");
+
+                    b.HasIndex("Status", "UpdatedAtUtc")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_knowledge_articles_status_updated");
+
+                    b.HasIndex("Status", "Skill", "CategoryId", "PublishedAtUtc")
+                        .IsDescending(false, false, false, true)
+                        .HasDatabaseName("ix_knowledge_articles_status_skill_category_published");
+
+                    b.ToTable("knowledge_articles", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_knowledge_articles_published_at", "status <> 2 OR published_at_utc IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_knowledge_articles_read_minutes", "estimated_read_minutes >= 1");
+
+                            t.HasCheckConstraint("ck_knowledge_articles_skill", "skill BETWEEN 0 AND 4");
+
+                            t.HasCheckConstraint("ck_knowledge_articles_slug_lower", "slug = lower(slug)");
+
+                            t.HasCheckConstraint("ck_knowledge_articles_status", "status BETWEEN 1 AND 3");
+                        });
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeArticleMediaAsset", b =>
+                {
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("article_id");
+
+                    b.Property<Guid>("MediaAssetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("media_asset_id");
+
+                    b.HasKey("ArticleId", "MediaAssetId");
+
+                    b.HasIndex("MediaAssetId")
+                        .HasDatabaseName("ix_knowledge_article_media_assets_media_asset_id");
+
+                    b.ToTable("knowledge_article_media_assets", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeArticleTag", b =>
+                {
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("article_id");
+
+                    b.Property<Guid>("TagId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tag_id");
+
+                    b.HasKey("ArticleId", "TagId");
+
+                    b.HasIndex("TagId")
+                        .HasDatabaseName("ix_knowledge_article_tags_tag_id");
+
+                    b.ToTable("knowledge_article_tags", (string)null);
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("slug");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ux_knowledge_categories_slug");
+
+                    b.HasIndex("UpdatedByUserId");
+
+                    b.HasIndex("DisplayOrder", "Name")
+                        .HasDatabaseName("ix_knowledge_categories_display_order_name");
+
+                    b.ToTable("knowledge_categories", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_knowledge_categories_display_order", "display_order >= 0");
+
+                            t.HasCheckConstraint("ck_knowledge_categories_slug_lower", "slug = lower(slug)");
+                        });
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeMediaAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<long>("ByteLength")
+                        .HasColumnType("bigint")
+                        .HasColumnName("byte_length");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("object_key");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("original_file_name");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasColumnType("character(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("uploaded_by_user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ObjectKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_knowledge_media_assets_object_key");
+
+                    b.HasIndex("UploadedByUserId");
+
+                    b.ToTable("knowledge_media_assets", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_knowledge_media_assets_byte_length", "byte_length > 0 AND byte_length <= 5242880");
+                        });
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeTag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("slug");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ux_knowledge_tags_slug");
+
+                    b.ToTable("knowledge_tags", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_knowledge_tags_slug_lower", "slug = lower(slug)");
+                        });
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.LrExerciseBankItem", b =>
@@ -2135,6 +2453,86 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeArticle", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.KnowledgeCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TOEICMaster.Domain.Entities.KnowledgeMediaAsset", null)
+                        .WithMany()
+                        .HasForeignKey("CoverImageAssetId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TOEICMaster.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TOEICMaster.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeArticleMediaAsset", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.KnowledgeArticle", null)
+                        .WithMany("MediaAssets")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TOEICMaster.Domain.Entities.KnowledgeMediaAsset", null)
+                        .WithMany()
+                        .HasForeignKey("MediaAssetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeArticleTag", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.KnowledgeArticle", null)
+                        .WithMany("ArticleTags")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TOEICMaster.Domain.Entities.KnowledgeTag", null)
+                        .WithMany()
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeCategory", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TOEICMaster.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeMediaAsset", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.LrExerciseBankQuestion", b =>
                 {
                     b.HasOne("TOEICMaster.Domain.Entities.LrExerciseBankItem", null)
@@ -2341,6 +2739,13 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("TOEICMaster.Domain.Entities.ExamRevision", b =>
                 {
                     b.Navigation("Blocks");
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeArticle", b =>
+                {
+                    b.Navigation("ArticleTags");
+
+                    b.Navigation("MediaAssets");
                 });
 
             modelBuilder.Entity("TOEICMaster.Domain.Entities.LrExerciseBankItem", b =>

@@ -39,6 +39,8 @@ public sealed class ExamAttemptApplicationTests
         Assert.Equal(200, first.TotalQuestions);
         Assert.Equal("LR-TEST-001", first.ExamCode);
         Assert.Equal(7140, second.RemainingSeconds);
+        Assert.Equal(18_500, first.Blocks.Single(b => b.FirstQuestionNumber == 1).AudioDurationMs);
+        Assert.Null(first.Blocks.Single(b => b.FirstQuestionNumber == 101).AudioDurationMs);
         Assert.Single(_repository.Attempts);
     }
 
@@ -77,6 +79,8 @@ public sealed class ExamAttemptApplicationTests
         Assert.True(questions[1].IsFlagged);
         Assert.Equal("C", questions[101].UserSelectedKey);
         Assert.Null(questions[7].UserSelectedKey);
+        Assert.Equal(18_500, resumed.Blocks.Single(b => b.FirstQuestionNumber == 1).AudioDurationMs);
+        Assert.Null(resumed.Blocks.Single(b => b.FirstQuestionNumber == 101).AudioDurationMs);
     }
 
     [Fact]
@@ -121,6 +125,8 @@ public sealed class ExamAttemptApplicationTests
 
         Assert.Equal(ExamAttemptPhases.Reading, reading.Phase);
         Assert.NotNull(reading.ReadingStartedAtUtc);
+        Assert.Equal(18_500, reading.Blocks.Single(b => b.FirstQuestionNumber == 1).AudioDurationMs);
+        Assert.Null(reading.Blocks.Single(b => b.FirstQuestionNumber == 101).AudioDurationMs);
         await Assert.ThrowsAsync<ExamAttemptConflictException>(() =>
             SaveAsync(sheet.AttemptId, new SaveAttemptAnswerInput(Q(1), "B")));
         await Assert.ThrowsAsync<ExamAttemptConflictException>(() =>
@@ -210,6 +216,13 @@ public sealed class ExamAttemptApplicationTests
         Assert.DoesNotContain(incorrect.Blocks.SelectMany(block => block.Questions), question => question.Number == 1);
         Assert.Equal(199, incorrect.Blocks.Sum(block => block.Questions.Count));
         Assert.Equal(1, flagged.Blocks.Sum(block => block.Questions.Count));
+
+        var p1Block = all.Blocks.Single(block => block.FirstQuestionNumber == 1);
+        var p5Block = all.Blocks.Single(block => block.FirstQuestionNumber == 101);
+        Assert.Equal(_repository.PartOneAudioAsset.Id, p1Block.AudioAssetId);
+        Assert.Equal(18_500, p1Block.AudioDurationMs);
+        Assert.Null(p5Block.AudioAssetId);
+        Assert.Null(p5Block.AudioDurationMs);
     }
 
     [Fact]

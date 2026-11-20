@@ -12,6 +12,9 @@ public interface IExamRepository
     Task<IReadOnlyList<ScoreProfileDto>> GetScoreProfilesAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<ScoreProfileDto>>([]);
     Task<bool> ImageAssetsExistAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken cancellationToken);
+    Task<IReadOnlyDictionary<Guid, int?>> GetMediaDurationsAsync(IReadOnlyCollection<Guid> assetIds,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, int?>>(new Dictionary<Guid, int?>());
     Task AddScoreProfileAsync(ScoreProfile scoreProfile, CancellationToken cancellationToken);
     Task AddExamMediaAssetAsync(ExamMediaAsset asset, CancellationToken cancellationToken);
     Task AddExamMediaUploadIntentAsync(ExamMediaUploadIntent intent, CancellationToken cancellationToken) =>

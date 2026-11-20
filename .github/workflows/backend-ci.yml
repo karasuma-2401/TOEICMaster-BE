@@ -89,6 +89,22 @@ jobs:
     name: Run Tests
     needs: build
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: toeicmaster_test
+          POSTGRES_USER: toeicmaster_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U toeicmaster_test -d toeicmaster_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TOEICMASTER_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Database=toeicmaster_test;Username=toeicmaster_test
     steps:
       - name: Checkout code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -114,7 +130,14 @@ jobs:
       - name: Build for testing
         run: dotnet build TOEICMaster.slnx -c Release --no-restore /nr:false
 
-      - name: Execute tests (Architecture + Unit Tests)
+      - name: Prepare isolated test database
+        env:
+          ConnectionStrings__Postgres: ${{ env.TOEICMASTER_TEST_POSTGRES }}
+        run: |
+          dotnet tool restore
+          dotnet ef database update --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api --configuration Release --no-build
+
+      - name: Execute tests (Architecture + Unit + API Integration Tests)
         run: dotnet test TOEICMaster.slnx -c Release --no-build --logger "trx;LogFileName=results.trx"
 
       - name: Upload test results

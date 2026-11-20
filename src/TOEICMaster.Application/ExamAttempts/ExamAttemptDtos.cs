@@ -48,7 +48,6 @@ public sealed record ExamAttemptSheetDto(
     string ExamCode,
     string ExamTitle,
     int VersionNumber,
-    string? MasterAudioObjectKey,
     string Phase,
     DateTimeOffset StartedAtUtc,
     DateTimeOffset? ReadingStartedAtUtc,
@@ -64,7 +63,8 @@ public sealed record ExamBlockSheetDto(
     int FirstQuestionNumber,
     Guid? AudioAssetId,
     IReadOnlyList<ExamContextBlockDto> ContextBlocks,
-    IReadOnlyList<ExamQuestionSheetDto> Questions
+    IReadOnlyList<ExamQuestionSheetDto> Questions,
+    int? AudioDurationMs = null
 );
 
 public sealed record ExamContextBlockDto(
@@ -138,7 +138,50 @@ public sealed record ExamAttemptReviewBlockDto(
     int Part,
     int FirstQuestionNumber,
     IReadOnlyList<ExamContextBlockDto> ContextBlocks,
-    IReadOnlyList<ExamAttemptReviewQuestionDto> Questions
+    IReadOnlyList<ExamAttemptReviewQuestionDto> Questions,
+    Guid? AudioAssetId = null,
+    int? AudioDurationMs = null
+);
+
+public sealed record ExamAttemptListeningAudioItemDto(
+    Guid BlockId,
+    int Part,
+    int FirstQuestionNumber,
+    Guid AudioAssetId,
+    int? DurationMs,
+    string Url,
+    DateTimeOffset ExpiresAtUtc
+);
+
+public sealed record ExamAttemptListeningPlaylistDto(
+    IReadOnlyList<ExamAttemptListeningAudioItemDto> Items
+);
+
+public enum AttemptMediaLookupStatus
+{
+    NotFound = 0,
+    Found = 1,
+    ListeningLocked = 2
+}
+
+public sealed record AttemptMediaLookupResult(
+    AttemptMediaLookupStatus Status,
+    string? ObjectKey
+);
+
+public sealed record ExamAttemptListeningBlockSource(
+    Guid BlockId,
+    int Part,
+    int FirstQuestionNumber,
+    Guid AudioAssetId,
+    string ObjectKey,
+    int? DurationMs
+);
+
+public sealed record ExamAttemptListeningPlaylistSource(
+    ExamAttemptStatus Status,
+    bool IsListeningLocked,
+    IReadOnlyList<ExamAttemptListeningBlockSource> Blocks
 );
 
 public sealed record ExamAttemptReviewQuestionDto(

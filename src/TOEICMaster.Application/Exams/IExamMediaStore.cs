@@ -10,6 +10,9 @@ public interface IExamMediaStore
         throw new NotSupportedException();
     Task<string> CreatePresignedGetUrlAsync(string objectKey, TimeSpan lifetime, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
+    Task<IReadOnlyList<string>> CreatePresignedGetUrlsAsync(IReadOnlyList<string> objectKeys, TimeSpan lifetime,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
     Task<ExamMediaObjectMetadata?> GetMetadataAsync(string objectKey, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 }

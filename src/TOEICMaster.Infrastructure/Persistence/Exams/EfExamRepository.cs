@@ -59,6 +59,19 @@ public sealed class EfExamRepository(ToeicDbContext context) : IExamRepository
             distinctAssetIds.Length;
     }
 
+    public async Task<IReadOnlyDictionary<Guid, int?>> GetMediaDurationsAsync(IReadOnlyCollection<Guid> assetIds,
+        CancellationToken cancellationToken)
+    {
+        if (assetIds.Count == 0)
+            return new Dictionary<Guid, int?>();
+        var distinctAssetIds = assetIds.Distinct().ToArray();
+        return await context.ExamMediaAssets
+            .AsNoTracking()
+            .Where(asset => distinctAssetIds.Contains(asset.Id))
+            .Select(asset => new { asset.Id, asset.DurationMs })
+            .ToDictionaryAsync(asset => asset.Id, asset => asset.DurationMs, cancellationToken);
+    }
+
     public Task AddExamAsync(Exam exam, CancellationToken cancellationToken)
     {
         context.Exams.Add(exam);

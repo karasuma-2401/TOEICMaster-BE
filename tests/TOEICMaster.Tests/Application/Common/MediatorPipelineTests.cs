@@ -1,4 +1,3 @@
-using TOEICMaster.Application.ExamAttempts;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,8 +7,10 @@ using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Email.Commands.SendEmail;
+using TOEICMaster.Application.ExamAttempts;
 using TOEICMaster.Application.Exams;
 using TOEICMaster.Application.ExerciseBank;
+using TOEICMaster.Application.Knowledge.Admin;
 using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.Speaking;
 using TOEICMaster.Application.Speaking.Admin;
@@ -54,6 +55,8 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<ILrExerciseBankRepository, EmptyLrExerciseBankRepository>();
         services.AddSingleton<ILrPracticeAttemptRepository, EmptyLrPracticeAttemptRepository>();
         services.AddSingleton<ILrExerciseBankImportParser, EmptyLrExerciseBankImportParser>();
+        services.AddSingleton<IKnowledgeAdminRepository, InMemoryKnowledgeAdminRepository>();
+        services.AddSingleton<IKnowledgeMediaStore, InMemoryKnowledgeMediaStore>();
         services.AddSingleton<RecordingMailSender>();
         services.AddSingleton<IMailSender>(provider => provider.GetRequiredService<RecordingMailSender>());
         services.AddSingleton<IUserRegistrationRepository, FakeUserRegistrationRepository>();
