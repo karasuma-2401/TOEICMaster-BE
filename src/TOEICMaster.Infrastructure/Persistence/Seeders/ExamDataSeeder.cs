@@ -5,7 +5,30 @@ namespace TOEICMaster.Infrastructure.Persistence.Seeders;
 
 public static class ExamDataSeeder
 {
+    private const long SampleExamSeedLockKey = 0x544F454943534545;
+
     public static async Task SeedSampleExamAsync(ToeicDbContext db, CancellationToken cancellationToken = default)
+    {
+        var executionStrategy = db.Database.CreateExecutionStrategy();
+        await executionStrategy.ExecuteAsync(async retryToken =>
+        {
+            await using var transaction = await db.Database.BeginTransactionAsync(retryToken);
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock({SampleExamSeedLockKey})", retryToken);
+            try
+            {
+                await SeedSampleExamCoreAsync(db, retryToken);
+                await transaction.CommitAsync(retryToken);
+            }
+            catch
+            {
+                db.ChangeTracker.Clear();
+                throw;
+            }
+        }, cancellationToken);
+    }
+
+    private static async Task SeedSampleExamCoreAsync(ToeicDbContext db, CancellationToken cancellationToken)
     {
         if (await db.Exams.AnyAsync(cancellationToken))
             return;
@@ -20,9 +43,6 @@ public static class ExamDataSeeder
             profile.SetScore(ExamSkill.Listening, i, score);
             profile.SetScore(ExamSkill.Reading, i, score);
         }
-
-        db.ScoreProfiles.Add(profile);
-        await db.SaveChangesAsync(cancellationToken);
 
         var exam = Exam.Create("TOEIC-SAMPLE-01", "TOEIC Mini Practice Test 2026", profile.Id, now);
         var revision = exam.Revisions.First();
@@ -136,6 +156,7 @@ public static class ExamDataSeeder
 
         exam.PublishDraft(revision.Id);
 
+        db.ScoreProfiles.Add(profile);
         db.Exams.Add(exam);
         await db.SaveChangesAsync(cancellationToken);
     }
