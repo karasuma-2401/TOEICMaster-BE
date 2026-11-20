@@ -92,11 +92,13 @@ public sealed class LrPracticeApiTests : IClassFixture<LrPracticeApiFactory>
 
     public LrPracticeApiTests(LrPracticeApiFactory factory) => _factory = factory;
 
-    [Fact]
-    public async Task Listing_rejects_invalid_part_with_problem_details()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(8)]
+    public async Task Listing_rejects_invalid_part_with_problem_details(int part)
     {
         using var client = _factory.CreateClient();
-        using var response = await client.GetAsync("/api/v1/lr-practice/parts/8/items");
+        using var response = await client.GetAsync($"/api/v1/lr-practice/parts/{part}/items");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
@@ -153,6 +155,142 @@ public sealed class LrPracticeApiTests : IClassFixture<LrPracticeApiFactory>
                     new { questionId = _factory.Item.Questions.Single().Id, selectedKey = "E" }
                 }
             });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task Detail_returns_not_found_for_unknown_item()
+    {
+        using var client = _factory.CreateClient();
+        using var response = await client.GetAsync($"/api/v1/lr-practice/items/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task Submit_returns_not_found_for_unknown_item()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User", Guid.NewGuid().ToString());
+        using var response = await client.PostAsJsonAsync(
+            $"/api/v1/lr-practice/items/{Guid.NewGuid()}/submit",
+            new { answers = Array.Empty<object>() });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task Submit_returns_problem_details_for_null_answers()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User", Guid.NewGuid().ToString());
+        using var response = await client.PostAsJsonAsync(
+            $"/api/v1/lr-practice/items/{_factory.Item.Id}/submit",
+            new { answers = (object?)null });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task Submit_returns_problem_details_for_duplicate_question_id()
+    {
+        var questionId = _factory.Item.Questions.Single().Id;
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User", Guid.NewGuid().ToString());
+        using var response = await client.PostAsJsonAsync(
+            $"/api/v1/lr-practice/items/{_factory.Item.Id}/submit",
+            new
+            {
+                answers = new[]
+                {
+                    new { questionId, selectedKey = "A" },
+                    new { questionId, selectedKey = "B" }
+                }
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task Submit_returns_problem_details_for_foreign_question_id()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User", Guid.NewGuid().ToString());
+        using var response = await client.PostAsJsonAsync(
+            $"/api/v1/lr-practice/items/{_factory.Item.Id}/submit",
+            new
+            {
+                answers = new[]
+                {
+                    new { questionId = Guid.NewGuid(), selectedKey = "A" }
+                }
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task Submit_returns_problem_details_for_overlong_selected_key()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User", Guid.NewGuid().ToString());
+        using var response = await client.PostAsJsonAsync(
+            $"/api/v1/lr-practice/items/{_factory.Item.Id}/submit",
+            new
+            {
+                answers = new[]
+                {
+                    new { questionId = _factory.Item.Questions.Single().Id, selectedKey = "ABCDEFGHI" }
+                }
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task Submit_returns_graded_result_for_valid_answers()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User", Guid.NewGuid().ToString());
+        using var response = await client.PostAsJsonAsync(
+            $"/api/v1/lr-practice/items/{_factory.Item.Id}/submit",
+            new
+            {
+                answers = new[]
+                {
+                    new { questionId = _factory.Item.Questions.Single().Id, selectedKey = " a " }
+                }
+            });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<LrPracticeSubmitResultDto>();
+        Assert.NotNull(body);
+        Assert.Equal(_factory.Item.Id, body.ItemId);
+        Assert.Equal(1, body.TotalQuestions);
+        Assert.Equal(1, body.CorrectCount);
+        Assert.Equal(0, body.IncorrectCount);
+        var question = Assert.Single(body.Questions);
+        Assert.Equal("A", question.SelectedKey);
+        Assert.Equal("A", question.CorrectKey);
+        Assert.True(question.IsCorrect);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(8)]
+    public async Task Statistics_rejects_invalid_part_with_problem_details(int part)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User", Guid.NewGuid().ToString());
+        using var response = await client.GetAsync($"/api/v1/lr-practice/parts/{part}/statistics");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);

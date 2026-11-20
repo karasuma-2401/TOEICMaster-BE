@@ -52,6 +52,152 @@ public sealed class LrPracticeApplicationTests
     }
 
     [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Submit_treats_null_or_whitespace_selected_keys_as_skipped(string? selectedKey)
+    {
+        var item = CreateItem();
+        var attempts = new RecordingAttemptRepository();
+        var handler = new SubmitLrPracticeCommandHandler(
+            new StubExerciseBankRepository(item),
+            attempts);
+
+        var result = await handler.Handle(
+            new SubmitLrPracticeCommand(
+                Guid.NewGuid(),
+                item.Id,
+                new LrPracticeSubmitRequest(
+                [
+                    new LrPracticeAnswerInput(item.Questions.Single().Id, selectedKey)
+                ])),
+            CancellationToken.None);
+
+        Assert.Equal(0, result.CorrectCount);
+        Assert.Equal(1, result.IncorrectCount);
+        Assert.Null(attempts.AddedAttempts[0].Answers.Single().SelectedKey);
+    }
+
+    [Fact]
+    public async Task Submit_rejects_null_answers_collection()
+    {
+        var item = CreateItem();
+        var handler = new SubmitLrPracticeCommandHandler(
+            new StubExerciseBankRepository(item),
+            new RecordingAttemptRepository());
+
+        await Assert.ThrowsAsync<InvalidLrPracticeSubmissionException>(() => handler.Handle(
+            new SubmitLrPracticeCommand(
+                Guid.NewGuid(),
+                item.Id,
+                new LrPracticeSubmitRequest(null!)),
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Submit_rejects_question_id_belonging_to_another_item()
+    {
+        var item = CreateItem();
+        var handler = new SubmitLrPracticeCommandHandler(
+            new StubExerciseBankRepository(item),
+            new RecordingAttemptRepository());
+
+        await Assert.ThrowsAsync<InvalidLrPracticeSubmissionException>(() => handler.Handle(
+            new SubmitLrPracticeCommand(
+                Guid.NewGuid(),
+                item.Id,
+                new LrPracticeSubmitRequest(
+                [new LrPracticeAnswerInput(Guid.NewGuid(), "A")])),
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Submit_rejects_option_d_for_part_2_question()
+    {
+        var item = LrExerciseBankItem.Create(
+            LrExercisePart.Part2,
+            "P2-001",
+            "Question-Response",
+            LrExerciseDifficulty.Easy,
+            LrExerciseStatus.Published,
+            null,
+            null,
+            null,
+            [new LrExerciseBankQuestionInput(
+                "P2-001-Q1",
+                "Where is the meeting?",
+                "In room 201",
+                "At 3 PM",
+                "Yes, I will",
+                null,
+                "A",
+                "Translation",
+                "Explanation")],
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow);
+        var handler = new SubmitLrPracticeCommandHandler(
+            new StubExerciseBankRepository(item),
+            new RecordingAttemptRepository());
+
+        await Assert.ThrowsAsync<InvalidLrPracticeSubmissionException>(() => handler.Handle(
+            new SubmitLrPracticeCommand(
+                Guid.NewGuid(),
+                item.Id,
+                new LrPracticeSubmitRequest(
+                [new LrPracticeAnswerInput(item.Questions.Single().Id, "D")])),
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Submit_grades_grouped_item_with_correct_wrong_and_skipped_answers()
+    {
+        var item = LrExerciseBankItem.Create(
+            LrExercisePart.Part3,
+            "P3-001",
+            "Conversation",
+            LrExerciseDifficulty.Medium,
+            LrExerciseStatus.Published,
+            "M: Where is the report? W: On your desk.",
+            null,
+            null,
+            [
+                new LrExerciseBankQuestionInput("P3-001-Q1", "Q1", "A1", "B1", "C1", "D1", "A", "T1", "E1"),
+                new LrExerciseBankQuestionInput("P3-001-Q2", "Q2", "A2", "B2", "C2", "D2", "B", "T2", "E2"),
+                new LrExerciseBankQuestionInput("P3-001-Q3", "Q3", "A3", "B3", "C3", "D3", "C", "T3", "E3")
+            ],
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow);
+        var questions = item.Questions.OrderBy(x => x.Ordinal).ToArray();
+        var attempts = new RecordingAttemptRepository();
+        var handler = new SubmitLrPracticeCommandHandler(
+            new StubExerciseBankRepository(item),
+            attempts);
+
+        var result = await handler.Handle(
+            new SubmitLrPracticeCommand(
+                Guid.NewGuid(),
+                item.Id,
+                new LrPracticeSubmitRequest(
+                [
+                    new LrPracticeAnswerInput(questions[0].Id, "a"),
+                    new LrPracticeAnswerInput(questions[1].Id, "D")
+                ])),
+            CancellationToken.None);
+
+        Assert.Equal(item.Id, result.ItemId);
+        Assert.Equal(3, result.TotalQuestions);
+        Assert.Equal(1, result.CorrectCount);
+        Assert.Equal(2, result.IncorrectCount);
+        Assert.True(result.Questions[0].IsCorrect);
+        Assert.Equal("A", result.Questions[0].SelectedKey);
+        Assert.False(result.Questions[1].IsCorrect);
+        Assert.Equal("D", result.Questions[1].SelectedKey);
+        Assert.False(result.Questions[2].IsCorrect);
+        Assert.Null(result.Questions[2].SelectedKey);
+        Assert.Equal("E3", result.Questions[2].Explanation);
+    }
+
+    [Theory]
     [InlineData("E")]
     [InlineData("ABCDEFGH1")]
     public async Task Submit_rejects_invalid_selected_keys(string selectedKey)
@@ -124,13 +270,25 @@ public sealed class LrPracticeApplicationTests
         Assert.Equal(3, repository.StatisticsPart);
     }
 
-    [Fact]
-    public async Task Statistics_query_rejects_invalid_part()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(8)]
+    public async Task Statistics_query_rejects_invalid_part(int part)
     {
         var handler = new GetLrPracticeStatisticsQueryHandler(new RecordingAttemptRepository());
 
         await Assert.ThrowsAsync<InvalidLrPracticeRequestException>(() => handler.Handle(
-            new GetLrPracticeStatisticsQuery(Guid.NewGuid(), 8),
+            new GetLrPracticeStatisticsQuery(Guid.NewGuid(), part),
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Statistics_query_rejects_empty_user_id()
+    {
+        var handler = new GetLrPracticeStatisticsQueryHandler(new RecordingAttemptRepository());
+
+        await Assert.ThrowsAsync<InvalidLrPracticeRequestException>(() => handler.Handle(
+            new GetLrPracticeStatisticsQuery(Guid.Empty, 1),
             CancellationToken.None));
     }
 
