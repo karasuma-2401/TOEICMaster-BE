@@ -2,8 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using TOEICMaster.Application.Knowledge.Admin;
 using TOEICMaster.Domain.Entities;
 using TOEICMaster.Infrastructure.Persistence;
+using TOEICMaster.Infrastructure.Persistence.Knowledge;
 using TOEICMaster.Infrastructure.Persistence.Migrations;
 
 namespace TOEICMaster.Tests.Infrastructure.Persistence;
@@ -41,6 +43,48 @@ public sealed class KnowledgePersistenceTests
 
         Assert.Equal(ReferentialAction.Restrict, categoryFk.OnDelete);
         Assert.Equal(["category_id"], categoryFk.Columns);
+    }
+
+    [Fact]
+    public void Admin_article_keyword_filter_searches_only_title_not_content_json()
+    {
+        using var context = CreateContext();
+        var repo = new EfKnowledgeAdminRepository(context);
+        var sql = repo.BuildFilteredArticleQuery(context.KnowledgeArticles.AsNoTracking(),
+                new KnowledgeAdminArticleFilter("Reading", "Reading", null, null, "Published", "updatedAt:desc"))
+            .Select(article => article.Id)
+            .ToQueryString();
+
+        Assert.Contains("title", sql);
+        Assert.Contains("ILIKE", sql);
+        Assert.DoesNotContain("content_json", sql);
+    }
+
+    [Fact]
+    public void Admin_category_and_tag_filters_generate_ilike_sql()
+    {
+        using var context = CreateContext();
+        var repo = new EfKnowledgeAdminRepository(context);
+
+        var categorySql = repo.BuildFilteredCategoryQuery(context.KnowledgeCategories.AsNoTracking(),
+                new KnowledgeAdminCategoryFilter("Reading", true, "displayOrder:asc"))
+            .Select(category => category.Id)
+            .ToQueryString();
+        Assert.Contains("ILIKE", categorySql);
+        Assert.Contains("EXISTS", categorySql);
+
+        var tagSql = repo.BuildFilteredTagQuery(context.KnowledgeTags.AsNoTracking(),
+                new KnowledgeAdminTagFilter("part", "name:asc"))
+            .Select(tag => tag.Id)
+            .ToQueryString();
+        Assert.Contains("ILIKE", tagSql);
+
+        var mediaSql = repo.BuildFilteredMediaQuery(context.KnowledgeMediaAssets.AsNoTracking(),
+                new KnowledgeAdminMediaFilter("cover", true, "createdAt:desc"))
+            .Select(asset => asset.Id)
+            .ToQueryString();
+        Assert.Contains("ILIKE", mediaSql);
+        Assert.Contains("NOT EXISTS", mediaSql);
     }
 
     [Fact]

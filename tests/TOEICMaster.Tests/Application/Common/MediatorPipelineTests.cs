@@ -10,6 +10,7 @@ using TOEICMaster.Application.Email.Commands.SendEmail;
 using TOEICMaster.Application.ExamAttempts;
 using TOEICMaster.Application.Exams;
 using TOEICMaster.Application.ExerciseBank;
+using TOEICMaster.Application.Knowledge.Admin;
 using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.Speaking;
 using TOEICMaster.Application.Speaking.Admin;
@@ -53,6 +54,8 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<IExamAttemptRepository, InMemoryExamAttempts>();
         services.AddSingleton<ILrExerciseBankRepository, EmptyLrExerciseBankRepository>();
         services.AddSingleton<ILrExerciseBankImportParser, EmptyLrExerciseBankImportParser>();
+        services.AddSingleton<IKnowledgeAdminRepository, InMemoryKnowledgeAdminRepository>();
+        services.AddSingleton<IKnowledgeMediaStore, InMemoryKnowledgeMediaStore>();
         services.AddSingleton<RecordingMailSender>();
         services.AddSingleton<IMailSender>(provider => provider.GetRequiredService<RecordingMailSender>());
         services.AddSingleton<IUserRegistrationRepository, FakeUserRegistrationRepository>();
