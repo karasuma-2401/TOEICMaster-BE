@@ -1,7 +1,7 @@
 # Execution Checklist: TOEIC Speaking Module
 
 > **Tài liệu đặc tả:** [spec.md](./spec.md)  
-> **Trạng thái:** Đang thực hiện. Luồng chính đã xong; các Work Package A, B, C và D chưa bắt đầu.
+> **Trạng thái:** Các AC CNPMCS-51 đã triển khai ngày 2026-11-21. UAT thiết bị, dữ liệu thực và calibration còn mở; xem [báo cáo Sprint 3](../../runbooks/sprint3-review.md).
 
 ## Thứ tự làm
 
@@ -55,7 +55,7 @@ Làm theo các đợt dưới đây, không theo thứ tự chữ cái. Lý do n
 - [ ] Hoàn thành [UAT runbook](../../runbooks/speaking-uat-runbook.md).
 
 ### Phase 6: Handoff & Review
-- [ ] Thêm mục Speaking vào `contracts/api-contract.md` (file dùng chung, cần thống nhất với nhóm).
+- [x] Thêm mục Speaking vào `contracts/api-contract.md` (file dùng chung, cần thống nhất với nhóm).
 - [ ] Chuyển `ffmpeg` và biến Azure/Gemini từ `docker-compose.override.yml` (không nằm trong git) vào `Dockerfile`, `docker-compose.yml`, `.env.example` (báo cáo OPS-01; file dùng chung, cần thống nhất với nhóm).
 
 ---
@@ -65,9 +65,9 @@ Làm theo các đợt dưới đây, không theo thứ tự chữ cái. Lý do n
 **Domain:** không đổi.
 
 **Application**
-- [ ] Tạo `Speaking/Admin/SpeakingTestContentRules.cs`: chuẩn hóa văn bản, tạo đơn vị so sánh, trả danh sách vấn đề kèm mã, mức, vị trí câu.
-- [ ] `SpeakingExerciseInputValidator`: 3 câu hỏi Part 3–4 phải khác nhau sau chuẩn hóa.
-- [ ] `PublishRequirements`: thêm khóa `Content` cho lỗi mức chặn. Lấy `sha256` của ảnh bằng `FindMediaAssetAsync`.
+- [x] Tạo `Speaking/Admin/SpeakingTestContentRules.cs`: chuẩn hóa văn bản, tạo đơn vị so sánh, trả danh sách vấn đề kèm mã, mức, vị trí câu.
+- [x] `SpeakingExerciseInputValidator`: 3 câu hỏi Part 3–4 phải khác nhau sau chuẩn hóa.
+- [x] `PublishRequirements`: thêm khóa `Content` cho lỗi mức chặn. Lấy `sha256` của ảnh bằng `FindMediaAssetAsync`.
 - [ ] (Để sau) Thêm query `CheckSpeakingTestPublishQuery`, truyền `CancellationToken` đầy đủ.
 
 **Infrastructure:** không cần migration ở phase này.
@@ -76,12 +76,12 @@ Làm theo các đợt dưới đây, không theo thứ tự chữ cái. Lý do n
 - [ ] (Để sau) `POST /api/v1/admin/speaking/tests/publish-check` trong `AdminSpeakingController`, gọi qua `ISender.Send`.
 
 **Tests**
-- [ ] Sửa bộ mẫu: `SpeakingSamples` có đoạn văn thứ hai và ảnh khác byte; sửa `FullTestAsync`, `Admin_and_learner_contract_matches_the_frontend`, `Published_images_are_served_only_through_a_published_snapshot`. Lưu ý `DetectImage` kiểm tra đuôi PNG, nên đổi byte ở giữa file thay vì nối thêm vào cuối.
-- [ ] Chuẩn hóa: hoa thường, dấu câu, khoảng trắng, Unicode.
-- [ ] Trùng trong một bài; giữa 2 bài Part 1; giữa Part 3 và Part 4; cùng asset; khác asset cùng `sha256`.
+- [x] Sửa bộ mẫu: `SpeakingSamples` có đoạn văn thứ hai và ảnh khác byte; sửa `FullTestAsync`, `Admin_and_learner_contract_matches_the_frontend`, `Published_images_are_served_only_through_a_published_snapshot`. Lưu ý `DetectImage` kiểm tra đuôi PNG, nên đổi byte ở giữa file thay vì nối thêm vào cuối.
+- [x] Chuẩn hóa: hoa thường, dấu câu, khoảng trắng, Unicode.
+- [x] Trùng trong một bài; giữa 2 bài Part 1; giữa Part 3 và Part 4; cùng asset; khác asset cùng `sha256`.
 - [ ] Gần giống ở ngưỡng 0,79 và 0,8 chỉ khác nhau ở cảnh báo; cảnh báo không chặn công bố.
 - [ ] `publish-check` không ghi dữ liệu và chấp nhận đề chưa đủ bài.
-- [ ] Đề đã công bố và lượt làm cũ không đổi.
+- [x] Đề đã công bố và lượt làm cũ không đổi.
 
 **Trước khi bật:** chạy truy vấn chỉ đọc ở [mục 5 của UAT](../../runbooks/speaking-uat-runbook.md#5-rà-soát-dữ-liệu-hiện-có).
 
@@ -92,31 +92,31 @@ Làm theo các đợt dưới đây, không theo thứ tự chữ cái. Lý do n
 Chỉ sửa FE.
 
 **Ưu tiên 1: sửa lỗi xin quyền**
-- [ ] Tạo `src/app/speaking/layout.tsx` và `src/features/speaking/mic/mic-session-provider.tsx`.
-- [ ] Chuyển `getUserMedia`, `AudioContext` và phần đo âm lượng vào provider. Đảm bảo `acquire` idempotent, kể cả với StrictMode.
-- [ ] `useVoiceRecorder` chỉ dùng stream của provider.
-- [ ] `SpeakingAttemptRun`: bỏ effect xin quyền khi mount. Không đụng micro khi `SUBMITTED`. `release()` khi nộp xong.
-- [ ] Giải phóng stream khi rời luồng làm bài.
-- [ ] `SpeakingSession`: chỉ `POST /attempts` khi micro sẵn sàng.
-- [ ] Khôi phục sau tải lại theo kết quả `permissions.query`, bọc `try/catch`.
-- [ ] Màn làm bài có nút bật lại micro khi trạng thái là `idle`, kèm thông báo đồng hồ vẫn chạy.
+- [x] Tạo `src/app/speaking/layout.tsx` và `src/features/speaking/mic/mic-session-provider.tsx`.
+- [x] Chuyển `getUserMedia`, `AudioContext` và phần đo âm lượng vào provider. Đảm bảo `acquire` idempotent, kể cả với StrictMode.
+- [x] `useVoiceRecorder` chỉ dùng stream của provider.
+- [x] `SpeakingAttemptRun`: bỏ effect xin quyền khi mount. Không đụng micro khi `SUBMITTED`. `release()` khi nộp xong.
+- [x] Giải phóng stream khi rời luồng làm bài.
+- [x] `SpeakingSession`: chỉ `POST /attempts` khi micro sẵn sàng.
+- [x] Khôi phục sau tải lại theo kết quả `permissions.query`, bọc `try/catch`.
+- [x] Màn làm bài có nút bật lại micro khi trạng thái là `idle`, kèm thông báo đồng hồ vẫn chạy.
 - [ ] Trên trình duyệt thật: xác nhận layout giữ stream khi chuyển route, và bản ghi của câu cuối vẫn đủ dữ liệu.
 
 **Ưu tiên 2: đúng PRD**
-- [ ] Tách lỗi: `denied`, `no-device`, `busy`, `insecure`, `unsupported`, kèm hướng dẫn riêng.
-- [ ] Kiểm tra thiết bị 3 bước: cấp quyền, nói thử 5 giây, nghe lại. Thêm chọn micro.
-- [ ] Chính sách theo chế độ (D1).
-- [ ] Tiếng beep bằng `OscillatorNode`; ghi âm bắt đầu sau beep.
-- [ ] Phát hiện `track.ended`, `recorder.onerror`; cảnh báo `beforeunload` trong pha trả lời.
-- [ ] Sửa nội dung ở `speaking-test-overview.tsx:113` về việc lưu bản ghi.
-- [ ] Ẩn nút bỏ qua pha ở đề đầy đủ (D2).
+- [x] Tách lỗi: `denied`, `no-device`, `busy`, `insecure`, `unsupported`, kèm hướng dẫn riêng.
+- [x] Kiểm tra thiết bị 3 bước: cấp quyền, nói thử 5 giây, nghe lại. Thêm chọn micro.
+- [x] Chính sách theo chế độ (D1).
+- [x] Tiếng beep bằng `OscillatorNode`; ghi âm bắt đầu sau beep.
+- [x] Phát hiện `track.ended`, `recorder.onerror`; cảnh báo `beforeunload` trong pha trả lời.
+- [x] Sửa nội dung ở `speaking-test-overview.tsx:113` về việc lưu bản ghi.
+- [x] Ẩn nút bỏ qua pha ở đề đầy đủ (D2).
 
 **Tests**
-- [ ] Mock `getUserMedia`: đúng 1 lần gọi qua kiểm tra, tạo lượt làm và chuyển route.
-- [ ] Bài `SUBMITTED`: 0 lần gọi.
-- [ ] Không có `POST /attempts` khi chưa có quyền ở chế độ `FULL`.
-- [ ] Mỗi loại lỗi cho đúng trạng thái.
-- [ ] Rời luồng thì track bị dừng.
+- [x] Mock `getUserMedia`: đúng 1 lần gọi qua kiểm tra, tạo lượt làm và chuyển route.
+- [x] Bài `SUBMITTED`: 0 lần gọi.
+- [x] Không có `POST /attempts` khi chưa có quyền ở chế độ `FULL`.
+- [x] Mỗi loại lỗi cho đúng trạng thái.
+- [x] Rời luồng thì track bị dừng.
 - [ ] Đo thực tế theo [ma trận trình duyệt](../../runbooks/speaking-uat-runbook.md#3-ma-trận-quyền-micro).
 
 ---
@@ -124,18 +124,18 @@ Chỉ sửa FE.
 ## Work Package C: Test Builder ([thiết kế](./admin-test-builder.md))
 
 **FE, không cần đổi BE (làm trước)**
-- [ ] UI-02: giữ đúng vị trí khi lưu và khi tải lại.
-- [ ] UI-01, DUP-04: bộ chọn có tìm kiếm phía server; khóa bài đã dùng và ghi rõ đang dùng ở câu nào.
-- [ ] UI-03, UI-07: hiện đủ lỗi, đúng tiêu đề.
-- [ ] UI-05, UI-06: hỏi khi đóng; lưu nháp không đóng builder.
+- [x] UI-02: giữ đúng vị trí khi lưu và khi tải lại.
+- [x] UI-01, DUP-04: bộ chọn có tìm kiếm phía server; khóa bài đã dùng và ghi rõ đang dùng ở câu nào.
+- [x] UI-03, UI-07: hiện đủ lỗi, đúng tiêu đề.
+- [x] UI-05, UI-06: hỏi khi đóng; lưu nháp không đóng builder.
 - [ ] UI-10, UI-11, UI-13.
 - [ ] FLOW-02: gọi `GET /attempts` và thêm danh sách lượt làm có liên kết đến `/speaking/attempts/{id}`. Trang `/history` không thuộc Speaking, nên đặt ở trang Speaking trừ khi nhóm thống nhất khác.
 
 **Cần BE**
 - [ ] UI-08: banner lỗi và sơ đồ 11 câu theo `publish-check` (cần Work Package A).
-- [ ] UI-04: thêm `code` vào ProblemDetails của `409`.
+- [x] UI-04: thêm `code` vào ProblemDetails của `409`.
 - [x] UI-09: `DELETE /tests/{id}?version=`.
-- [ ] UI-09: `POST /tests/{id}/clone`.
+- [x] UI-09: `POST /tests/{id}/clone`.
 - [ ] UI-12, DUP-05: thêm `usedInTestCount`.
 
 **Tests:** các scenario trong [admin-test-builder.md](./admin-test-builder.md#5-tiêu-chí-nghiệm-thu).
@@ -152,7 +152,7 @@ Chỉ sửa FE.
 
 ## Handoff
 
-- [ ] Cập nhật `admin-api.md`, `attempt-api.md`: chuyển phần đề xuất sang phần đã triển khai.
-- [ ] Đổi trạng thái ADR-002 và ADR-003 khi được duyệt hoặc triển khai.
+- [x] Cập nhật `admin-api.md`, `attempt-api.md`: chuyển phần đề xuất sang phần đã triển khai.
+- [x] Đổi trạng thái ADR-002 và ADR-003 khi được duyệt hoặc triển khai.
 - [ ] Đánh dấu các dòng đã sửa trong báo cáo rà soát.
 - [ ] Báo các file dùng chung cần cập nhật (báo cáo mục 8).

@@ -89,7 +89,9 @@ Không commit key. Đặt trong `.env`, user-secrets hoặc secret của môi tr
 | `AzureSpeech__RequestTimeoutSeconds` | `30` | |
 | `Gemini__Enabled`, `Gemini__ApiKey` | | Dùng chung với Writing |
 
-Image chạy cần có `ffmpeg`. Hiện `ffmpeg` và các biến trên chỉ được khai báo trong `docker-compose.override.yml`, file không nằm trong git. `Dockerfile` và `docker-compose.yml` chưa có, nên image dựng từ repo sẽ không chấm được (báo cáo OPS-01).
+Image chạy cần có `ffmpeg`; Dockerfile runtime đã cài công cụ này. Compose và `.env.example` có các biến
+`AZURE_SPEECH_ENABLED`, `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`, `AZURE_SPEECH_LOCALE`; khi chạy trực tiếp,
+`AZURE_SPEECH_FFMPEG_PATH` chọn executable. Chưa dựng image trên máy rà soát vì Docker daemon chưa chạy.
 
 Mỗi bài đầy đủ gọi Azure khoảng 11–16 request và Gemini 1 lần.
 

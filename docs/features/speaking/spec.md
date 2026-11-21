@@ -1,6 +1,6 @@
 # Feature Specification: TOEIC Speaking Module
 
-> **Trạng thái:** In Review. Backend và FE đã chạy được luồng chính; các mục "Đích" trong tài liệu này chưa triển khai.  
+> **Trạng thái:** ADR-002 bước 1, ADR-003 và các AC Test Builder đã triển khai ngày 2026-11-21; cần UAT và calibration trước nghiệm thu.
 > **Người phụ trách:** Jin MPT  
 > **Ánh xạ UI Figma:** Màn hình 09, 13, 20, 21, 22, 23, 36, 41  
 > **Tài liệu liên quan:**
@@ -35,10 +35,10 @@ Cung cấp phòng thi thử và luyện tập TOEIC Speaking theo format ETS (11
 - [x] Chấm AI theo hàng đợi: Azure Speech, Gemini, server tự tính điểm.
 - [x] Xóa bản ghi của khách sau 30 ngày.
 
-**Đích (chưa triển khai)**
-- [ ] Không trùng nội dung trong đề: ADR-002.
-- [ ] Một phiên micro cho mỗi lượt làm, kiểm tra thiết bị 3 bước, tiếng beep: ADR-003.
-- [ ] Test Builder mới: tìm kiếm, giữ vị trí, hiện đủ lỗi, nhân bản đề.
+**Hoàn thiện ngày 2026-11-21**
+- [x] Chặn nội dung trùng chính xác trong cả đề trực tiếp và đề từ ngân hàng: ADR-002 bước 1.
+- [x] Một phiên micro cho mỗi lượt làm, kiểm tra thiết bị 3 bước, tiếng beep: ADR-003 (chờ UAT thiết bị thật).
+- [x] Test Builder: hai cách tạo đề, tìm kiếm phân trang, giữ vị trí, hiện đủ lỗi, lưu không đóng, nhân bản đề.
 
 ### Ngoài phạm vi (Out-of-scope / Explicit Non-Goals)
 > [!IMPORTANT]
@@ -82,7 +82,7 @@ Giữ route hiện tại. Figma chỉ là nguồn tham chiếu giao diện.
 
 ## 2. Luồng nghiệp vụ (Business Flow)
 
-Luồng dưới đây là **đích**. Các bước 2, 3 và tiếng beep chưa có; hiện tại bước 2 chỉ xin quyền, và màn làm bài xin quyền thêm một lần (xem ADR-003).
+Luồng dưới đây đã được triển khai theo ADR-003. Stream được giữ ở layout; thao tác tạo lượt làm diễn ra sau kiểm tra thiết bị. Luyện Part có lựa chọn riêng không ghi âm.
 
 ```mermaid
 sequenceDiagram
@@ -168,10 +168,10 @@ Hợp đồng đầy đủ: [admin-api.md](./admin-api.md) và [attempt-api.md](
 | I6 | Học viên không nhận rubric hay bài mẫu khi đang làm bài. | Đã có |
 | I7 | Server là nguồn thời gian; lỗi micro không dừng đồng hồ. | Đã có |
 | I8 | Mỗi lượt làm có tối đa một job chấm; LLM không quyết định điểm cuối. | Đã có |
-| I9 | Không có hai câu trùng nội dung trong đề: chặn trùng chính xác, cảnh báo gần giống. | **Đích**, ADR-002 |
-| I10 | `getUserMedia` chỉ được gọi từ một nơi; lượt làm chỉ được tạo sau khi có micro. | **Đích**, ADR-003 |
-| I11 | Bài đã nộp không được dùng đến micro. | **Đích**, ADR-003 |
-| I12 | Đề đầy đủ bắt buộc qua kiểm tra micro. Luyện Part có lựa chọn không ghi âm. | **Đích**, chờ D1 |
+| I9 | Không có hai câu trùng nội dung trong đề. | Chặn chính xác đã có; cảnh báo gần giống còn ở backlog, ADR-002 |
+| I10 | `getUserMedia` chỉ được gọi trong provider; FULL chỉ tạo sau kiểm tra micro. | Đã có, ADR-003 |
+| I11 | Bài đã nộp không được dùng đến micro. | Đã có, ADR-003 |
+| I12 | Đề đầy đủ bắt buộc qua kiểm tra micro. Luyện Part có lựa chọn không ghi âm. | Đã có |
 
 ### Các trường hợp biên (Edge Cases)
 

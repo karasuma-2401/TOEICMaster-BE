@@ -1,5 +1,9 @@
 # Báo cáo rà soát module Speaking
 
+> **Cập nhật 2026-11-21:** báo cáo này giữ bằng chứng lịch sử ngày 03/11. ADR-002 bước 1, phiên micro,
+> device check/beep và các AC Test Builder đã được sửa; kết quả hiện tại và phần UAT/calibration còn mở nằm
+> trong [báo cáo Sprint 3](./sprint3-review.md).
+
 > **Ngày rà soát:** 2026-11-03  
 > **Phiên bản đã đọc:** BE `feature/speaking-evaluation` @ `d9a9e76`; FE `feature/speaking-part-practice` (working tree)  
 > **Phạm vi:** chỉ Speaking. Không sửa code. Writing và L&R chỉ được đọc để so sánh.  

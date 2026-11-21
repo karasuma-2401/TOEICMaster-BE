@@ -1,11 +1,15 @@
 # Thiết kế lại Test Builder Speaking (Admin)
 
-> **Trạng thái:** Đề xuất, chưa triển khai  
+> **Trạng thái:** Đã triển khai các AC tìm kiếm, giữ vị trí, đủ lỗi validation, lưu giữ builder và nhân bản ngày 2026-11-21. `publish-check`, cảnh báo gần giống và số đề sử dụng bài còn ở backlog.
 > **Màn hình:** `/admin/tests/speaking` (Figma 41), `/admin/content/speaking` (Figma 36)  
 > **Vấn đề gốc:** mục 4 của [báo cáo rà soát](../../runbooks/speaking-audit-report.md)  
 > **Luật không trùng:** [ADR-002](../../decisions/002-speaking-test-content-uniqueness.md)
 
 Thư mục FE trong tài liệu này tính từ `src/features/speaking/components/admin/`.
+
+Builder hỗ trợ cả nhập nội dung trực tiếp và lắp từ ngân hàng theo yêu cầu hiện tại. Mã/tên đề mới được nhập
+khi nhân bản; bản sao luôn là đề DIRECT độc lập giữ nội dung snapshot của nguồn, kể cả nguồn từ ngân hàng.
+Giao thức clone thực tế có thêm `version`; xem [Admin API](./admin-api.md).
 
 ---
 
