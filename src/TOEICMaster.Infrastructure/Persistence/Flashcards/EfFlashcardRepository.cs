@@ -125,6 +125,33 @@ public sealed class EfFlashcardRepository(ToeicDbContext dbContext) : IFlashcard
             dbContext.UserFlashcardProgress.RemoveRange(rows);
     }
 
+    public async Task<IReadOnlyList<UserFlashcardMatchRecord>> GetUserMatchRecordsAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.UserFlashcardMatchRecords
+            .AsNoTracking()
+            .Where(record => record.UserId == userId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<UserFlashcardMatchRecord?> GetMatchRecordAsync(
+        Guid userId,
+        Guid deckId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.UserFlashcardMatchRecords
+            .FirstOrDefaultAsync(
+                record => record.UserId == userId && record.DeckId == deckId,
+                cancellationToken);
+    }
+
+    public Task AddMatchRecordAsync(UserFlashcardMatchRecord record, CancellationToken cancellationToken)
+    {
+        dbContext.UserFlashcardMatchRecords.Add(record);
+        return Task.CompletedTask;
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken) =>
         dbContext.SaveChangesAsync(cancellationToken);
 }

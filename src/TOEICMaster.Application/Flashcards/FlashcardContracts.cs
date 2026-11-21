@@ -29,9 +29,17 @@ public sealed record CardProgressDto(
     int ReviewCount,
     DateTimeOffset UpdatedAt);
 
+public sealed record MatchRecordDto(
+    int BestTimeMs,
+    int BestCombo,
+    int PlayCount,
+    DateTimeOffset UpdatedAt,
+    bool IsNewRecord = false);
+
 public sealed record FlashcardWorkspaceDto(
     IReadOnlyList<FlashcardDeckDto> Decks,
-    IReadOnlyDictionary<string, CardProgressDto> Progress);
+    IReadOnlyDictionary<string, CardProgressDto> Progress,
+    IReadOnlyDictionary<string, MatchRecordDto> MatchRecords);
 
 public sealed record CreateFlashcardCardRequest(
     string Term,
@@ -52,3 +60,7 @@ public sealed record CreateFlashcardDeckRequest(
 public sealed record UpsertFlashcardProgressRequest(
     string Status,
     bool Starred);
+
+public sealed record RecordFlashcardMatchRequest(
+    int ElapsedMs,
+    int MaxCombo);

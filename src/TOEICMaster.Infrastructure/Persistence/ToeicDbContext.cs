@@ -48,6 +48,7 @@ public sealed class ToeicDbContext(DbContextOptions<ToeicDbContext> options) : D
     public DbSet<FlashcardDeck> FlashcardDecks => Set<FlashcardDeck>();
     public DbSet<FlashcardCard> FlashcardCards => Set<FlashcardCard>();
     public DbSet<UserFlashcardProgress> UserFlashcardProgress => Set<UserFlashcardProgress>();
+    public DbSet<UserFlashcardMatchRecord> UserFlashcardMatchRecords => Set<UserFlashcardMatchRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -15,5 +15,8 @@ public interface IFlashcardRepository
     void RemoveDeck(FlashcardDeck deck);
     Task AddProgressAsync(UserFlashcardProgress progress, CancellationToken cancellationToken);
     Task DeleteDeckProgressAsync(Guid userId, Guid deckId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<UserFlashcardMatchRecord>> GetUserMatchRecordsAsync(Guid userId, CancellationToken cancellationToken);
+    Task<UserFlashcardMatchRecord?> GetMatchRecordAsync(Guid userId, Guid deckId, CancellationToken cancellationToken);
+    Task AddMatchRecordAsync(UserFlashcardMatchRecord record, CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

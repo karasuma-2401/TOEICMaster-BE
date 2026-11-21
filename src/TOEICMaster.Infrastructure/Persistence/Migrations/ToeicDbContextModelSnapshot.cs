@@ -1979,6 +1979,39 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.UserFlashcardMatchRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("BestCombo")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("BestTimeMs")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("DeckId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("PlayCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeckId");
+
+                    b.HasIndex("UserId", "DeckId")
+                        .IsUnique();
+
+                    b.ToTable("user_flashcard_match_records", (string)null);
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.UserFlashcardProgress", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2857,6 +2890,21 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.HasOne("TOEICMaster.Domain.Entities.SpeakingTest", null)
                         .WithMany()
                         .HasForeignKey("TestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.UserFlashcardMatchRecord", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.FlashcardDeck", null)
+                        .WithMany()
+                        .HasForeignKey("DeckId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TOEICMaster.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

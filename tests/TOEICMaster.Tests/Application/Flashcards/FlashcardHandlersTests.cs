@@ -9,6 +9,7 @@ public sealed class FlashcardHandlersTests
     {
         public List<FlashcardDeck> Decks { get; } = [];
         public List<UserFlashcardProgress> Progress { get; } = [];
+        public List<UserFlashcardMatchRecord> MatchRecords { get; } = [];
 
         public Task<IReadOnlyList<FlashcardDeck>> GetVisibleDecksAsync(Guid? userId, CancellationToken cancellationToken)
         {
@@ -67,6 +68,21 @@ public sealed class FlashcardHandlersTests
         {
             var cardIds = Decks.Where(d => d.Id == deckId).SelectMany(d => d.Cards).Select(c => c.Id).ToHashSet();
             Progress.RemoveAll(p => p.UserId == userId && cardIds.Contains(p.CardId));
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<UserFlashcardMatchRecord>> GetUserMatchRecordsAsync(Guid userId, CancellationToken cancellationToken)
+        {
+            IReadOnlyList<UserFlashcardMatchRecord> result = MatchRecords.Where(r => r.UserId == userId).ToList();
+            return Task.FromResult(result);
+        }
+
+        public Task<UserFlashcardMatchRecord?> GetMatchRecordAsync(Guid userId, Guid deckId, CancellationToken cancellationToken) =>
+            Task.FromResult(MatchRecords.FirstOrDefault(r => r.UserId == userId && r.DeckId == deckId));
+
+        public Task AddMatchRecordAsync(UserFlashcardMatchRecord record, CancellationToken cancellationToken)
+        {
+            MatchRecords.Add(record);
             return Task.CompletedTask;
         }
 
@@ -200,5 +216,50 @@ public sealed class FlashcardHandlersTests
         Assert.NotNull(added);
         Assert.Equal("invoice", added.Term);
         Assert.Equal(2, repo.Decks[0].Cards.Count);
+    }
+
+    [Fact]
+    public async Task Record_match_tracks_fastest_time_and_best_combo()
+    {
+        var repo = new FakeFlashcardRepository();
+        var userId = Guid.NewGuid();
+        var deck = FlashcardDeck.CreateBuiltIn(
+            Guid.NewGuid(),
+            "office-operations",
+            "Văn phòng",
+            "Mô tả",
+            FlashcardCategories.Office,
+            "500+",
+            5,
+            [(Guid.NewGuid(), new FlashcardCardInput("agenda", null, "noun", "chương trình họp", null, null, null, "Part 3", "B1"))],
+            DateTimeOffset.UtcNow);
+        repo.Decks.Add(deck);
+
+        var handler = new RecordFlashcardMatchCommandHandler(repo, TimeProvider.System);
+        var first = await handler.Handle(
+            new RecordFlashcardMatchCommand(userId, deck.Id, new RecordFlashcardMatchRequest(18500, 4)),
+            CancellationToken.None);
+        Assert.NotNull(first);
+        Assert.True(first.IsNewRecord);
+        Assert.Equal(18500, first.BestTimeMs);
+        Assert.Equal(1, first.PlayCount);
+
+        var slower = await handler.Handle(
+            new RecordFlashcardMatchCommand(userId, deck.Id, new RecordFlashcardMatchRequest(22000, 6)),
+            CancellationToken.None);
+        Assert.NotNull(slower);
+        Assert.False(slower.IsNewRecord);
+        Assert.Equal(18500, slower.BestTimeMs);
+        Assert.Equal(6, slower.BestCombo);
+        Assert.Equal(2, slower.PlayCount);
+
+        var faster = await handler.Handle(
+            new RecordFlashcardMatchCommand(userId, deck.Id, new RecordFlashcardMatchRequest(14200, 5)),
+            CancellationToken.None);
+        Assert.NotNull(faster);
+        Assert.True(faster.IsNewRecord);
+        Assert.Equal(14200, faster.BestTimeMs);
+        Assert.Equal(6, faster.BestCombo);
+        Assert.Equal(3, faster.PlayCount);
     }
 }

@@ -408,3 +408,75 @@ public sealed class UserFlashcardProgress
         UpdatedAtUtc = nowUtc;
     }
 }
+
+public sealed class UserFlashcardMatchRecord
+{
+    private UserFlashcardMatchRecord()
+    {
+    }
+
+    private UserFlashcardMatchRecord(
+        Guid id,
+        Guid userId,
+        Guid deckId,
+        int bestTimeMs,
+        int bestCombo,
+        int playCount,
+        DateTimeOffset updatedAtUtc)
+    {
+        Id = id;
+        UserId = userId;
+        DeckId = deckId;
+        BestTimeMs = bestTimeMs;
+        BestCombo = bestCombo;
+        PlayCount = playCount;
+        UpdatedAtUtc = updatedAtUtc;
+    }
+
+    public Guid Id { get; private set; }
+    public Guid UserId { get; private set; }
+    public Guid DeckId { get; private set; }
+    public int BestTimeMs { get; private set; }
+    public int BestCombo { get; private set; }
+    public int PlayCount { get; private set; }
+    public DateTimeOffset UpdatedAtUtc { get; private set; }
+
+    public static UserFlashcardMatchRecord Create(
+        Guid userId,
+        Guid deckId,
+        int elapsedMs,
+        int maxCombo,
+        DateTimeOffset nowUtc)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(userId, Guid.Empty);
+        ArgumentOutOfRangeException.ThrowIfEqual(deckId, Guid.Empty);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(elapsedMs);
+        ArgumentOutOfRangeException.ThrowIfNegative(maxCombo);
+
+        return new UserFlashcardMatchRecord(
+            Guid.NewGuid(),
+            userId,
+            deckId,
+            elapsedMs,
+            maxCombo,
+            playCount: 1,
+            nowUtc);
+    }
+
+    public bool RecordRun(int elapsedMs, int maxCombo, DateTimeOffset nowUtc)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(elapsedMs);
+        ArgumentOutOfRangeException.ThrowIfNegative(maxCombo);
+
+        var isNewRecord = elapsedMs < BestTimeMs;
+        if (isNewRecord)
+            BestTimeMs = elapsedMs;
+
+        if (maxCombo > BestCombo)
+            BestCombo = maxCombo;
+
+        PlayCount += 1;
+        UpdatedAtUtc = nowUtc;
+        return isNewRecord;
+    }
+}

@@ -30,6 +30,11 @@ public sealed record ResetFlashcardDeckProgressCommand(
     Guid UserId,
     Guid DeckId) : IRequest<bool>;
 
+public sealed record RecordFlashcardMatchCommand(
+    Guid UserId,
+    Guid DeckId,
+    RecordFlashcardMatchRequest Request) : IRequest<MatchRecordDto?>;
+
 public sealed class CreateFlashcardDeckCommandValidator : AbstractValidator<CreateFlashcardDeckCommand>
 {
     public CreateFlashcardDeckCommandValidator()
@@ -109,5 +114,21 @@ public sealed class AddFlashcardCardCommandValidator : AbstractValidator<AddFlas
         RuleFor(x => x.Request.ExampleVi)
             .MaximumLength(400)
             .When(x => x.Request.ExampleVi is not null);
+    }
+}
+
+public sealed class RecordFlashcardMatchCommandValidator : AbstractValidator<RecordFlashcardMatchCommand>
+{
+    public RecordFlashcardMatchCommandValidator()
+    {
+        RuleFor(x => x.UserId).NotEmpty();
+        RuleFor(x => x.DeckId).NotEmpty();
+        RuleFor(x => x.Request).NotNull();
+        RuleFor(x => x.Request.ElapsedMs)
+            .GreaterThan(0).WithMessage("Thời gian hoàn thành phải lớn hơn 0.")
+            .LessThanOrEqualTo(3_600_000).WithMessage("Thời gian hoàn thành không hợp lệ.");
+        RuleFor(x => x.Request.MaxCombo)
+            .GreaterThanOrEqualTo(0)
+            .LessThanOrEqualTo(500);
     }
 }

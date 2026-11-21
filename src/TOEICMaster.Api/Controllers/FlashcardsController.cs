@@ -133,6 +133,28 @@ public sealed class FlashcardsController(ISender sender) : ControllerBase
         return reset ? NoContent() : NotFound();
     }
 
+    [HttpPost("decks/{deckId:guid}/match-records")]
+    [Authorize]
+    [ProducesResponseType<MatchRecordDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MatchRecordDto>> RecordMatch(
+        Guid deckId,
+        [FromBody] RecordFlashcardMatchRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = TryGetUserId();
+        if (!userId.HasValue)
+            return Unauthorized();
+
+        var result = await sender.Send(
+            new RecordFlashcardMatchCommand(userId.Value, deckId, request),
+            cancellationToken);
+
+        return result is null ? NotFound() : Ok(result);
+    }
+
     private Guid? TryGetUserId()
     {
         var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub)

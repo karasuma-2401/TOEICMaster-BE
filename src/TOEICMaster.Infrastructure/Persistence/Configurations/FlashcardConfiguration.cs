@@ -157,3 +157,41 @@ public sealed class UserFlashcardProgressConfiguration : IEntityTypeConfiguratio
             .IsUnique();
     }
 }
+
+public sealed class UserFlashcardMatchRecordConfiguration : IEntityTypeConfiguration<UserFlashcardMatchRecord>
+{
+    public void Configure(EntityTypeBuilder<UserFlashcardMatchRecord> builder)
+    {
+        builder.ToTable("user_flashcard_match_records");
+
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.Id)
+            .ValueGeneratedNever();
+
+        builder.Property(x => x.BestTimeMs)
+            .IsRequired();
+
+        builder.Property(x => x.BestCombo)
+            .IsRequired();
+
+        builder.Property(x => x.PlayCount)
+            .IsRequired();
+
+        builder.Property(x => x.UpdatedAtUtc)
+            .IsRequired();
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<FlashcardDeck>()
+            .WithMany()
+            .HasForeignKey(x => x.DeckId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(x => new { x.UserId, x.DeckId })
+            .IsUnique();
+    }
+}

@@ -49,6 +49,14 @@ internal static class FlashcardMapper
             progress.Starred,
             progress.ReviewCount,
             progress.UpdatedAtUtc);
+
+    public static MatchRecordDto ToDto(UserFlashcardMatchRecord record, bool isNewRecord = false) =>
+        new(
+            record.BestTimeMs,
+            record.BestCombo,
+            record.PlayCount,
+            record.UpdatedAtUtc,
+            isNewRecord);
 }
 
 public sealed class GetFlashcardWorkspaceQueryHandler(IFlashcardRepository repository)
@@ -60,6 +68,7 @@ public sealed class GetFlashcardWorkspaceQueryHandler(IFlashcardRepository repos
     {
         var decks = await repository.GetVisibleDecksAsync(request.UserId, cancellationToken);
         var progressDict = new Dictionary<string, CardProgressDto>(StringComparer.OrdinalIgnoreCase);
+        var matchDict = new Dictionary<string, MatchRecordDto>(StringComparer.OrdinalIgnoreCase);
 
         if (request.UserId.HasValue)
         {
@@ -67,6 +76,12 @@ public sealed class GetFlashcardWorkspaceQueryHandler(IFlashcardRepository repos
             foreach (var record in records)
             {
                 progressDict[record.CardId.ToString()] = FlashcardMapper.ToDto(record);
+            }
+
+            var matchRecords = await repository.GetUserMatchRecordsAsync(request.UserId.Value, cancellationToken);
+            foreach (var match in matchRecords)
+            {
+                matchDict[match.DeckId.ToString()] = FlashcardMapper.ToDto(match);
             }
         }
 
@@ -77,7 +92,7 @@ public sealed class GetFlashcardWorkspaceQueryHandler(IFlashcardRepository repos
             .Select(FlashcardMapper.ToDto)
             .ToArray();
 
-        return new FlashcardWorkspaceDto(orderedDecks, progressDict);
+        return new FlashcardWorkspaceDto(orderedDecks, progressDict, matchDict);
     }
 }
 
@@ -242,5 +257,43 @@ public sealed class AddFlashcardCardCommandHandler(
         await repository.SaveChangesAsync(cancellationToken);
 
         return FlashcardMapper.ToDto(card);
+    }
+}
+
+public sealed class RecordFlashcardMatchCommandHandler(
+    IFlashcardRepository repository,
+    TimeProvider timeProvider)
+    : IRequestHandler<RecordFlashcardMatchCommand, MatchRecordDto?>
+{
+    public async Task<MatchRecordDto?> Handle(
+        RecordFlashcardMatchCommand command,
+        CancellationToken cancellationToken)
+    {
+        var deck = await repository.GetDeckByIdAsync(command.DeckId, cancellationToken);
+        if (deck is null || (deck.OwnerUserId.HasValue && deck.OwnerUserId != command.UserId))
+            return null;
+
+        var now = timeProvider.GetUtcNow();
+        var existing = await repository.GetMatchRecordAsync(command.UserId, command.DeckId, cancellationToken);
+        bool isNewRecord;
+
+        if (existing is null)
+        {
+            existing = UserFlashcardMatchRecord.Create(
+                command.UserId,
+                command.DeckId,
+                command.Request.ElapsedMs,
+                command.Request.MaxCombo,
+                now);
+            await repository.AddMatchRecordAsync(existing, cancellationToken);
+            isNewRecord = true;
+        }
+        else
+        {
+            isNewRecord = existing.RecordRun(command.Request.ElapsedMs, command.Request.MaxCombo, now);
+        }
+
+        await repository.SaveChangesAsync(cancellationToken);
+        return FlashcardMapper.ToDto(existing, isNewRecord);
     }
 }
