@@ -17,6 +17,47 @@ public sealed record PublishSpeakingTestCommand(Guid ActorUserId, Guid TestId, i
 
 public sealed record DeleteSpeakingTestDraftCommand(Guid ActorUserId, Guid TestId, int ExpectedVersion) : IRequest;
 
+public sealed record CloneSpeakingTestCommand(Guid ActorUserId, Guid TestId, int ExpectedVersion,
+    string? Code, string? Title) : IRequest<SpeakingTestDetailDto>;
+
+public sealed class CloneSpeakingTestCommandHandler(ISpeakingAdminRepository repository, TimeProvider timeProvider)
+    : IRequestHandler<CloneSpeakingTestCommand, SpeakingTestDetailDto>
+{
+    public async Task<SpeakingTestDetailDto> Handle(CloneSpeakingTestCommand request,
+        CancellationToken cancellationToken)
+    {
+        var source = await repository.FindTestAsync(request.TestId, cancellationToken)
+            ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
+        if (source.Test.Version != request.ExpectedVersion)
+            throw new SpeakingConflictException("Đề đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.", "VERSION_CONFLICT");
+        var metadata = await SpeakingTestInputs.ValidateAsync(new SpeakingTestInput(request.Code,
+            request.Title, source.Test.Description, null), cancellationToken);
+        if (await repository.TestCodeExistsAsync(metadata.Code!, null, cancellationToken))
+            throw new SpeakingConflictException("Mã đề Speaking đã tồn tại.", "DUPLICATE_CODE");
+
+        // Copy test-owned snapshots so later exercise-bank edits cannot alter the cloned content.
+        var detail = source.ToDetailDto(await SpeakingTestInputs.LoadDetailExercisesAsync(source, repository,
+            cancellationToken));
+        var clone = SpeakingTest.Create(metadata.Code!, metadata.Title!, metadata.Description!,
+            SpeakingTestContentMode.Direct, request.ActorUserId, timeProvider.GetUtcNow());
+        var slots = source.Test.ContentMode == SpeakingTestContentMode.Direct
+            ? source.Slots.Select(slot => SpeakingTestExercise.CreateDirect(clone.Id, slot.Part,
+                slot.SequenceNumber, slot.ContentJson!, slot.ImageAssetId)).ToArray()
+            : detail.Exercises.Select(slot =>
+            {
+                var item = slot.Exercise;
+                var content = new SpeakingTestQuestionContentDto(item.RubricNotes, item.ModelAnswer,
+                    item.Passage, item.ImageAssetId, item.ImageAlt, item.Context, item.Questions,
+                    item.DocumentTitle, item.DocumentRows, item.CallerIntro, item.Prompt);
+                return SpeakingTestExercise.CreateDirect(clone.Id, slot.Part, slot.SequenceNumber,
+                    SpeakingJson.Serialize(content), item.ImageAssetId);
+            }).ToArray();
+        repository.AddTest(clone, slots);
+        await repository.SaveChangesAsync(cancellationToken);
+        return new SpeakingTestWithSlots(clone, slots).ToDetailDto(new Dictionary<Guid, SpeakingExercise>());
+    }
+}
+
 public sealed class DeleteSpeakingTestDraftCommandValidator : AbstractValidator<DeleteSpeakingTestDraftCommand>
 {
     public DeleteSpeakingTestDraftCommandValidator()
@@ -36,7 +77,7 @@ public sealed class DeleteSpeakingTestDraftCommandHandler(ISpeakingAdminReposito
             ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
         var test = loaded.Test;
         if (test.Version != request.ExpectedVersion)
-            throw new SpeakingConflictException("Đề đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.");
+            throw new SpeakingConflictException("Đề đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.", "VERSION_CONFLICT");
         if (!test.IsDraft)
             throw new SpeakingConflictException("Chỉ có thể xóa đề nháp. Đề đã công bố không thể xóa.");
         repository.RemoveTest(test);
@@ -52,7 +93,7 @@ public sealed class CreateSpeakingTestCommandHandler(ISpeakingAdminRepository re
     {
         var input = await SpeakingTestInputs.ValidateAsync(request.Input, cancellationToken);
         if (await repository.TestCodeExistsAsync(input.Code!, null, cancellationToken))
-            throw new SpeakingConflictException("Mã đề Speaking đã tồn tại.");
+            throw new SpeakingConflictException("Mã đề Speaking đã tồn tại.", "DUPLICATE_CODE");
         var direct = SpeakingTestInputs.IsDirect(input);
         if (!direct && input.Exercises is null)
             throw SpeakingTestInputs.MissingExercises();
@@ -82,9 +123,9 @@ public sealed class UpdateSpeakingTestCommandHandler(ISpeakingAdminRepository re
             ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
         var test = loaded.Test;
         if (test.Version != request.ExpectedVersion)
-            throw new SpeakingConflictException("Đề đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.");
+            throw new SpeakingConflictException("Đề đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.", "VERSION_CONFLICT");
         if (await repository.TestCodeExistsAsync(input.Code!, test.Id, cancellationToken))
-            throw new SpeakingConflictException("Mã đề Speaking đã tồn tại.");
+            throw new SpeakingConflictException("Mã đề Speaking đã tồn tại.", "DUPLICATE_CODE");
         if (!test.IsDraft)
         {
             if (test.ContentMode != SpeakingTestContentMode.ExerciseBank)
@@ -135,7 +176,7 @@ public sealed class PublishSpeakingTestCommandHandler(ISpeakingAdminRepository r
             ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
         var test = loaded.Test;
         if (test.Version != request.ExpectedVersion)
-            throw new SpeakingConflictException("Đề đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.");
+            throw new SpeakingConflictException("Đề đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.", "VERSION_CONFLICT");
         if (!test.IsDraft)
             throw new SpeakingConflictException("Đề Speaking này đã được công bố.");
 
@@ -153,6 +194,12 @@ public sealed class PublishSpeakingTestCommandHandler(ISpeakingAdminRepository r
         var exercises = (await repository.FindExercisesAsync(loaded.Slots.Select(slot => slot.ExerciseId!.Value)
                 .Distinct().ToArray(), cancellationToken)).ToDictionary(exercise => exercise.Id);
         var errors = PublishRequirements(test, loaded.Slots, exercises);
+        var contentErrors = await SpeakingTestContentRules.CheckAsync(loaded.Slots
+            .Where(slot => slot.ExerciseId is { } id && exercises.ContainsKey(id))
+            .Select(slot => (slot.Part, slot.SequenceNumber, exercises[slot.ExerciseId!.Value].ToDto().ToContent()))
+            .ToArray(), repository, cancellationToken);
+        if (contentErrors.Count > 0)
+            errors["Content"] = contentErrors.ToArray();
         if (errors.Count > 0)
             throw new SpeakingPublishRequirementsException(errors);
 
@@ -243,6 +290,13 @@ public sealed class PublishSpeakingTestCommandHandler(ISpeakingAdminRepository r
                 AddErrors(errors, key, ["Nội dung bản nháp không đọc được."]);
             }
         }
+        var contentErrors = await SpeakingTestContentRules.CheckAsync(slots
+            .Where(slot => slot.ContentJson is not null && !errors.ContainsKey($"Part{slot.Part}"))
+            .Select(slot => (slot.Part, slot.SequenceNumber,
+                SpeakingJson.Deserialize<SpeakingTestQuestionContentDto>(slot.ContentJson!).ToContent(slot.Part)))
+            .ToArray(), repository, cancellationToken);
+        if (contentErrors.Count > 0)
+            errors["Content"] = contentErrors.ToArray();
         return errors;
     }
 

@@ -210,7 +210,8 @@ public sealed class SpeakingAdministrationTests
         var questions = new List<SpeakingTestQuestionInput>();
         foreach (var part in Enumerable.Range(1, 5))
             for (var sequence = 1; sequence <= SpeakingTiming.SlotsPerPart(part); sequence++)
-                questions.Add(DirectQuestion(part, sequence, image.Id));
+                questions.Add(DirectQuestion(part, sequence, part == 2 && sequence == 2
+                    ? (await UploadImageAsync(SpeakingSamples.PngVariant(2))).Id : image.Id));
 
         var draft = await new CreateSpeakingTestCommandHandler(_store, _clock).Handle(
             new CreateSpeakingTestCommand(Admin, new SpeakingTestInput("SP-DIRECT-01", "Direct draft", "",

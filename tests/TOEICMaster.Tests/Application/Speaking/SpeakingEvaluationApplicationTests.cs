@@ -80,8 +80,9 @@ public sealed class SpeakingEvaluationApplicationTests
     {
         _speech.Result = audio => audio[^1] switch
         {
-            1 or 2 => FakeSpeechAssessor.Recognized("Attention, shoppers. The store closes in 30 minutes.",
+            1 => FakeSpeechAssessor.Recognized("Attention, shoppers. The store closes in 30 minutes.",
                 lexical: "attention shoppers the store closes in thirty minutes"),
+            2 => FakeSpeechAssessor.Recognized("Welcome to the library. Please return your books by Friday."),
             11 => new SpeakingSpeechResult(SpeakingRecognitionStatus.NoSpeech, "", "", 60, 0, 0, null, 0, []),
             _ => FakeSpeechAssessor.Recognized(FakeSpeechAssessor.SustainedAnswer)
         };
