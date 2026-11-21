@@ -115,12 +115,12 @@ public sealed class WritingEvaluation
         Touch(now);
     }
 
-    public void Complete(int estimatedScore, string summary, IReadOnlyList<string> strengths,
+    public void Complete(int? estimatedScore, string summary, IReadOnlyList<string> strengths,
         IReadOnlyList<string> improvements, IReadOnlyList<WritingEvaluationFeedback> feedback, DateTimeOffset now)
     {
         if (Status != WritingEvaluationStatus.Processing)
             throw new InvalidOperationException("Only an active Writing evaluation can be completed.");
-        if (estimatedScore is < 0 or > 200 || estimatedScore % 10 != 0)
+        if (estimatedScore is { } score && (score is < 0 or > 200 || score % 10 != 0))
             throw new ArgumentOutOfRangeException(nameof(estimatedScore), "Writing scores must be between 0 and 200 in steps of 10.");
         ArgumentException.ThrowIfNullOrWhiteSpace(summary);
 

@@ -187,6 +187,9 @@ public sealed class WritingAttemptApplicationTests
         var result = attempt.ToDto(StartedAt.AddMinutes(1), evaluation);
 
         Assert.Empty(result.ReviewQuestions);
+        Assert.Null(result.Evaluation!.EstimatedScore);
+        Assert.Equal((3, 3, 100d), (result.Evaluation.RawScore, result.Evaluation.MaxRawScore, result.Evaluation.ScorePercentage));
+        Assert.Null(attempt.ToSummaryDto(evaluation).EstimatedScore);
     }
 
     [Fact]

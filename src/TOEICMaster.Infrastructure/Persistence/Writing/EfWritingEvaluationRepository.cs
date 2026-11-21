@@ -15,7 +15,8 @@ public sealed class EfWritingEvaluationRepository(ToeicDbContext context) : IWri
     {
         if (attemptIds.Count == 0)
             return new Dictionary<Guid, WritingEvaluation>();
-        return await context.WritingEvaluations.AsNoTracking().Where(evaluation => attemptIds.Contains(evaluation.WritingAttemptId))
+        return await context.WritingEvaluations.AsNoTracking().Include(evaluation => evaluation.Feedback)
+            .Where(evaluation => attemptIds.Contains(evaluation.WritingAttemptId))
             .ToDictionaryAsync(evaluation => evaluation.WritingAttemptId, cancellationToken);
     }
 
@@ -72,7 +73,10 @@ public sealed class EfWritingEvaluationRepository(ToeicDbContext context) : IWri
             .Where(question => question.WritingAttemptId == candidate.WritingAttemptId).OrderBy(question => question.Position)
             .Select(question => new WritingEvaluationAnswer(question.Position, (int)question.Part,
                 question.PromptSnapshotJson, question.ReviewSnapshotJson, question.Answer)).ToArrayAsync(cancellationToken);
-        return new WritingEvaluationWork(candidate.Id, candidate.Provider, candidate.Model, candidate.RubricVersion, questions);
+        var attempt = await context.WritingAttempts.AsNoTracking().SingleAsync(item => item.Id == candidate.WritingAttemptId,
+            cancellationToken);
+        return new WritingEvaluationWork(candidate.Id, candidate.Provider, candidate.Model, candidate.RubricVersion,
+            questions, attempt.Mode, attempt.IsPractice);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken)

@@ -6,7 +6,8 @@ public sealed record WritingEvaluationAnswer(int Position, int Part, string Prom
     string ReviewSnapshotJson, string Answer);
 
 public sealed record WritingEvaluationWork(Guid EvaluationId, string Provider, string Model, string RubricVersion,
-    IReadOnlyList<WritingEvaluationAnswer> Answers);
+    IReadOnlyList<WritingEvaluationAnswer> Answers, WritingAttemptMode Mode = WritingAttemptMode.Full,
+    bool IsPractice = false);
 
 public sealed record WritingEvaluationFeedbackResult(int QuestionPosition, int CriterionScore, string Feedback,
     string SuggestedRevision);

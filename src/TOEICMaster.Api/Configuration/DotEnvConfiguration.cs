@@ -28,6 +28,11 @@ public static class DotEnvConfiguration
             ["GEMINI_MODEL"] = "Gemini:Model",
             ["GEMINI_REQUEST_TIMEOUT_SECONDS"] = "Gemini:RequestTimeoutSeconds",
             ["GEMINI_RUBRIC_VERSION"] = "Gemini:RubricVersion",
+            ["AZURE_SPEECH_ENABLED"] = "AzureSpeech:Enabled",
+            ["AZURE_SPEECH_KEY"] = "AzureSpeech:Key",
+            ["AZURE_SPEECH_REGION"] = "AzureSpeech:Region",
+            ["AZURE_SPEECH_LOCALE"] = "AzureSpeech:Locale",
+            ["AZURE_SPEECH_FFMPEG_PATH"] = "AzureSpeech:FfmpegPath",
             ["ADMIN_SEED_EMAIL"] = "AdminBootstrap:Email",
             ["ADMIN_SEED_PASSWORD"] = "AdminBootstrap:Password",
             ["ADMIN_SEED_DISPLAY_NAME"] = "AdminBootstrap:DisplayName"

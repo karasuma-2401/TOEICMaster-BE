@@ -14,5 +14,5 @@ public sealed class GeminiOptions
     [Range(10, 120)]
     public int RequestTimeoutSeconds { get; init; } = 45;
     [Required]
-    public string RubricVersion { get; init; } = "toeic-writing-v1";
+    public string RubricVersion { get; init; } = "toeic-writing-v2";
 }

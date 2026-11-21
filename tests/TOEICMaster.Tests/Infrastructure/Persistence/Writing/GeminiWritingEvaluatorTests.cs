@@ -35,11 +35,42 @@ public sealed class GeminiWritingEvaluatorTests
         Assert.Contains("Check keywords", http.Body, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Blank_answers_score_zero_without_network_or_image_access()
+    {
+        var http = new CaptureHandler();
+        var evaluator = new GeminiWritingEvaluator(new HttpClient(http) { BaseAddress = new Uri("https://example.test/") },
+            Options.Create(new GeminiOptions { Enabled = true, ApiKey = "test" }),
+            new EmptyWritingAdminRepository(), new EmptyWritingImageStore());
+        var result = await evaluator.EvaluateAsync(new WritingEvaluationWork(Guid.NewGuid(), "gemini", "test", "v2",
+            [new(1, 1, "{}", "{}", " \n ")]), CancellationToken.None);
+        Assert.Equal(0, Assert.Single(result.Feedback).CriterionScore);
+        Assert.Empty(http.Body);
+    }
+
+    [Theory]
+    [InlineData("not JSON")]
+    [InlineData("{\"summary\":5}")]
+    public async Task Malformed_output_has_a_safe_retryable_failure(string output)
+    {
+        var http = new CaptureHandler { Output = output };
+        var evaluator = new GeminiWritingEvaluator(new HttpClient(http) { BaseAddress = new Uri("https://example.test/") },
+            Options.Create(new GeminiOptions { Enabled = true, ApiKey = "test" }),
+            new EmptyWritingAdminRepository(), new EmptyWritingImageStore());
+        var error = await Assert.ThrowsAsync<WritingEvaluatorException>(() => evaluator.EvaluateAsync(
+            new WritingEvaluationWork(Guid.NewGuid(), "gemini", "test", "v2",
+                [new(1, 3, "{}", "{}", "My essay")]), CancellationToken.None));
+        Assert.Equal("INVALID_RESPONSE", error.FailureCode);
+        Assert.True(error.IsTransient);
+        Assert.DoesNotContain(output, error.SafeMessage, StringComparison.Ordinal);
+    }
+
     private sealed class CaptureHandler : HttpMessageHandler
     {
         public string Body { get; private set; } = "";
         public string? ApiKey { get; private set; }
         public string Query { get; private set; } = "";
+        public string? Output { get; init; }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
@@ -57,7 +88,7 @@ public sealed class GeminiWritingEvaluatorTests
             {
                 Content = new StringContent(JsonSerializer.Serialize(new
                 {
-                    candidates = new[] { new { content = new { parts = new[] { new { text = feedback } } } } }
+                    candidates = new[] { new { content = new { parts = new[] { new { text = Output ?? feedback } } } } }
                 }))
             };
         }

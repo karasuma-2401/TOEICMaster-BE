@@ -14,8 +14,13 @@ services:
       - Gemini__ApiKey=${GEMINI_API_KEY:-}
       - Gemini__Model=${GEMINI_MODEL:-gemini-3.5-flash-lite}
       - Gemini__RequestTimeoutSeconds=${GEMINI_REQUEST_TIMEOUT_SECONDS:-45}
-      - Gemini__RubricVersion=${GEMINI_RUBRIC_VERSION:-toeic-writing-v1}
+      - Gemini__RubricVersion=${GEMINI_RUBRIC_VERSION:-toeic-writing-v2}
       - Gemini__UseWritingReferenceAnswers=${GEMINI_USE_WRITING_REFERENCE_ANSWERS:-false}
+      - AzureSpeech__Enabled=${AZURE_SPEECH_ENABLED:-false}
+      - AzureSpeech__Key=${AZURE_SPEECH_KEY:-}
+      - AzureSpeech__Region=${AZURE_SPEECH_REGION:-}
+      - AzureSpeech__Locale=${AZURE_SPEECH_LOCALE:-en-US}
+      - AzureSpeech__FfmpegPath=ffmpeg
       - Jwt__SigningKey=${JWT_SIGNING_KEY:?Set a random JWT signing key with at least 32 characters in .env}
       - Google__ClientId=${GOOGLE_CLIENT_ID:?Set the Google Web client ID in .env}
       - EmailVerification__HashKey=${EMAIL_VERIFICATION_HASH_KEY:?Set a random email verification hash key with at least 32 characters in .env}
