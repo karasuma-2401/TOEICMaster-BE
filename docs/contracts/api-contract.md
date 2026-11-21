@@ -190,11 +190,11 @@ Response `200 OK`:
 
 ## Thi thử TOEIC Listening & Reading (learner)
 
-Tất cả endpoint yêu cầu Bearer token và chỉ truy cập được lượt làm bài của chính người dùng đó. Server là nguồn thời gian duy nhất: giới hạn 120 phút do server đặt (client không gửi), thời gian còn lại tính từ `startedAtUtc`.
+`GET /api/v1/exams/lr` cho phép xem danh sách đề đã công bố không cần đăng nhập (giống Speaking, Writing và L&R Practice). Các endpoint còn lại yêu cầu Bearer token và chỉ truy cập được lượt làm bài của chính người dùng đó. Server là nguồn thời gian duy nhất: giới hạn 120 phút do server đặt (client không gửi), thời gian còn lại tính từ `startedAtUtc`.
 
 | Method | Đường dẫn | Mục đích |
 | ------ | --------- | -------- |
-| GET | `/api/v1/exams/lr` | Danh sách revision Published mới nhất của từng đề, không chứa đáp án đúng |
+| GET | `/api/v1/exams/lr` | Danh sách revision Published mới nhất của từng đề, không chứa đáp án đúng (`AllowAnonymous`) |
 | GET | `/api/v1/exams/{examId}/lr-overview` | Màn hướng dẫn: tên đề, 200 câu, 120 phút, thang 10–990, `activeAttemptId` nếu có lượt đang làm dở |
 | POST | `/api/v1/exams/{examId}/attempts` | Bắt đầu lượt mới, hoặc tiếp tục lượt đang làm. Lượt cũ đã quá hạn được nộp tự động tại hạn chót rồi mở lượt mới |
 | GET | `/api/v1/exams/{examId}/current-attempt` | Lượt đang làm dở, `404` nếu không có |
