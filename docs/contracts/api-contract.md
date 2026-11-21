@@ -1,5 +1,15 @@
 # Backend API contract
 
+## TOEIC Speaking
+
+Admin và learner Speaking dùng `/api/v1/admin/speaking/*` và `/api/v1/speaking/*`.
+Hợp đồng chi tiết: [Admin API](../features/speaking/admin-api.md), [Attempt API](../features/speaking/attempt-api.md).
+Clone mới dùng `POST /admin/speaking/tests/{id}/clone` với `{version, code, title}`, trả `201` và đề DIRECT nháp
+độc lập từ nội dung snapshot của nguồn. Lỗi công bố `422` giữ đủ mảng thông báo, gồm khóa `Content` cho nội dung trùng.
+
+Writing evaluation/history bổ sung `rawScore`, `maxRawScore`, `scorePercentage`; `estimatedScore` là `null`
+với bài practice hoặc chỉ làm một Part. Chỉ full test Writing đủ 5/2/1 câu mới được quy đổi 0–200.
+
 ## Quản trị đề TOEIC Listening & Reading
 
 Nhóm endpoint `/api/v1/admin/exams`, `/api/v1/admin/exam-media` và `/api/v1/admin/score-profiles` yêu cầu policy `AccountAdministration` (role `Admin`). Phạm vi này chỉ quản trị nội dung đề. Không có endpoint làm bài, nộp bài, chấm điểm hay xem đề của học viên.
@@ -180,11 +190,11 @@ Response `200 OK`:
 
 ## Thi thử TOEIC Listening & Reading (learner)
 
-Tất cả endpoint yêu cầu Bearer token và chỉ truy cập được lượt làm bài của chính người dùng đó. Server là nguồn thời gian duy nhất: giới hạn 120 phút do server đặt (client không gửi), thời gian còn lại tính từ `startedAtUtc`.
+`GET /api/v1/exams/lr` cho phép xem danh sách đề đã công bố không cần đăng nhập (giống Speaking, Writing và L&R Practice). Các endpoint còn lại yêu cầu Bearer token và chỉ truy cập được lượt làm bài của chính người dùng đó. Server là nguồn thời gian duy nhất: giới hạn 120 phút do server đặt (client không gửi), thời gian còn lại tính từ `startedAtUtc`.
 
 | Method | Đường dẫn | Mục đích |
 | ------ | --------- | -------- |
-| GET | `/api/v1/exams/lr` | Danh sách revision Published mới nhất của từng đề, không chứa đáp án đúng |
+| GET | `/api/v1/exams/lr` | Danh sách revision Published mới nhất của từng đề, không chứa đáp án đúng (`AllowAnonymous`) |
 | GET | `/api/v1/exams/{examId}/lr-overview` | Màn hướng dẫn: tên đề, 200 câu, 120 phút, thang 10–990, `activeAttemptId` nếu có lượt đang làm dở |
 | POST | `/api/v1/exams/{examId}/attempts` | Bắt đầu lượt mới, hoặc tiếp tục lượt đang làm. Lượt cũ đã quá hạn được nộp tự động tại hạn chót rồi mở lượt mới |
 | GET | `/api/v1/exams/{examId}/current-attempt` | Lượt đang làm dở, `404` nếu không có |

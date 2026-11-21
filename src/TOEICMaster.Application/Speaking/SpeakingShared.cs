@@ -7,7 +7,10 @@ namespace TOEICMaster.Application.Speaking;
 public sealed class SpeakingNotFoundException(string message = "Không tìm thấy dữ liệu Speaking.") : Exception(message);
 
 /// <summary>409: stale version, duplicate code, locked resource or closed recording window.</summary>
-public sealed class SpeakingConflictException(string message) : Exception(message);
+public sealed class SpeakingConflictException(string message, string code = "CONFLICT") : Exception(message)
+{
+    public string Code { get; } = code;
+}
 
 /// <summary>422: a test does not meet the publishing requirements; one entry per failed requirement.</summary>
 public sealed class SpeakingPublishRequirementsException(IReadOnlyDictionary<string, string[]> errors) : Exception(

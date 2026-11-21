@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed (chờ chủ tính năng duyệt; chưa triển khai)
+Implemented ngày 2026-11-21; còn cần UAT thiết bị và quyền trên ma trận trình duyệt.
 
 ## Date
 
@@ -11,6 +11,10 @@ Proposed (chờ chủ tính năng duyệt; chưa triển khai)
 ## Context
 
 Yêu cầu: học viên chỉ cấp quyền micro một lần, rồi làm bài liên tục.
+
+Triển khai dùng `status = ready` cùng cờ `verified` cho kết quả kiểm tra. Provider sở hữu stream và AudioContext;
+hook chỉ sở hữu MediaRecorder/bản ghi. Đề FULL phải qua đủ ba bước; luyện Part có nút riêng không ghi âm.
+Khi tải lại chỉ thử khôi phục nếu permission query trả `granted`; quyền không rõ cần thao tác người dùng.
 
 Hiện tại màn kiểm tra (`/speaking/tests/[id]/practice`, `/speaking/exercises/[id]/practice`) và màn làm bài (`/speaking/attempts/[id]`) mỗi màn tạo một `useVoiceRecorder`. Khi chuyển màn, stream đầu bị dừng và màn sau gọi `getUserMedia` lần nữa. Lần gọi này xảy ra **sau khi** server đã tạo lượt làm, nên đồng hồ đã chạy. Route làm bài cũng là màn xem lại, nên bài đã nộp vẫn xin micro. Chi tiết ở MIC-01 đến MIC-11 trong [báo cáo rà soát](../runbooks/speaking-audit-report.md).
 

@@ -145,6 +145,17 @@ public sealed class AdminSpeakingController(ISender sender) : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("tests/{testId:guid}/clone")]
+    [ProducesResponseType<SpeakingTestDetailDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<SpeakingTestDetailDto>> CloneTest(Guid testId,
+        CloneSpeakingTestRequest request, CancellationToken cancellationToken)
+    {
+        var created = await sender.Send(new CloneSpeakingTestCommand(CurrentUserId(), testId, request.Version,
+            request.Code, request.Title), cancellationToken);
+        return CreatedAtAction(nameof(GetTest), new { testId = created.Id }, created);
+    }
+
     private static readonly SpeakingExerciseInput MissingExercise = new(0, null, null, null, null, null, null);
 
     internal static async Task<byte[]> ReadAsync(IFormFile file, CancellationToken cancellationToken)
@@ -169,3 +180,4 @@ public sealed class AdminSpeakingController(ISender sender) : ControllerBase
 public sealed record VersionedSpeakingExerciseRequest(int Version, SpeakingExerciseInput? Exercise);
 public sealed record VersionedSpeakingTestRequest(int Version, SpeakingTestInput? Test);
 public sealed record VersionedSpeakingPublishRequest(int Version);
+public sealed record CloneSpeakingTestRequest(int Version, string? Code, string? Title);

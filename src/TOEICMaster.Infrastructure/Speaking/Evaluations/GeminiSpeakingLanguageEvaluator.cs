@@ -39,17 +39,17 @@ public sealed class GeminiSpeakingLanguageEvaluator(HttpClient httpClient, IOpti
         {
           "type":"object",
           "properties":{
-            "summary":{"type":"string"},
-            "strengths":{"type":"array","items":{"type":"string"},"maxItems":5},
-            "improvements":{"type":"array","items":{"type":"string"},"maxItems":5},
             "items":{"type":"array","items":{"type":"object","properties":{
               "position":{"type":"integer"},
+              "feedback":{"type":"string"},
+              "suggestedResponse":{"type":"string"},
               "grammarScore":{"type":"integer","minimum":0,"maximum":100},
               "vocabularyScore":{"type":"integer","minimum":0,"maximum":100},
-              "relevanceScore":{"type":"integer","minimum":0,"maximum":100},
-              "feedback":{"type":"string"},
-              "suggestedResponse":{"type":"string"}
-            },"required":["position","grammarScore","vocabularyScore","relevanceScore","feedback","suggestedResponse"]}}
+              "relevanceScore":{"type":"integer","minimum":0,"maximum":100}
+            },"required":["position","feedback","suggestedResponse","grammarScore","vocabularyScore","relevanceScore"]}},
+            "summary":{"type":"string"},
+            "strengths":{"type":"array","items":{"type":"string"},"maxItems":5},
+            "improvements":{"type":"array","items":{"type":"string"},"maxItems":5}
           },
           "required":["summary","strengths","improvements","items"]
         }
@@ -103,13 +103,18 @@ public sealed class GeminiSpeakingLanguageEvaluator(HttpClient httpClient, IOpti
             try
             {
                 using var payload = await JsonDocument.ParseAsync(
-                    await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+                    await response.Content.ReadAsStreamAsync(timeout.Token), cancellationToken: timeout.Token);
                 using var result = JsonDocument.Parse(CandidateText(payload.RootElement));
                 return Parse(result.RootElement);
             }
             catch (JsonException exception)
             {
                 throw InvalidResponse(exception);
+            }
+            catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new SpeakingEvaluatorException("TIMEOUT",
+                    "Chấm AI đang mất nhiều thời gian hơn dự kiến. Hệ thống sẽ thử lại.", true, innerException: exception);
             }
         }
     }

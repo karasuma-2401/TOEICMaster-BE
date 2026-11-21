@@ -103,6 +103,18 @@ public sealed class ExamAttemptsApiTests : IDisposable
     }
 
     [Fact]
+    public async Task Published_lr_catalog_allows_anonymous_and_authenticated_requests()
+    {
+        using var guestClient = _factory.CreateClient();
+        using var guestResponse = await guestClient.GetAsync("/api/v1/exams/lr");
+        Assert.Equal(HttpStatusCode.OK, guestResponse.StatusCode);
+
+        using var userClient = CreateUserClient(Guid.NewGuid());
+        using var userResponse = await userClient.GetAsync("/api/v1/exams/lr");
+        Assert.Equal(HttpStatusCode.OK, userResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task Listening_audio_urls_requires_authentication()
     {
         using var client = _factory.CreateClient();

@@ -71,8 +71,8 @@ sequenceDiagram
     API->>API: Chuyển Job sang QUEUED
     Worker->>API: Lấy Job QUEUED -> Chuyển sang PROCESSING
     Worker->>Gemini: Gửi đề, ảnh Part 1 và bài làm sau consent
-    Gemini-->>Worker: Trả về JSON Feedback & Điểm số (0-200)
-    Worker->>API: Lưu kết quả & Đánh dấu COMPLETED
+    Gemini-->>Worker: Trả JSON feedback và điểm thô theo từng Part
+    Worker->>API: Quy đổi 0-200 chỉ cho FULL, lưu kết quả và COMPLETED
     FE->>API: Polling GET /attempts/{id} (mỗi 5s)
     API-->>FE: Trả về kết quả đánh giá chi tiết
 ```

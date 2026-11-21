@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed (chờ chủ tính năng duyệt; chưa triển khai)
+Implemented bước 1 ngày 2026-11-21. Bước 2 (publish-check và cảnh báo gần giống) còn ở backlog.
 
 ## Date
 
@@ -11,6 +11,8 @@ Proposed (chờ chủ tính năng duyệt; chưa triển khai)
 ## Context
 
 Một đề Speaking có 11 câu, lắp từ 7 bài tập trong ngân hàng: Part 1 và Part 2 mỗi Part 2 bài (mỗi bài 1 câu), Part 3 và Part 4 mỗi Part 1 bài (mỗi bài 3 câu), Part 5 có 1 bài (1 câu).
+
+Cập nhật: hệ thống hỗ trợ cả nội dung nhập trực tiếp thuộc đề. Luật chặn trùng được chạy khi công bố ở cả hai chế độ.
 
 Hiện tại hệ thống chỉ bảo đảm một `ExerciseId` không lặp lại trong đề. Cơ chế này không phát hiện các trường hợp sau:
 

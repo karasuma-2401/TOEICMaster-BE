@@ -48,7 +48,7 @@ public sealed class UpdateSpeakingExerciseCommandHandler(ISpeakingAdminRepositor
         var exercise = await repository.FindExerciseForUpdateAsync(request.ExerciseId, cancellationToken)
             ?? throw new SpeakingNotFoundException("Không tìm thấy bài tập Speaking.");
         if (exercise.Version != request.ExpectedVersion)
-            throw new SpeakingConflictException("Bài tập đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.");
+            throw new SpeakingConflictException("Bài tập đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.", "VERSION_CONFLICT");
         if (exercise.Part != input.Part)
             throw new SpeakingConflictException("Không thể đổi Part của bài tập đã tạo.");
         if (await repository.ExerciseCodeExistsAsync(input.Code!, exercise.Id, cancellationToken))
@@ -70,7 +70,7 @@ public sealed class ArchiveSpeakingExerciseCommandHandler(ISpeakingAdminReposito
         var exercise = await repository.FindExerciseForUpdateAsync(request.ExerciseId, cancellationToken)
             ?? throw new SpeakingNotFoundException("Không tìm thấy bài tập Speaking.");
         if (exercise.Version != request.ExpectedVersion)
-            throw new SpeakingConflictException("Bài tập đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.");
+            throw new SpeakingConflictException("Bài tập đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.", "VERSION_CONFLICT");
         exercise.Archive(request.ActorUserId, timeProvider.GetUtcNow());
         await repository.SaveChangesAsync(cancellationToken);
     }

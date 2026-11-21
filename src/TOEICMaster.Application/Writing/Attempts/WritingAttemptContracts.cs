@@ -66,12 +66,13 @@ public sealed record WritingEvaluationDto(string Status, int? EstimatedScore, st
     IReadOnlyList<string> Strengths, IReadOnlyList<string> Improvements,
     IReadOnlyList<WritingEvaluationFeedbackDto> Feedback, string Provider, string Model, string RubricVersion,
     DateTimeOffset? ConsentAcceptedAtUtc, DateTimeOffset? QueuedAtUtc, DateTimeOffset? CompletedAtUtc,
-    int RetryCount, string? FailureMessage);
+    int RetryCount, string? FailureMessage, int? RawScore = null, int? MaxRawScore = null,
+    double? ScorePercentage = null);
 
 public sealed record WritingAttemptSummaryDto(Guid Id, Guid? TestId, string TestCode, string TestTitle, string Mode,
     string Status, int QuestionCount, int? CurrentQuestionPosition, DateTimeOffset CreatedAtUtc,
     DateTimeOffset? SubmittedAtUtc, DateTimeOffset UpdatedAtUtc, string? EvaluationStatus, int? EstimatedScore,
-    bool IsPractice);
+    bool IsPractice, int? RawScore = null, int? MaxRawScore = null, double? ScorePercentage = null);
 
 public sealed record WritingAttemptPageDto(IReadOnlyList<WritingAttemptSummaryDto> Items);
 
@@ -188,14 +189,34 @@ public static class WritingAttemptMapping
             : null, attempt.Status == WritingAttemptStatus.InProgress ? attempt.CurrentPhase.ToApiValue() : null,
         attempt.Status == WritingAttemptStatus.InProgress && !attempt.IsPractice ? attempt.PhaseEndsAtUtc : null, now, attempt.CreatedAtUtc,
         attempt.SubmittedAtUtc, attempt.Questions.OrderBy(question => question.Position).Select(ToDto).ToArray(),
-        evaluation?.ToDto(), [], attempt.IsPractice);
+        ToEvaluationDto(attempt, evaluation), [], attempt.IsPractice);
 
-    public static WritingAttemptSummaryDto ToSummaryDto(this WritingAttempt attempt, WritingEvaluation? evaluation = null) => new(attempt.Id,
-        attempt.WritingTestId, attempt.TestCode, attempt.TestTitle, attempt.Mode.ToApiValue(),
-        attempt.Status.ToApiValue(), attempt.Questions.Count,
-        attempt.Status == WritingAttemptStatus.InProgress ? attempt.CurrentQuestionIndex + 1 : null,
-        attempt.CreatedAtUtc, attempt.SubmittedAtUtc, attempt.UpdatedAtUtc, evaluation?.Status.ToApiValue(),
-        evaluation?.EstimatedScore, attempt.IsPractice);
+    private static WritingEvaluationDto? ToEvaluationDto(WritingAttempt attempt, WritingEvaluation? evaluation)
+    {
+        if (evaluation is null)
+            return null;
+        var raw = evaluation.Status == WritingEvaluationStatus.Completed
+            ? (int?)evaluation.Feedback.Sum(item => item.CriterionScore) : null;
+        var maximum = attempt.Questions.Sum(question => question.Part switch
+        { WritingPart.Part1 => 3, WritingPart.Part2 => 4, WritingPart.Part3 => 5, _ => 0 });
+        return evaluation.ToDto() with
+        {
+            EstimatedScore = attempt.Mode == WritingAttemptMode.Full && !attempt.IsPractice ? evaluation.EstimatedScore : null,
+            RawScore = raw,
+            MaxRawScore = raw is null ? null : maximum,
+            ScorePercentage = raw is null || maximum == 0 ? null : Math.Round(raw.Value * 100d / maximum, 1)
+        };
+    }
+
+    public static WritingAttemptSummaryDto ToSummaryDto(this WritingAttempt attempt, WritingEvaluation? evaluation = null)
+    {
+        var score = ToEvaluationDto(attempt, evaluation);
+        return new WritingAttemptSummaryDto(attempt.Id, attempt.WritingTestId, attempt.TestCode, attempt.TestTitle,
+            attempt.Mode.ToApiValue(), attempt.Status.ToApiValue(), attempt.Questions.Count,
+            attempt.Status == WritingAttemptStatus.InProgress ? attempt.CurrentQuestionIndex + 1 : null,
+            attempt.CreatedAtUtc, attempt.SubmittedAtUtc, attempt.UpdatedAtUtc, evaluation?.Status.ToApiValue(),
+            score?.EstimatedScore, attempt.IsPractice, score?.RawScore, score?.MaxRawScore, score?.ScorePercentage);
+    }
 
     private static IReadOnlyList<string> DeserializeStrings(string? json)
     {

@@ -23,6 +23,7 @@ public sealed class WritingEvaluationProcessor(IWritingEvaluationRepository repo
         try
         {
             result = await evaluator.EvaluateAsync(work, cancellationToken);
+            result = SanitizeResult(result);
             ValidateResult(result, work);
         }
         catch (WritingEvaluatorException exception)
@@ -88,11 +89,43 @@ public sealed class WritingEvaluationProcessor(IWritingEvaluationRepository repo
             throw new WritingEvaluatorException("INVALID_RESPONSE", "Dịch vụ chấm AI trả về kết quả không hợp lệ.", true);
     }
 
-    private static int ToEstimatedToeicScore(WritingEvaluationWork work, WritingEvaluatorResult result)
+    private static int? ToEstimatedToeicScore(WritingEvaluationWork work, WritingEvaluatorResult result)
     {
+        // Partial/practice results measure the task's rubric, not whole-test proficiency.
+        if (work.Mode != WritingAttemptMode.Full || work.IsPractice || work.Answers.Count != 8 ||
+            work.Answers.Count(answer => answer.Part == 1) != 5 ||
+            work.Answers.Count(answer => answer.Part == 2) != 2 || work.Answers.Count(answer => answer.Part == 3) != 1)
+            return null;
         var rawScore = result.Feedback.Sum(item => item.CriterionScore);
         var maximumScore = work.Answers.Sum(answer => MaxRawScore(answer.Part));
         return (int)Math.Round(rawScore * 20d / maximumScore, MidpointRounding.AwayFromZero) * 10;
+    }
+
+    private static WritingEvaluatorResult SanitizeResult(WritingEvaluatorResult result) => result with
+    {
+        Summary = LimitText(result.Summary, 2_000),
+        Strengths = result.Strengths.Select(item => LimitText(item, 400)).ToArray(),
+        Improvements = result.Improvements.Select(item => LimitText(item, 400)).ToArray(),
+        Feedback = result.Feedback.Select(item => item with
+        {
+            Feedback = LimitText(item.Feedback, 1_500),
+            SuggestedRevision = LimitText(item.SuggestedRevision, 1_500)
+        }).ToArray()
+    };
+
+    private static string LimitText(string value, int maximum)
+    {
+        value = value.Trim();
+        if (value.Length <= maximum)
+            return value;
+        var end = maximum - 1;
+        // Prefer a sentence boundary, while keeping useful feedback and intact Unicode pairs.
+        var boundary = value.LastIndexOfAny(['.', '!', '?', '\n'], end - 1, end);
+        if (boundary >= maximum / 2)
+            end = boundary + 1;
+        if (char.IsHighSurrogate(value[end - 1]))
+            end--;
+        return value[..end].TrimEnd() + "…";
     }
 
     private static int MaxRawScore(int part) => part switch

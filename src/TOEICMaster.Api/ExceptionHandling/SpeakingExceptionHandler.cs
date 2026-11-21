@@ -34,6 +34,10 @@ public sealed class SpeakingExceptionHandler(IProblemDetailsService problemDetai
         problem.Title = exception.Message;
         problem.Type = type;
         problem.Extensions["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier;
+        if (exception is SpeakingConflictException conflict)
+            problem.Extensions["code"] = conflict.Code;
+        else if (exception is SpeakingConcurrencyException)
+            problem.Extensions["code"] = "VERSION_CONFLICT";
         httpContext.Response.StatusCode = status;
         if (!await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
         {

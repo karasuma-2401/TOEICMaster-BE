@@ -219,7 +219,12 @@ public static class SpeakingSamples
     public static SpeakingExerciseInput Exercise(int part, string code, Guid? imageAssetId = null,
         string status = "PUBLISHED") => part switch
         {
-            1 => Common(part, code, status) with { Passage = "Attention, shoppers. The store closes in thirty minutes." },
+            1 => Common(part, code, status) with
+            {
+                Passage = code.EndsWith("2", StringComparison.Ordinal)
+                ? "Welcome to the library. Please return your books by Friday."
+                : "Attention, shoppers. The store closes in thirty minutes."
+            },
             2 => Common(part, code, status) with
             {
                 ImageAssetId = imageAssetId,

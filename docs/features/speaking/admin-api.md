@@ -108,7 +108,7 @@ Body legacy không có `contentMode` (hoặc dùng `EXERCISE_BANK`) tiếp tục
 | `Exercises` | Không lặp bài; mọi bài tồn tại, đúng Part và `PUBLISHED` |
 | `Part1` … `Part5` (direct) | Đúng 2/2/1/1/1 nhóm nội dung, thứ tự liên tục; Part 3/4 có đúng ba câu con |
 | `Questions` | Chỉ chứa nội dung direct thuộc đề, không lẫn tham chiếu ngân hàng |
-| `Content` | **Đích (ADR-002):** không trùng nội dung |
+| `Content` | Không trùng văn bản sau NFKC/lowercase/chuẩn hóa dấu và khoảng trắng; không trùng ảnh theo asset hoặc SHA-256, ở cả hai chế độ |
 
 Khi công bố, server ghi `snapshot_json` cho từng vị trí, tăng `version` và khóa đề. Sửa hoặc lưu trữ bài sau đó không ảnh hưởng đề đã công bố. `snapshot_json` có chứa rubric và bài mẫu, chỉ dùng cho Admin và attempt snapshot.
 
@@ -159,9 +159,11 @@ Tất cả chỉ **thêm mới**, không đổi các response hiện có.
 
 `POST /tests/{testId}/publish` dùng cùng logic. Mức `BLOCKING` trả `422`. Mức `WARNING` không chặn.
 
-### Nhân bản đề (đề xuất)
+### Nhân bản đề đã triển khai
 
-`POST /tests/{testId}/clone`, body `{ "code": "SP-2026-01-V2", "title": "..." }`. Tạo đề nháp mới, trả `201`, dùng cùng các bài theo `ExerciseId`. Bài đã bị lưu trữ vẫn giữ trong bản nháp và sẽ báo lỗi ở bước kiểm tra. Đề gốc không đổi.
+`POST /tests/{testId}/clone`, body `{ "version": 2, "code": "SP-2026-01-V2", "title": "..." }`.
+Tạo đề DIRECT nháp độc lập, trả `201`. Với nguồn đã công bố từ ngân hàng, sao chép snapshot đã đóng băng,
+không lấy nội dung hiện tại của ngân hàng. Giữ nguyên nguồn và các lượt làm; sai version/trùng mã trả `409`.
 
 ### Xóa đề nháp
 
@@ -171,9 +173,10 @@ Tất cả chỉ **thêm mới**, không đổi các response hiện có.
 
 Thêm `usedInTestCount` vào phần tử danh sách của `GET /exercises`. Đây là trường mới, không đổi trường cũ.
 
-### Mã lỗi cho `409` (đề xuất)
+### Mã lỗi cho `409` đã triển khai
 
-Thêm extension `code` vào ProblemDetails: `DUPLICATE_CODE`, `VERSION_CONFLICT`, `TEST_PUBLISHED`, để FE xử lý theo từng trường hợp.
+ProblemDetails có extension `code`: `DUPLICATE_CODE` cho mã đề trùng, `VERSION_CONFLICT` cho phiên bản cũ,
+`CONFLICT` cho các xung đột khác. FE giữ nguyên `title` và toàn bộ mảng `errors` của server.
 
 ### Gỡ đề (chờ D4)
 

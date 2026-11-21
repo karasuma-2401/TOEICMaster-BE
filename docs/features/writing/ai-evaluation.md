@@ -25,7 +25,7 @@ GEMINI_ENABLED=true
 GEMINI_API_KEY=your_server_side_key
 GEMINI_MODEL=gemini-3.5-flash-lite
 GEMINI_REQUEST_TIMEOUT_SECONDS=45
-GEMINI_RUBRIC_VERSION=toeic-writing-v1
+GEMINI_RUBRIC_VERSION=toeic-writing-v2
 GEMINI_USE_WRITING_REFERENCE_ANSWERS=false
 ```
 
@@ -46,7 +46,7 @@ Worker yêu cầu Gemini trả một điểm thô cho từng câu theo Part: Par
 Part 3 là **0–5**. Server kiểm tra vị trí câu, biên điểm và toàn bộ JSON trước khi lưu; response sai sẽ không
 được hiển thị như kết quả hợp lệ.
 
-Điểm hiển thị được quy đổi nội bộ từ tổng điểm thô về thang 0–200, làm tròn theo bước 10:
+Chỉ lượt `FULL` có đủ 5/2/1 câu và không phải practice mới lưu `EstimatedScore` 0–200, làm tròn theo bước 10:
 
 ```text
 round((tổng điểm thô / tổng điểm tối đa của attempt) × 20) × 10
@@ -57,6 +57,18 @@ khi tạo attempt; API học viên không trả hai dữ liệu này. Theo mặc
 `GEMINI_USE_WRITING_REFERENCE_ANSWERS` sau khi nhóm đã calibration. Khi bật, bài mẫu là tham khảo, không phải đáp án duy nhất.
 Thay `GEMINI_RUBRIC_VERSION` khi thay đổi cách dùng bài tham khảo để phân biệt kết quả giữa các cấu hình.
 Ảnh Part 1 được gửi tới Gemini sau consent; tổng dữ liệu ảnh tối đa 12 MiB mỗi evaluation, vượt giới hạn sẽ báo lỗi an toàn.
+
+Lượt `PART_1`, `PART_2`, `PART_3` và practice lưu `EstimatedScore = null`. Điểm từng câu vẫn được lưu trong
+`writing_evaluation_feedback`; API dẫn xuất thêm `rawScore`, `maxRawScore`, `scorePercentage`. API cũng ẩn điểm
+0–200 của lượt partial cũ để không trộn với full test; chưa chạy backfill trên dữ liệu đã có.
+
+Prompt v2 bổ sung tiêu chí theo từng Part, chấp nhận biến thể từ khóa, kiểm tra đủ yêu cầu email, không coi số từ
+là ngưỡng điểm tự động, và chống chỉ dẫn chèn trong bài làm. Schema đặt feedback từng câu trước điểm và tổng kết;
+đây là thay đổi thứ tự output để thử nghiệm, không phải bảo đảm suy luận hay độ chính xác. Bài bỏ trắng được xử lý
+0 điểm tại server, không gọi Gemini hoặc tải ảnh. Text feedback vượt giới hạn được cắt ở ranh giới câu nếu có,
+giữ cặp Unicode; điểm vượt biên hoặc thiếu/trùng vị trí vẫn bị từ chối và retry, không tự sửa điểm.
+
+Khi dùng `.env` cũ, đặt `GEMINI_RUBRIC_VERSION=toeic-writing-v2` để phân biệt với kết quả trước thay đổi.
 
 Editor tắt `spellcheck` và autosave debounce **800ms** sau lần gõ cuối. Browser không có API đáng tin cậy để biết
 chính xác nội dung paste đến từ chính editor hay một nguồn ngoài, nên không triển khai cơ chế chặn paste có thể làm
@@ -83,6 +95,9 @@ Gemini là công cụ phản hồi học tập, không phải scorer ETS. Trư�
 | Nhận xét reviewer | `quá ưu tiên từ vựng hơn đáp ứng yêu cầu` |
 
 Chỉ nâng `GEMINI_RUBRIC_VERSION` sau khi review chênh lệch; lịch sử evaluation đã hoàn thành giữ model và rubric version cũ để audit.
+
+Nhóm chưa có bài tham chiếu do giáo viên chấm tại ngày 2026-11-21, nên chưa có MAE/QWK hoặc kết luận độ chính xác.
+Công cụ offline và quy trình đo 3 lần/bài nằm trong [báo cáo Sprint 3](../../runbooks/sprint3-review.md).
 
 ## UAT và bật demo
 

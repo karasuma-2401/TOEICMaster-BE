@@ -120,15 +120,22 @@ public sealed class SpeakingApiTests : IDisposable
         foreach (var part in Enumerable.Range(1, 5))
             for (var sequence = 1; sequence <= TOEICMaster.Domain.Entities.SpeakingTiming.SlotsPerPart(part); sequence++)
             {
+                var slotImageId = imageId;
+                if (part == 2 && sequence == 2)
+                {
+                    using var secondImage = await UploadAsync(admin, $"{Admin}/media/images",
+                        SpeakingSamples.PngVariant(2), "image/png");
+                    slotImageId = Guid.Parse((await JsonAsync(secondImage))["id"]!.GetValue<string>());
+                }
                 using var created = await admin.PostAsJsonAsync($"{Admin}/exercises",
-                    SpeakingSamples.Exercise(part, $"SP{part}-00{sequence}", imageId));
+                    SpeakingSamples.Exercise(part, $"SP{part}-00{sequence}", slotImageId));
                 Assert.Equal(HttpStatusCode.Created, created.StatusCode);
                 var exercise = await JsonAsync(created);
                 Assert.Equal(part, exercise["part"]!.GetValue<int>());
                 Assert.Null(exercise["content"]);
                 Assert.NotNull(exercise["updatedAtUtc"]);
                 if (part == 2)
-                    Assert.Equal(imageId.ToString(), exercise["imageAssetId"]!.GetValue<string>());
+                    Assert.Equal(slotImageId.ToString(), exercise["imageAssetId"]!.GetValue<string>());
                 if (part == 4)
                     Assert.Equal("Registration", exercise["documentRows"]![0]!["value"]!.GetValue<string>());
                 slots.Add(new SpeakingTestSlotInput(Guid.Parse(exercise["id"]!.GetValue<string>()), part, sequence));

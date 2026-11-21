@@ -2,6 +2,9 @@
 
 Thư mục này chứa các kịch bản kiểm thử thực tế (UAT), tài liệu vận hành và các báo cáo đánh giá kỹ thuật.
 
+- [Rà soát Sprint 3](./sprint3-review.md): task Speaking, UX bốn kỹ năng và kiểm tra chéo báo cáo AI Writing.
+- [Speaking UAT](./speaking-uat-runbook.md) và [báo cáo Speaking trước đây](./speaking-audit-report.md).
+
 ---
 
 ## 1. Mục đích

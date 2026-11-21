@@ -170,6 +170,8 @@ public sealed partial class SpeakingExerciseInputValidator : AbstractValidator<S
     {
         RuleFor(input => input.Questions).Must(questions => questions is { Count: 3 })
             .WithMessage("Cần đúng 3 câu hỏi.");
+        RuleFor(input => input.Questions).Must(SpeakingTestContentRules.HasDistinctQuestions)
+            .WithMessage("Các câu hỏi trong một bài phải khác nhau về nội dung.");
         RuleForEach(input => input.Questions).Must(question => Length(question) is >= 1 and <= 300)
             .WithMessage("Mỗi câu hỏi cần 1–300 ký tự.");
     }
