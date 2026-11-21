@@ -45,6 +45,9 @@ public sealed class ToeicDbContext(DbContextOptions<ToeicDbContext> options) : D
     public DbSet<KnowledgeArticle> KnowledgeArticles => Set<KnowledgeArticle>();
     public DbSet<KnowledgeArticleTag> KnowledgeArticleTags => Set<KnowledgeArticleTag>();
     public DbSet<KnowledgeArticleMediaAsset> KnowledgeArticleMediaAssets => Set<KnowledgeArticleMediaAsset>();
+    public DbSet<FlashcardDeck> FlashcardDecks => Set<FlashcardDeck>();
+    public DbSet<FlashcardCard> FlashcardCards => Set<FlashcardCard>();
+    public DbSet<UserFlashcardProgress> UserFlashcardProgress => Set<UserFlashcardProgress>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -64,6 +64,7 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ToeicDbContext>();
     await ExamDataSeeder.SeedSampleExamAsync(db);
+    await FlashcardDataSeeder.SeedBuiltInDecksAsync(db);
 }
 app.Use((context, next) =>
 {

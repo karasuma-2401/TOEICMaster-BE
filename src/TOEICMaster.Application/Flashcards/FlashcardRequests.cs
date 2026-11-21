@@ -1,0 +1,80 @@
+using FluentValidation;
+using MediatR;
+using TOEICMaster.Domain.Entities;
+
+namespace TOEICMaster.Application.Flashcards;
+
+public sealed record GetFlashcardWorkspaceQuery(Guid? UserId) : IRequest<FlashcardWorkspaceDto>;
+
+public sealed record GetFlashcardDeckBySlugQuery(string Slug, Guid? UserId) : IRequest<FlashcardDeckDto?>;
+
+public sealed record CreateFlashcardDeckCommand(
+    Guid UserId,
+    CreateFlashcardDeckRequest Request) : IRequest<FlashcardDeckDto>;
+
+public sealed record DeleteFlashcardDeckCommand(
+    Guid UserId,
+    Guid DeckId) : IRequest<bool>;
+
+public sealed record UpsertFlashcardProgressCommand(
+    Guid UserId,
+    Guid CardId,
+    UpsertFlashcardProgressRequest Request) : IRequest<CardProgressDto?>;
+
+public sealed record ResetFlashcardDeckProgressCommand(
+    Guid UserId,
+    Guid DeckId) : IRequest<bool>;
+
+public sealed class CreateFlashcardDeckCommandValidator : AbstractValidator<CreateFlashcardDeckCommand>
+{
+    public CreateFlashcardDeckCommandValidator()
+    {
+        RuleFor(x => x.UserId).NotEmpty();
+        RuleFor(x => x.Request).NotNull();
+        RuleFor(x => x.Request.Title)
+            .NotEmpty().WithMessage("Tên bộ thẻ không được để trống.")
+            .MaximumLength(120);
+        RuleFor(x => x.Request.Description)
+            .MaximumLength(400)
+            .When(x => x.Request.Description is not null);
+        RuleFor(x => x.Request.Cards)
+            .NotEmpty().WithMessage("Bộ thẻ phải có ít nhất 1 thẻ từ vựng.")
+            .Must(cards => cards.Count <= 200).WithMessage("Mỗi bộ thẻ tối đa 200 thẻ.");
+
+        RuleForEach(x => x.Request.Cards).ChildRules(card =>
+        {
+            card.RuleFor(c => c.Term)
+                .NotEmpty().WithMessage("Từ tiếng Anh không được để trống.")
+                .MaximumLength(120);
+            card.RuleFor(c => c.MeaningVi)
+                .NotEmpty().WithMessage("Nghĩa tiếng Việt không được để trống.")
+                .MaximumLength(300);
+            card.RuleFor(c => c.Phonetic)
+                .MaximumLength(120)
+                .When(c => c.Phonetic is not null);
+            card.RuleFor(c => c.PartOfSpeech)
+                .MaximumLength(40)
+                .When(c => c.PartOfSpeech is not null);
+            card.RuleFor(c => c.ExampleEn)
+                .MaximumLength(400)
+                .When(c => c.ExampleEn is not null);
+            card.RuleFor(c => c.ExampleVi)
+                .MaximumLength(400)
+                .When(c => c.ExampleVi is not null);
+        });
+    }
+}
+
+public sealed class UpsertFlashcardProgressCommandValidator : AbstractValidator<UpsertFlashcardProgressCommand>
+{
+    public UpsertFlashcardProgressCommandValidator()
+    {
+        RuleFor(x => x.UserId).NotEmpty();
+        RuleFor(x => x.CardId).NotEmpty();
+        RuleFor(x => x.Request).NotNull();
+        RuleFor(x => x.Request.Status)
+            .NotEmpty()
+            .Must(status => FlashcardMasteryStatus.Allowed.Contains(status.Trim()))
+            .WithMessage("Trạng thái phải là một trong: new, learning, review, mastered.");
+    }
+}
