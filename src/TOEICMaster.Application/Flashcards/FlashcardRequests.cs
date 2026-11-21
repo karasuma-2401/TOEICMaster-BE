@@ -16,6 +16,11 @@ public sealed record DeleteFlashcardDeckCommand(
     Guid UserId,
     Guid DeckId) : IRequest<bool>;
 
+public sealed record AddFlashcardCardCommand(
+    Guid UserId,
+    Guid DeckId,
+    CreateFlashcardCardRequest Request) : IRequest<FlashcardCardDto?>;
+
 public sealed record UpsertFlashcardProgressCommand(
     Guid UserId,
     Guid CardId,
@@ -76,5 +81,33 @@ public sealed class UpsertFlashcardProgressCommandValidator : AbstractValidator<
             .NotEmpty()
             .Must(status => FlashcardMasteryStatus.Allowed.Contains(status.Trim()))
             .WithMessage("Trạng thái phải là một trong: new, learning, review, mastered.");
+    }
+}
+
+public sealed class AddFlashcardCardCommandValidator : AbstractValidator<AddFlashcardCardCommand>
+{
+    public AddFlashcardCardCommandValidator()
+    {
+        RuleFor(x => x.UserId).NotEmpty();
+        RuleFor(x => x.DeckId).NotEmpty();
+        RuleFor(x => x.Request).NotNull();
+        RuleFor(x => x.Request.Term)
+            .NotEmpty().WithMessage("Từ tiếng Anh không được để trống.")
+            .MaximumLength(120);
+        RuleFor(x => x.Request.MeaningVi)
+            .NotEmpty().WithMessage("Nghĩa tiếng Việt không được để trống.")
+            .MaximumLength(300);
+        RuleFor(x => x.Request.Phonetic)
+            .MaximumLength(120)
+            .When(x => x.Request.Phonetic is not null);
+        RuleFor(x => x.Request.PartOfSpeech)
+            .MaximumLength(40)
+            .When(x => x.Request.PartOfSpeech is not null);
+        RuleFor(x => x.Request.ExampleEn)
+            .MaximumLength(400)
+            .When(x => x.Request.ExampleEn is not null);
+        RuleFor(x => x.Request.ExampleVi)
+            .MaximumLength(400)
+            .When(x => x.Request.ExampleVi is not null);
     }
 }

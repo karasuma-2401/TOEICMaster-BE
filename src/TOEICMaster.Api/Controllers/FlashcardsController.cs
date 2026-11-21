@@ -52,6 +52,28 @@ public sealed class FlashcardsController(ISender sender) : ControllerBase
         return CreatedAtAction(nameof(GetDeckBySlug), new { slug = created.Slug }, created);
     }
 
+    [HttpPost("decks/{deckId:guid}/cards")]
+    [Authorize]
+    [ProducesResponseType<FlashcardCardDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<FlashcardCardDto>> AddCard(
+        Guid deckId,
+        [FromBody] CreateFlashcardCardRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = TryGetUserId();
+        if (!userId.HasValue)
+            return Unauthorized();
+
+        var created = await sender.Send(
+            new AddFlashcardCardCommand(userId.Value, deckId, request),
+            cancellationToken);
+
+        return created is null ? NotFound() : StatusCode(StatusCodes.Status201Created, created);
+    }
+
     [HttpDelete("decks/{deckId:guid}")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

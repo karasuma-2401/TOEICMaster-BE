@@ -193,6 +193,21 @@ public sealed class FlashcardDeck
         return deck;
     }
 
+    public FlashcardCard AddCard(FlashcardCardInput input, DateTimeOffset nowUtc)
+    {
+        if (!IsCustom)
+            throw new InvalidOperationException("Cannot add cards to a built-in flashcard deck.");
+
+        ArgumentNullException.ThrowIfNull(input);
+
+        var nextOrdinal = _cards.Count == 0 ? 1 : _cards.Max(card => card.Ordinal) + 1;
+        var card = FlashcardCard.Create(Guid.NewGuid(), Id, nextOrdinal, input);
+        _cards.Add(card);
+        EstimatedMinutes = Math.Max(2, (int)Math.Ceiling(_cards.Count * 0.8));
+        UpdatedAtUtc = nowUtc;
+        return card;
+    }
+
     public static string Slugify(string value)
     {
         var normalized = value.Normalize(NormalizationForm.FormD);

@@ -52,6 +52,9 @@ public sealed class FlashcardHandlersTests
             return Task.CompletedTask;
         }
 
+        public Task AddCardAsync(FlashcardCard card, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
         public void RemoveDeck(FlashcardDeck deck) => Decks.Remove(deck);
 
         public Task AddProgressAsync(UserFlashcardProgress progress, CancellationToken cancellationToken)
@@ -159,5 +162,43 @@ public sealed class FlashcardHandlersTests
             Guid.NewGuid(),
             new UpsertFlashcardProgressRequest("unknown-status", false)));
         Assert.False(invalidProgress.IsValid);
+    }
+
+    [Fact]
+    public async Task Add_card_appends_to_owned_custom_deck_and_rejects_other_users()
+    {
+        var repo = new FakeFlashcardRepository();
+        var ownerId = Guid.NewGuid();
+        var otherUserId = Guid.NewGuid();
+
+        var createHandler = new CreateFlashcardDeckCommandHandler(repo, TimeProvider.System);
+        var deck = await createHandler.Handle(
+            new CreateFlashcardDeckCommand(
+                ownerId,
+                new CreateFlashcardDeckRequest(
+                    "Từ vựng riêng",
+                    null,
+                    [new CreateFlashcardCardRequest("agenda", null, "noun", "chương trình họp", null, null, null, null, "B1")])),
+            CancellationToken.None);
+
+        var addHandler = new AddFlashcardCardCommandHandler(repo, TimeProvider.System);
+        var forbidden = await addHandler.Handle(
+            new AddFlashcardCardCommand(
+                otherUserId,
+                deck.Id,
+                new CreateFlashcardCardRequest("invoice", null, "noun", "hóa đơn", null, null, null, null, "B1")),
+            CancellationToken.None);
+        Assert.Null(forbidden);
+
+        var added = await addHandler.Handle(
+            new AddFlashcardCardCommand(
+                ownerId,
+                deck.Id,
+                new CreateFlashcardCardRequest("invoice", "/ˈɪn.vɔɪs/", "noun", "hóa đơn", "Check the invoice.", "Kiểm tra hóa đơn.", ["issue an invoice"], "Part 7", "B2")),
+            CancellationToken.None);
+
+        Assert.NotNull(added);
+        Assert.Equal("invoice", added.Term);
+        Assert.Equal(2, repo.Decks[0].Cards.Count);
     }
 }

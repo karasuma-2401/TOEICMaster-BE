@@ -290,6 +290,7 @@ public sealed class MediatorPipelineTests
         public Task<UserFlashcardProgress?> GetCardProgressAsync(Guid userId, Guid cardId, CancellationToken cancellationToken) =>
             Task.FromResult<UserFlashcardProgress?>(null);
         public Task AddDeckAsync(FlashcardDeck deck, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task AddCardAsync(FlashcardCard card, CancellationToken cancellationToken) => Task.CompletedTask;
         public void RemoveDeck(FlashcardDeck deck) { }
         public Task AddProgressAsync(UserFlashcardProgress progress, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task DeleteDeckProgressAsync(Guid userId, Guid deckId, CancellationToken cancellationToken) => Task.CompletedTask;

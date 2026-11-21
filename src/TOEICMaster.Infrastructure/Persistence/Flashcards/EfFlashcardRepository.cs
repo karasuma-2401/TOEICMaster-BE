@@ -86,6 +86,12 @@ public sealed class EfFlashcardRepository(ToeicDbContext dbContext) : IFlashcard
         return Task.CompletedTask;
     }
 
+    public Task AddCardAsync(FlashcardCard card, CancellationToken cancellationToken)
+    {
+        dbContext.FlashcardCards.Add(card);
+        return Task.CompletedTask;
+    }
+
     public void RemoveDeck(FlashcardDeck deck)
     {
         dbContext.FlashcardDecks.Remove(deck);

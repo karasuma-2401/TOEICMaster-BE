@@ -30,6 +30,19 @@ internal static class FlashcardMapper
                     card.Level))
                 .ToArray());
 
+    public static FlashcardCardDto ToDto(FlashcardCard card) =>
+        new(
+            card.Id,
+            card.Term,
+            card.Phonetic,
+            card.PartOfSpeech,
+            card.MeaningVi,
+            card.ExampleEn,
+            card.ExampleVi,
+            card.GetCollocations(),
+            card.ToeicPart,
+            card.Level);
+
     public static CardProgressDto ToDto(UserFlashcardProgress progress) =>
         new(
             progress.Status,
@@ -197,5 +210,37 @@ public sealed class ResetFlashcardDeckProgressCommandHandler(IFlashcardRepositor
         await repository.DeleteDeckProgressAsync(command.UserId, command.DeckId, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
         return true;
+    }
+}
+
+public sealed class AddFlashcardCardCommandHandler(
+    IFlashcardRepository repository,
+    TimeProvider timeProvider)
+    : IRequestHandler<AddFlashcardCardCommand, FlashcardCardDto?>
+{
+    public async Task<FlashcardCardDto?> Handle(
+        AddFlashcardCardCommand command,
+        CancellationToken cancellationToken)
+    {
+        var deck = await repository.GetDeckByIdAsync(command.DeckId, cancellationToken);
+        if (deck is null || deck.OwnerUserId != command.UserId)
+            return null;
+
+        var input = new FlashcardCardInput(
+            command.Request.Term,
+            command.Request.Phonetic,
+            command.Request.PartOfSpeech,
+            command.Request.MeaningVi,
+            command.Request.ExampleEn,
+            command.Request.ExampleVi,
+            command.Request.Collocations,
+            command.Request.ToeicPart,
+            command.Request.Level);
+
+        var card = deck.AddCard(input, timeProvider.GetUtcNow());
+        await repository.AddCardAsync(card, cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
+
+        return FlashcardMapper.ToDto(card);
     }
 }
