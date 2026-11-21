@@ -645,6 +645,27 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.ToTable("knowledge_article_tags", (string)null);
                 });
 
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeBookmark", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("article_id");
+
+                    b.Property<DateTimeOffset>("SavedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("saved_at_utc");
+
+                    b.HasKey("UserId", "ArticleId");
+
+                    b.HasIndex("ArticleId");
+
+                    b.ToTable("knowledge_bookmarks", (string)null);
+                });
+
             modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeCategory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2505,6 +2526,21 @@ namespace TOEICMaster.Infrastructure.Persistence.Migrations
                     b.HasOne("TOEICMaster.Domain.Entities.KnowledgeTag", null)
                         .WithMany()
                         .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TOEICMaster.Domain.Entities.KnowledgeBookmark", b =>
+                {
+                    b.HasOne("TOEICMaster.Domain.Entities.KnowledgeArticle", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TOEICMaster.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
