@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace TOEICMaster.Tests.Api.Authentication;
@@ -138,6 +141,69 @@ public sealed class RateLimitingApiTests
         otherClientReq.Headers.Add("X-Forwarded-For", "198.51.100.11");
         using var otherClientRes = await trustedClient.SendAsync(otherClientReq);
         Assert.Equal(HttpStatusCode.Unauthorized, otherClientRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task Login_rate_limit_falls_back_to_client_ip_on_malformed_or_oversized_body()
+    {
+        using var factory = new LoginApiFactory();
+        using var client = factory.CreateClient();
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using var malformed = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/login")
+            {
+                Content = new StringContent("{not-json", Encoding.UTF8, "application/json")
+            };
+            using var malformedRes = await client.SendAsync(malformed);
+            Assert.Equal(HttpStatusCode.BadRequest, malformedRes.StatusCode);
+        }
+
+        var largePadding = new string('x', 5000);
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using var oversized = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/login")
+            {
+                Content = JsonContent.Create(new { email = "oversized@example.com", password = largePadding })
+            };
+            using var oversizedRes = await client.SendAsync(oversized);
+            Assert.NotEqual(HttpStatusCode.TooManyRequests, oversizedRes.StatusCode);
+        }
+
+        using var eleventh = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/login")
+        {
+            Content = new StringContent("{still-not-json", Encoding.UTF8, "application/json")
+        };
+        using var blocked = await client.SendAsync(eleventh);
+        Assert.Equal(HttpStatusCode.TooManyRequests, blocked.StatusCode);
+    }
+
+    [Fact]
+    public async Task Non_development_environment_emits_hsts_header_for_https_requests()
+    {
+        using var prodFactory = new LoginApiFactory().WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Production");
+            builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["Minio:PublicEndpoint"] = "localhost:9000",
+                    ["Startup:SkipSeeders"] = "true"
+                }));
+            builder.ConfigureServices(services =>
+                services.AddSingleton<IStartupFilter>(new PeerIpStartupFilter(IPAddress.Loopback)));
+        });
+        using var client = prodFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://api.toeicmaster.test")
+        });
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/system/ping");
+        request.Headers.Add("X-Forwarded-Proto", "https");
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.Headers.Contains("Strict-Transport-Security"));
     }
 
     private sealed class PeerIpStartupFilter(IPAddress peerIp) : IStartupFilter

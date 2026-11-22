@@ -241,5 +241,18 @@ public sealed class ExamAttemptsApiTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, completedHistory.StatusCode);
         var completedJson = await completedHistory.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("Completed", completedJson.GetProperty("items")[0].GetProperty("status").GetString());
+
+        var abandonedAttemptId = await StartAttemptAsync(client);
+        using var abandonResponse = await client.PostAsync($"/api/v1/exam-attempts/{abandonedAttemptId}/abandon", null);
+        Assert.Equal(HttpStatusCode.NoContent, abandonResponse.StatusCode);
+
+        using var abandonedHistory = await client.GetAsync("/api/v1/exam-attempts/history");
+        Assert.Equal(HttpStatusCode.OK, abandonedHistory.StatusCode);
+        var abandonedJson = await abandonedHistory.Content.ReadFromJsonAsync<JsonElement>();
+        var statuses = abandonedJson.GetProperty("items").EnumerateArray()
+            .Select(item => item.GetProperty("status").GetString())
+            .ToArray();
+        Assert.Contains("Abandoned", statuses);
+        Assert.Contains("Completed", statuses);
     }
 }

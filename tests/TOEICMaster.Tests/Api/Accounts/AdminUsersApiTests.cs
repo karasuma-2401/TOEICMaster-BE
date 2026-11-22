@@ -174,6 +174,26 @@ public sealed class AdminUsersApiTests(AdminUsersApiFactory factory) : IClassFix
         var missingProblem = await getMissing.Content.ReadFromJsonAsync<JsonElement>();
         Assert.False(string.IsNullOrEmpty(missingProblem.GetProperty("traceId").GetString()));
 
+        // Entrypoint Parity: 404 NotFound ProblemDetails with traceId for all single-user endpoints
+        var unknownId = Guid.NewGuid();
+        foreach (var (method, suffix, body) in new (HttpMethod, string, object?)[]
+                 {
+                     (HttpMethod.Patch, $"{Path}/{unknownId}", new { role = "USER" }),
+                     (HttpMethod.Delete, $"{Path}/{unknownId}", null),
+                     (HttpMethod.Post, $"{Path}/{unknownId}/lock", null),
+                     (HttpMethod.Delete, $"{Path}/{unknownId}/lock", null),
+                     (HttpMethod.Post, $"{Path}/{unknownId}/reset-password", null)
+                 })
+        {
+            using var req = new HttpRequestMessage(method, suffix);
+            if (body is not null)
+                req.Content = JsonContent.Create(body);
+            using var res = await client.SendAsync(req);
+            Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+            var notFoundProblem = await res.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.False(string.IsNullOrEmpty(notFoundProblem.GetProperty("traceId").GetString()));
+        }
+
         using var getAdmin = await client.GetAsync($"{Path}/{dbHost.PrimaryAdminId}");
         Assert.Equal(HttpStatusCode.OK, getAdmin.StatusCode);
         var adminDto = await getAdmin.Content.ReadFromJsonAsync<JsonElement>();
@@ -242,14 +262,32 @@ public sealed class AdminUsersApiTests(AdminUsersApiFactory factory) : IClassFix
         });
         Assert.Equal(HttpStatusCode.Conflict, createDuplicate.StatusCode);
 
-        using var createInvalid = await client.PostAsJsonAsync(Path, new
+        // Single-Fault Isolation 400 checks on POST /api/v1/admin/users
+        foreach (var (payload, expectedErrorKey) in new (object, string)[]
+                 {
+                     (new { fullName = "", email = "valid@example.com", role = "USER", sendActivationEmail = false }, "FullName"),
+                     (new { fullName = "Valid Name", email = "bad-email", role = "USER", sendActivationEmail = false }, "Email"),
+                     (new { fullName = "Valid Name", email = "valid@example.com", role = "OWNER", sendActivationEmail = false }, "Role")
+                 })
         {
-            fullName = "",
-            email = "bad",
-            role = "OWNER",
-            sendActivationEmail = false
-        });
-        Assert.Equal(HttpStatusCode.BadRequest, createInvalid.StatusCode);
+            using var createInvalid = await client.PostAsJsonAsync(Path, payload);
+            Assert.Equal(HttpStatusCode.BadRequest, createInvalid.StatusCode);
+            var validationProblem = await createInvalid.Content.ReadFromJsonAsync<JsonElement>();
+            var errorKeys = validationProblem.GetProperty("errors").EnumerateObject().Select(p => p.Name).ToArray();
+            Assert.Equal(new[] { expectedErrorKey }, errorKeys);
+        }
+
+        // Single-Fault Isolation 400 check on PATCH /api/v1/admin/users/{id}
+        using var patchInvalidRole = await client.PatchAsJsonAsync($"{Path}/{activeId}", new { role = "OWNER" });
+        Assert.Equal(HttpStatusCode.BadRequest, patchInvalidRole.StatusCode);
+        var patchProblem = await patchInvalidRole.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(new[] { "Role" },
+            patchProblem.GetProperty("errors").EnumerateObject().Select(p => p.Name).ToArray());
+
+        // Idempotent role update when role is unchanged
+        using var patchSameRole = await client.PatchAsJsonAsync($"{Path}/{activeId}", new { role = "USER" });
+        Assert.Equal(HttpStatusCode.OK, patchSameRole.StatusCode);
+        Assert.Equal("USER", (await patchSameRole.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("role").GetString());
 
         // 4. PATCH /api/v1/admin/users/{id} (promote, idempotent, demote revokes sessions, self-demote & last-admin guards)
         using var selfDemote = await client.PatchAsJsonAsync($"{Path}/{dbHost.PrimaryAdminId}", new { role = "USER" });
@@ -314,6 +352,10 @@ public sealed class AdminUsersApiTests(AdminUsersApiFactory factory) : IClassFix
 
         using var unlockActive = await client.DeleteAsync($"{Path}/{activeId}/lock");
         Assert.Equal(HttpStatusCode.NoContent, unlockActive.StatusCode);
+
+        // Idempotent unlock when user is already ACTIVE
+        using var unlockAlreadyActive = await client.DeleteAsync($"{Path}/{activeId}/lock");
+        Assert.Equal(HttpStatusCode.NoContent, unlockAlreadyActive.StatusCode);
 
         using var resetActive = await client.PostAsync($"{Path}/{activeId}/reset-password", null);
         Assert.Equal(HttpStatusCode.NoContent, resetActive.StatusCode);

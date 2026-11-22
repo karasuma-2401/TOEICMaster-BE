@@ -125,5 +125,17 @@ public sealed class OpenApiSnapshotTests
             .GetProperty("enum").EnumerateArray().Select(e => e.GetString()).ToArray();
         Assert.Contains("Draft", examRevisionStatusValues);
         Assert.Contains("Published", examRevisionStatusValues);
+
+        var examBlockTypeValues = schemas.GetProperty("ExamBlockType")
+            .GetProperty("enum").EnumerateArray().Select(e => e.GetString()).ToArray();
+        Assert.Equal(new[] { "Single", "Group" }, examBlockTypeValues);
+
+        var examContextTypeValues = schemas.GetProperty("ExamContextType")
+            .GetProperty("enum").EnumerateArray().Select(e => e.GetString()).ToArray();
+        Assert.Equal(new[] { "Text", "Image" }, examContextTypeValues);
+
+        var examAttemptStatusValues = schemas.GetProperty("ExamAttemptStatus")
+            .GetProperty("enum").EnumerateArray().Select(e => e.GetString()).ToArray();
+        Assert.Equal(new[] { "InProgress", "Completed", "Abandoned" }, examAttemptStatusValues);
     }
 }

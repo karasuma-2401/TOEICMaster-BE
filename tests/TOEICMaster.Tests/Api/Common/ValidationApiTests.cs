@@ -48,6 +48,9 @@ public sealed class ValidationProbeController(ISender sender) : ControllerBase
     [HttpGet("minio-not-found")]
     public IActionResult MinioNotFound() => throw new ObjectNotFoundException("missing.png", "Object missing");
 
+    [HttpGet("minio-bucket-not-found")]
+    public IActionResult MinioBucketNotFound() => throw new BucketNotFoundException("missing-bucket", "Bucket missing");
+
     [HttpGet("lr-conflict")]
     public IActionResult LrConflict() => throw new LrExerciseBankConflictException("Duplicate exercise code.");
 
@@ -95,11 +98,15 @@ public sealed class ValidationApiTests
     {
         using var factory = new ValidationApiFactory();
         using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Accept.ParseAdd("text/html");
         using var response = await client.GetAsync("/tests/validation/unexpected-error");
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         var body = await response.Content.ReadAsStringAsync();
         Assert.DoesNotContain("Private internal error details", body);
         Assert.DoesNotContain("stackTrace", body, StringComparison.OrdinalIgnoreCase);
+        var problem = JsonDocument.Parse(body).RootElement;
+        Assert.False(string.IsNullOrEmpty(problem.GetProperty("traceId").GetString()));
     }
 
     [Fact]
@@ -121,6 +128,12 @@ public sealed class ValidationApiTests
         Assert.Equal("application/problem+json", minioResponse.Content.Headers.ContentType?.MediaType);
         var minioProblem = await minioResponse.Content.ReadFromJsonAsync<JsonElement>();
         Assert.False(string.IsNullOrEmpty(minioProblem.GetProperty("traceId").GetString()));
+
+        using var bucketResponse = await client.GetAsync("/tests/validation/minio-bucket-not-found");
+        Assert.Equal(HttpStatusCode.NotFound, bucketResponse.StatusCode);
+        Assert.Equal("application/problem+json", bucketResponse.Content.Headers.ContentType?.MediaType);
+        var bucketProblem = await bucketResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(string.IsNullOrEmpty(bucketProblem.GetProperty("traceId").GetString()));
 
         using var conflictResponse = await client.GetAsync("/tests/validation/lr-conflict");
         Assert.Equal(HttpStatusCode.Conflict, conflictResponse.StatusCode);

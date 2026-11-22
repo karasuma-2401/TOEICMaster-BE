@@ -144,6 +144,22 @@ public sealed class ExamsApiTests(ExamsApiFactory factory) : IClassFixture<Exams
     }
 
     [Fact]
+    public async Task Admin_creates_a_score_profile_accepting_integer_enum_values()
+    {
+        using var client = CreateAdminClient();
+
+        using var response = await client.PostAsJsonAsync("/api/v1/admin/score-profiles", new
+        {
+            name = "Integer enum profile",
+            conversions = new[] { new { skill = 0, rawCorrectCount = 0, scaledScore = 5 } }
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Integer enum profile", result.GetProperty("name").GetString());
+    }
+
+    [Fact]
     public async Task Import_rejects_an_invalid_workbook_without_creating_a_draft()
     {
         using var client = CreateAdminClient();
@@ -290,6 +306,19 @@ public sealed class ExamsApiTests(ExamsApiFactory factory) : IClassFixture<Exams
         var contextTypes = groupBlock.GetProperty("contextBlocks").EnumerateArray()
             .Select(c => c.GetProperty("type").GetString()).ToArray();
         Assert.Equal(new[] { "Text", "Image" }, contextTypes);
+
+        targetExam.PublishDraft(revisionId);
+        using var publishedListResponse = await client.GetAsync("/api/v1/admin/exams?pageNumber=1&pageSize=20");
+        Assert.Equal(HttpStatusCode.OK, publishedListResponse.StatusCode);
+        var publishedListItem = (await publishedListResponse.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("examId").GetGuid() == examId);
+        Assert.Equal("Published", publishedListItem.GetProperty("status").GetString());
+
+        using var publishedDetailResponse = await client.GetAsync($"/api/v1/admin/exams/{examId}/revisions/{revisionId}");
+        Assert.Equal(HttpStatusCode.OK, publishedDetailResponse.StatusCode);
+        Assert.Equal("Published",
+            (await publishedDetailResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
     }
 }
 
