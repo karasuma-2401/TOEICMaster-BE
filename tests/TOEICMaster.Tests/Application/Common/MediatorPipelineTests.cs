@@ -10,6 +10,7 @@ using TOEICMaster.Application.Email.Commands.SendEmail;
 using TOEICMaster.Application.ExamAttempts;
 using TOEICMaster.Application.Exams;
 using TOEICMaster.Application.ExerciseBank;
+using TOEICMaster.Application.Flashcards;
 using TOEICMaster.Application.Knowledge.Admin;
 using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.Speaking;
@@ -54,6 +55,7 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<IExamAttemptRepository, InMemoryExamAttempts>();
         services.AddSingleton<ILrExerciseBankRepository, EmptyLrExerciseBankRepository>();
         services.AddSingleton<ILrPracticeAttemptRepository, EmptyLrPracticeAttemptRepository>();
+        services.AddSingleton<IFlashcardRepository, EmptyFlashcardRepository>();
         services.AddSingleton<ILrExerciseBankImportParser, EmptyLrExerciseBankImportParser>();
         services.AddSingleton<IKnowledgeAdminRepository, InMemoryKnowledgeAdminRepository>();
         services.AddSingleton<IKnowledgeMediaStore, InMemoryKnowledgeMediaStore>();
@@ -270,6 +272,33 @@ public sealed class MediatorPipelineTests
             int part,
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<LrPracticeItemStatisticsDto>>([]);
+        public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class EmptyFlashcardRepository : IFlashcardRepository
+    {
+        public Task<IReadOnlyList<FlashcardDeck>> GetVisibleDecksAsync(Guid? userId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<FlashcardDeck>>([]);
+        public Task<FlashcardDeck?> GetVisibleDeckBySlugAsync(string slug, Guid? userId, CancellationToken cancellationToken) =>
+            Task.FromResult<FlashcardDeck?>(null);
+        public Task<FlashcardDeck?> GetDeckByIdAsync(Guid deckId, CancellationToken cancellationToken) =>
+            Task.FromResult<FlashcardDeck?>(null);
+        public Task<bool> CardExistsVisibleToUserAsync(Guid cardId, Guid userId, CancellationToken cancellationToken) =>
+            Task.FromResult(false);
+        public Task<IReadOnlyList<UserFlashcardProgress>> GetUserProgressAsync(Guid userId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<UserFlashcardProgress>>([]);
+        public Task<UserFlashcardProgress?> GetCardProgressAsync(Guid userId, Guid cardId, CancellationToken cancellationToken) =>
+            Task.FromResult<UserFlashcardProgress?>(null);
+        public Task AddDeckAsync(FlashcardDeck deck, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task AddCardAsync(FlashcardCard card, CancellationToken cancellationToken) => Task.CompletedTask;
+        public void RemoveDeck(FlashcardDeck deck) { }
+        public Task AddProgressAsync(UserFlashcardProgress progress, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task DeleteDeckProgressAsync(Guid userId, Guid deckId, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<IReadOnlyList<UserFlashcardMatchRecord>> GetUserMatchRecordsAsync(Guid userId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<UserFlashcardMatchRecord>>([]);
+        public Task<UserFlashcardMatchRecord?> GetMatchRecordAsync(Guid userId, Guid deckId, CancellationToken cancellationToken) =>
+            Task.FromResult<UserFlashcardMatchRecord?>(null);
+        public Task AddMatchRecordAsync(UserFlashcardMatchRecord record, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

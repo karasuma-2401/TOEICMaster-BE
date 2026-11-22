@@ -1,0 +1,299 @@
+using MediatR;
+using TOEICMaster.Domain.Entities;
+
+namespace TOEICMaster.Application.Flashcards;
+
+internal static class FlashcardMapper
+{
+    public static FlashcardDeckDto ToDto(FlashcardDeck deck) =>
+        new(
+            deck.Id,
+            deck.Slug,
+            deck.Title,
+            deck.Description,
+            deck.Category,
+            deck.TargetScore,
+            deck.EstimatedMinutes,
+            deck.IsCustom,
+            deck.Cards
+                .OrderBy(card => card.Ordinal)
+                .Select(card => new FlashcardCardDto(
+                    card.Id,
+                    card.Term,
+                    card.Phonetic,
+                    card.PartOfSpeech,
+                    card.MeaningVi,
+                    card.ExampleEn,
+                    card.ExampleVi,
+                    card.GetCollocations(),
+                    card.ToeicPart,
+                    card.Level))
+                .ToArray());
+
+    public static FlashcardCardDto ToDto(FlashcardCard card) =>
+        new(
+            card.Id,
+            card.Term,
+            card.Phonetic,
+            card.PartOfSpeech,
+            card.MeaningVi,
+            card.ExampleEn,
+            card.ExampleVi,
+            card.GetCollocations(),
+            card.ToeicPart,
+            card.Level);
+
+    public static CardProgressDto ToDto(UserFlashcardProgress progress) =>
+        new(
+            progress.Status,
+            progress.Starred,
+            progress.ReviewCount,
+            progress.UpdatedAtUtc);
+
+    public static MatchRecordDto ToDto(UserFlashcardMatchRecord record, bool isNewRecord = false) =>
+        new(
+            record.BestTimeMs,
+            record.BestCombo,
+            record.PlayCount,
+            record.UpdatedAtUtc,
+            isNewRecord);
+}
+
+public sealed class GetFlashcardWorkspaceQueryHandler(IFlashcardRepository repository)
+    : IRequestHandler<GetFlashcardWorkspaceQuery, FlashcardWorkspaceDto>
+{
+    public async Task<FlashcardWorkspaceDto> Handle(
+        GetFlashcardWorkspaceQuery request,
+        CancellationToken cancellationToken)
+    {
+        var decks = await repository.GetVisibleDecksAsync(request.UserId, cancellationToken);
+        var progressDict = new Dictionary<string, CardProgressDto>(StringComparer.OrdinalIgnoreCase);
+        var matchDict = new Dictionary<string, MatchRecordDto>(StringComparer.OrdinalIgnoreCase);
+
+        if (request.UserId.HasValue)
+        {
+            var records = await repository.GetUserProgressAsync(request.UserId.Value, cancellationToken);
+            foreach (var record in records)
+            {
+                progressDict[record.CardId.ToString()] = FlashcardMapper.ToDto(record);
+            }
+
+            var matchRecords = await repository.GetUserMatchRecordsAsync(request.UserId.Value, cancellationToken);
+            foreach (var match in matchRecords)
+            {
+                matchDict[match.DeckId.ToString()] = FlashcardMapper.ToDto(match);
+            }
+        }
+
+        var orderedDecks = decks
+            .OrderByDescending(deck => deck.IsCustom)
+            .ThenByDescending(deck => deck.IsCustom ? deck.CreatedAtUtc : DateTimeOffset.MinValue)
+            .ThenBy(deck => deck.Slug, StringComparer.Ordinal)
+            .Select(FlashcardMapper.ToDto)
+            .ToArray();
+
+        return new FlashcardWorkspaceDto(orderedDecks, progressDict, matchDict);
+    }
+}
+
+public sealed class GetFlashcardDeckBySlugQueryHandler(IFlashcardRepository repository)
+    : IRequestHandler<GetFlashcardDeckBySlugQuery, FlashcardDeckDto?>
+{
+    public async Task<FlashcardDeckDto?> Handle(
+        GetFlashcardDeckBySlugQuery request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Slug))
+            return null;
+
+        var deck = await repository.GetVisibleDeckBySlugAsync(
+            request.Slug.Trim().ToLowerInvariant(),
+            request.UserId,
+            cancellationToken);
+
+        return deck is null ? null : FlashcardMapper.ToDto(deck);
+    }
+}
+
+public sealed class CreateFlashcardDeckCommandHandler(
+    IFlashcardRepository repository,
+    TimeProvider timeProvider)
+    : IRequestHandler<CreateFlashcardDeckCommand, FlashcardDeckDto>
+{
+    public async Task<FlashcardDeckDto> Handle(
+        CreateFlashcardDeckCommand command,
+        CancellationToken cancellationToken)
+    {
+        var inputs = command.Request.Cards
+            .Select(card => new FlashcardCardInput(
+                card.Term,
+                card.Phonetic,
+                card.PartOfSpeech,
+                card.MeaningVi,
+                card.ExampleEn,
+                card.ExampleVi,
+                card.Collocations,
+                card.ToeicPart,
+                card.Level))
+            .ToArray();
+
+        var deck = FlashcardDeck.CreateCustom(
+            command.UserId,
+            command.Request.Title,
+            command.Request.Description,
+            inputs,
+            timeProvider.GetUtcNow());
+
+        await repository.AddDeckAsync(deck, cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
+
+        return FlashcardMapper.ToDto(deck);
+    }
+}
+
+public sealed class DeleteFlashcardDeckCommandHandler(IFlashcardRepository repository)
+    : IRequestHandler<DeleteFlashcardDeckCommand, bool>
+{
+    public async Task<bool> Handle(
+        DeleteFlashcardDeckCommand command,
+        CancellationToken cancellationToken)
+    {
+        var deck = await repository.GetDeckByIdAsync(command.DeckId, cancellationToken);
+        if (deck is null || deck.OwnerUserId != command.UserId)
+            return false;
+
+        repository.RemoveDeck(deck);
+        await repository.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+}
+
+public sealed class UpsertFlashcardProgressCommandHandler(
+    IFlashcardRepository repository,
+    TimeProvider timeProvider)
+    : IRequestHandler<UpsertFlashcardProgressCommand, CardProgressDto?>
+{
+    public async Task<CardProgressDto?> Handle(
+        UpsertFlashcardProgressCommand command,
+        CancellationToken cancellationToken)
+    {
+        var exists = await repository.CardExistsVisibleToUserAsync(
+            command.CardId,
+            command.UserId,
+            cancellationToken);
+
+        if (!exists)
+            return null;
+
+        var now = timeProvider.GetUtcNow();
+        var existing = await repository.GetCardProgressAsync(
+            command.UserId,
+            command.CardId,
+            cancellationToken);
+
+        if (existing is null)
+        {
+            existing = UserFlashcardProgress.Create(
+                command.UserId,
+                command.CardId,
+                command.Request.Status,
+                command.Request.Starred,
+                now);
+            await repository.AddProgressAsync(existing, cancellationToken);
+        }
+        else
+        {
+            existing.Update(command.Request.Status, command.Request.Starred, now);
+        }
+
+        await repository.SaveChangesAsync(cancellationToken);
+        return FlashcardMapper.ToDto(existing);
+    }
+}
+
+public sealed class ResetFlashcardDeckProgressCommandHandler(IFlashcardRepository repository)
+    : IRequestHandler<ResetFlashcardDeckProgressCommand, bool>
+{
+    public async Task<bool> Handle(
+        ResetFlashcardDeckProgressCommand command,
+        CancellationToken cancellationToken)
+    {
+        var deck = await repository.GetDeckByIdAsync(command.DeckId, cancellationToken);
+        if (deck is null || (deck.OwnerUserId.HasValue && deck.OwnerUserId != command.UserId))
+            return false;
+
+        await repository.DeleteDeckProgressAsync(command.UserId, command.DeckId, cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+}
+
+public sealed class AddFlashcardCardCommandHandler(
+    IFlashcardRepository repository,
+    TimeProvider timeProvider)
+    : IRequestHandler<AddFlashcardCardCommand, FlashcardCardDto?>
+{
+    public async Task<FlashcardCardDto?> Handle(
+        AddFlashcardCardCommand command,
+        CancellationToken cancellationToken)
+    {
+        var deck = await repository.GetDeckByIdAsync(command.DeckId, cancellationToken);
+        if (deck is null || deck.OwnerUserId != command.UserId)
+            return null;
+
+        var input = new FlashcardCardInput(
+            command.Request.Term,
+            command.Request.Phonetic,
+            command.Request.PartOfSpeech,
+            command.Request.MeaningVi,
+            command.Request.ExampleEn,
+            command.Request.ExampleVi,
+            command.Request.Collocations,
+            command.Request.ToeicPart,
+            command.Request.Level);
+
+        var card = deck.AddCard(input, timeProvider.GetUtcNow());
+        await repository.AddCardAsync(card, cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
+
+        return FlashcardMapper.ToDto(card);
+    }
+}
+
+public sealed class RecordFlashcardMatchCommandHandler(
+    IFlashcardRepository repository,
+    TimeProvider timeProvider)
+    : IRequestHandler<RecordFlashcardMatchCommand, MatchRecordDto?>
+{
+    public async Task<MatchRecordDto?> Handle(
+        RecordFlashcardMatchCommand command,
+        CancellationToken cancellationToken)
+    {
+        var deck = await repository.GetDeckByIdAsync(command.DeckId, cancellationToken);
+        if (deck is null || (deck.OwnerUserId.HasValue && deck.OwnerUserId != command.UserId))
+            return null;
+
+        var now = timeProvider.GetUtcNow();
+        var existing = await repository.GetMatchRecordAsync(command.UserId, command.DeckId, cancellationToken);
+        bool isNewRecord;
+
+        if (existing is null)
+        {
+            existing = UserFlashcardMatchRecord.Create(
+                command.UserId,
+                command.DeckId,
+                command.Request.ElapsedMs,
+                command.Request.MaxCombo,
+                now);
+            await repository.AddMatchRecordAsync(existing, cancellationToken);
+            isNewRecord = true;
+        }
+        else
+        {
+            isNewRecord = existing.RecordRun(command.Request.ElapsedMs, command.Request.MaxCombo, now);
+        }
+
+        await repository.SaveChangesAsync(cancellationToken);
+        return FlashcardMapper.ToDto(existing, isNewRecord);
+    }
+}
