@@ -16,8 +16,13 @@ public sealed class EfKnowledgeReader(ToeicDbContext db, IKnowledgeAdminReposito
         var current = await db.KnowledgeArticles.AsNoTracking().SingleAsync(a => a.Id == articleId, ct);
         var tags = db.KnowledgeArticleTags.Where(t => t.ArticleId == articleId).Select(t => t.TagId);
         var ids = await db.KnowledgeArticles.Where(a => a.Status == KnowledgeArticleStatus.Published && a.Id != articleId)
-            .Select(a => new { a.Id, a.CategoryId, a.PublishedAtUtc,
-                Matches = a.ArticleTags.Count(t => tags.Contains(t.TagId)) })
+            .Select(a => new
+            {
+                a.Id,
+                a.CategoryId,
+                a.PublishedAtUtc,
+                Matches = a.ArticleTags.Count(t => tags.Contains(t.TagId))
+            })
             .Where(a => a.Matches > 0 || a.CategoryId == current.CategoryId)
             .OrderByDescending(a => a.Matches).ThenByDescending(a => a.CategoryId == current.CategoryId)
             .ThenByDescending(a => a.PublishedAtUtc).ThenBy(a => a.Id).Take(3).Select(a => a.Id).ToListAsync(ct);
@@ -46,7 +51,8 @@ public sealed class EfKnowledgeReader(ToeicDbContext db, IKnowledgeAdminReposito
     public async Task<IReadOnlyList<SavedKnowledgeArticle>> SavedAsync(Guid userId, CancellationToken ct) =>
         await (from b in db.Set<KnowledgeBookmark>().AsNoTracking()
                join a in db.KnowledgeArticles on b.ArticleId equals a.Id
-               where b.UserId == userId orderby b.SavedAtUtc descending
+               where b.UserId == userId
+               orderby b.SavedAtUtc descending
                select new SavedKnowledgeArticle(a.Id, a.Status == KnowledgeArticleStatus.Published ? a.Title : "Bài học không còn khả dụng",
                    "/knowledge/" + a.Slug, a.Status == KnowledgeArticleStatus.Published)).ToListAsync(ct);
 
