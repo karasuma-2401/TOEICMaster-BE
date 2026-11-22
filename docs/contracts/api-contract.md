@@ -106,46 +106,13 @@ JSON profile:
 - Ảnh đại diện giới hạn 2 MiB, định dạng `image/png`, `image/jpeg` hoặc `image/webp`.
 - Đổi mật khẩu yêu cầu 8–128 ký tự và thu hồi toàn bộ refresh session cũ.
 
-## Quản trị danh sách tài khoản (Account Administration)
+## Quản trị người dùng (Admin Users)
 
-Endpoint dành cho Admin xem danh sách tài khoản phân trang, yêu cầu policy `AccountAdministration` (role `Admin`).
+Tất cả endpoint dưới `/api/v1/admin/users` yêu cầu policy `AccountAdministration` (role `Admin`). Lỗi trả về `application/problem+json` theo RFC 9457 kèm `traceId` (và `code` cho các xung đột nghiệp vụ hoặc rate-limit).
 
-```http
-GET /api/v1/accounts?pageNumber=1&pageSize=20
-Authorization: Bearer <access-token-with-Admin-role>
-Accept: application/json
-```
+### 1. Danh sách người dùng
 
-| Query | Mặc định | Điều kiện |
-| :--- | :--- | :--- |
-| `pageNumber` | 1 | Số nguyên từ 1 |
-| `pageSize` | 20 | Số nguyên từ 1 đến 100 |
-
-Response `200 OK`:
-
-```json
-{
-  "items": [
-    {
-      "id": "00000000-0000-0000-0000-000000000001",
-      "email": "learner@example.com",
-      "displayName": "Nguyen Van A",
-      "isActive": true,
-      "createdAtUtc": "2026-10-01T00:00:00+00:00"
-    }
-  ],
-  "pageNumber": 1,
-  "pageSize": 20,
-  "totalCount": 1,
-  "totalPages": 1,
-  "hasNextPage": false,
-  "hasPreviousPage": false
-}
-```
-
-### Danh sách người dùng cho trang Admin
-
-`GET /api/v1/admin/users`, yêu cầu policy `AccountAdministration`. Đây là endpoint trang `/admin/users` sử dụng.
+`GET /api/v1/admin/users`
 
 | Query | Mặc định | Điều kiện |
 | :--- | :--- | :--- |
@@ -187,6 +154,73 @@ Response `200 OK`:
 - `lastLoginAt`: thời điểm tạo phiên đăng nhập mới nhất, không tính các phiên sinh ra do refresh.
 - `avatarUrl` luôn `null` vì endpoint ảnh đại diện chỉ phục vụ người đang đăng nhập.
 - `stats` tính trên toàn bộ người dùng, không phụ thuộc bộ lọc.
+
+### 2. Chi tiết người dùng
+
+`GET /api/v1/admin/users/{id}`
+
+- Response `200 OK`: `AdminUserDto` (10 trường như phần tử trong `items`).
+- Response `404 Not Found`: ProblemDetails khi không tìm thấy người dùng.
+
+### 3. Tạo người dùng mới
+
+`POST /api/v1/admin/users`
+
+```json
+{
+  "fullName": "Nguyen Van B",
+  "email": "userb@example.com",
+  "role": "USER",
+  "sendActivationEmail": true
+}
+```
+
+- `role`: `USER` hoặc `ADMIN`.
+- Khi `sendActivationEmail` là `true`: tạo tài khoản ở trạng thái `PENDING` (`emailVerified: false`) và gửi email mã kích hoạt; lỗi gửi mail sẽ giải phóng cooldown.
+- Khi `sendActivationEmail` là `false`: tạo tài khoản `ACTIVE` (`emailVerified: true`) và không gửi email.
+- Response `201 Created`: header `Location` trỏ về `/api/v1/admin/users/{id}` và body `AdminUserDto`.
+- Lỗi: `400 ValidationProblemDetails` (input không hợp lệ), `409 Conflict` (email đã tồn tại).
+
+### 4. Cập nhật vai trò người dùng
+
+`PATCH /api/v1/admin/users/{id}`
+
+```json
+{
+  "role": "ADMIN"
+}
+```
+
+- Response `200 OK`: `AdminUserDto` sau cập nhật (idempotent nếu vai trò không đổi). Hạ quyền `ADMIN -> USER` sẽ thu hồi toàn bộ refresh session đang hoạt động của người dùng đó.
+- Lỗi: `400 ValidationProblemDetails`, `404 Not Found`, `409 Conflict` (`code: "CANNOT_DEMOTE_SELF"` khi tự hạ quyền mình; `code: "LAST_ACTIVE_ADMIN"` khi hạ quyền quản trị viên đang hoạt động cuối cùng).
+
+### 5. Xóa người dùng
+
+`DELETE /api/v1/admin/users/{id}`
+
+- Response `204 No Content`: xóa người dùng trong transaction (dọn self-FK `ReplacedBySessionId` trước khi xóa và xóa avatar trên MinIO best-effort sau commit).
+- Lỗi: `404 Not Found`, `409 Conflict` (`code: "CANNOT_DELETE_SELF"`, `code: "LAST_ACTIVE_ADMIN"`, hoặc `code: "USER_HAS_REFERENCED_CONTENT"` khi người dùng đang được tham chiếu bởi nội dung Knowledge hoặc dữ liệu bị `Restrict`).
+
+### 6. Khóa tài khoản người dùng
+
+`POST /api/v1/admin/users/{id}/lock` (không có request body)
+
+- Response `204 No Content`: đặt `IsActive = false`, thu hồi toàn bộ `UserSessions` đang hoạt động và xóa `PasswordResetChallenges` trong cùng transaction.
+- Lỗi: `404 Not Found`, `409 Conflict` (`code: "CANNOT_LOCK_SELF"`, `code: "LAST_ACTIVE_ADMIN"`, `code: "USER_PENDING_VERIFICATION"`).
+
+### 7. Mở khóa tài khoản người dùng
+
+`DELETE /api/v1/admin/users/{id}/lock` (không có request body)
+
+- Response `204 No Content`: đặt `IsActive = true` (idempotent nếu đang `ACTIVE`).
+- Lỗi: `404 Not Found`, `409 Conflict` (`code: "USER_PENDING_VERIFICATION"` khi tài khoản chưa xác minh email).
+
+### 8. Gửi đặt lại mật khẩu cho người dùng
+
+`POST /api/v1/admin/users/{id}/reset-password` (không có request body)
+
+- Response `204 No Content`: tạo OTP đặt lại mật khẩu và gửi `PasswordResetMail` (lỗi gửi mail sẽ giải phóng cooldown).
+- Lỗi: `404 Not Found`, `409 Conflict` (`code: "PASSWORD_RESET_UNSUPPORTED_PROVIDER"` với tài khoản Google-only; `code: "USER_INACTIVE_OR_UNVERIFIED"` với tài khoản bị khóa hoặc chưa xác minh), `429 Too Many Requests` (`code: "PASSWORD_RESET_COOLDOWN"`).
 
 ## Thi thử TOEIC Listening & Reading (learner)
 

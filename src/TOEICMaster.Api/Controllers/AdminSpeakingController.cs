@@ -1,8 +1,7 @@
-using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.JsonWebTokens;
+using TOEICMaster.Api.Extensions;
 using TOEICMaster.Application.Speaking;
 using TOEICMaster.Application.Speaking.Admin;
 
@@ -172,9 +171,7 @@ public sealed class AdminSpeakingController(ISender sender) : ControllerBase
         return File(media.Data, media.ContentType);
     }
 
-    private Guid CurrentUserId() => Guid.TryParse(User.FindFirstValue(JwtRegisteredClaimNames.Sub), out var userId)
-        ? userId
-        : throw new UnauthorizedAccessException();
+    private Guid CurrentUserId() => User.GetRequiredUserId();
 }
 
 public sealed record VersionedSpeakingExerciseRequest(int Version, SpeakingExerciseInput? Exercise);

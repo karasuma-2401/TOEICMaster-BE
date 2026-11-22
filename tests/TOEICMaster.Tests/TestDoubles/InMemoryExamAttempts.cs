@@ -175,8 +175,31 @@ public sealed class InMemoryExamAttempts : IExamAttemptRepository
         int pageIndex,
         int pageSize,
         Guid? examId,
-        CancellationToken cancellationToken) =>
-        Task.FromResult<(IReadOnlyList<ExamAttemptHistoryItemDto>, int)>(([], 0));
+        CancellationToken cancellationToken)
+    {
+        var filtered = _attempts
+            .Where(a => a.UserId == userId && (examId is null || Exam.Id == examId.Value))
+            .OrderByDescending(a => a.StartedAtUtc)
+            .ToArray();
+        var items = filtered
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .Select(a => new ExamAttemptHistoryItemDto(
+                a.Id,
+                Exam.Id,
+                Exam.Title,
+                Exam.Code,
+                a.Status,
+                a.ListeningScaledScore,
+                a.ReadingScaledScore,
+                a.TotalScaledScore,
+                a.IsTimeExpired,
+                a.StartedAtUtc,
+                a.SubmittedAtUtc,
+                a.SubmittedAtUtc.HasValue ? (int)(a.SubmittedAtUtc.Value - a.StartedAtUtc).TotalSeconds : null))
+            .ToArray();
+        return Task.FromResult<(IReadOnlyList<ExamAttemptHistoryItemDto>, int)>((items, filtered.Length));
+    }
 
     public void AddAttempt(ExamAttempt attempt) => _attempts.Add(attempt);
 

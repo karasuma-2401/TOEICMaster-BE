@@ -62,10 +62,8 @@ public sealed class AdminUserReader(ToeicDbContext context) : IAdminUserReader
         };
     }
 
-    internal static IQueryable<AdminUserRow> BuildPageQuery(IQueryable<User> users, IQueryable<UserSession> sessions,
-        string sort, int offset, int pageSize)
-    {
-        var rows = users.Select(user => new AdminUserRow
+    internal static IQueryable<AdminUserRow> ProjectRows(IQueryable<User> users, IQueryable<UserSession> sessions) =>
+        users.Select(user => new AdminUserRow
         {
             Id = user.Id,
             DisplayName = user.DisplayName,
@@ -81,6 +79,11 @@ public sealed class AdminUserReader(ToeicDbContext context) : IAdminUserReader
                                   !sessions.Any(previous => previous.ReplacedBySessionId == session.Id))
                 .Max(session => (DateTimeOffset?)session.CreatedAtUtc)
         });
+
+    internal static IQueryable<AdminUserRow> BuildPageQuery(IQueryable<User> users, IQueryable<UserSession> sessions,
+        string sort, int offset, int pageSize)
+    {
+        var rows = ProjectRows(users, sessions);
 
         var ordered = sort switch
         {

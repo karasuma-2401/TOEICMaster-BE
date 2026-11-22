@@ -1,8 +1,7 @@
-using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.JsonWebTokens;
+using TOEICMaster.Api.Extensions;
 using TOEICMaster.Application.Knowledge;
 using TOEICMaster.Application.Knowledge.Admin;
 
@@ -217,14 +216,7 @@ public sealed class AdminKnowledgeController(ISender sender) : ControllerBase
         return NoContent();
     }
 
-    private Guid CurrentUserId()
-    {
-        var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub) ??
-                      User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.TryParse(subject, out var userId)
-            ? userId
-            : throw new UnauthorizedAccessException("Missing authenticated admin user identifier.");
-    }
+    private Guid CurrentUserId() => User.GetRequiredUserId();
 }
 
 public sealed record VersionedKnowledgeCategoryRequest(int Version, KnowledgeCategoryInput Category);

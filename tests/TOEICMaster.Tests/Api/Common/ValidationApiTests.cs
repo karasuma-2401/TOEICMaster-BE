@@ -6,9 +6,13 @@ using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Minio.Exceptions;
+using Npgsql;
 using TOEICMaster.Application.Email;
 using TOEICMaster.Application.Email.Commands.SendEmail;
+using TOEICMaster.Application.ExerciseBank;
 using TOEICMaster.Tests.TestDoubles;
 
 namespace TOEICMaster.Tests.Api.Common;
@@ -40,6 +44,20 @@ public sealed class ValidationProbeController(ISender sender) : ControllerBase
 
     [HttpGet("unexpected-error")]
     public IActionResult UnexpectedError() => throw new InvalidOperationException("Private internal error details.");
+
+    [HttpGet("minio-not-found")]
+    public IActionResult MinioNotFound() => throw new ObjectNotFoundException("missing.png", "Object missing");
+
+    [HttpGet("minio-bucket-not-found")]
+    public IActionResult MinioBucketNotFound() => throw new BucketNotFoundException("missing-bucket", "Bucket missing");
+
+    [HttpGet("lr-conflict")]
+    public IActionResult LrConflict() => throw new LrExerciseBankConflictException("Duplicate exercise code.");
+
+    [HttpGet("postgres-error/{sqlState}")]
+    public IActionResult PostgresError(string sqlState) =>
+        throw new DbUpdateException("sensitive SQL table constraint name",
+            new PostgresException("sensitive column detail", "ERROR", "ERROR", sqlState));
 }
 
 public sealed class ValidationApiTests
@@ -80,11 +98,15 @@ public sealed class ValidationApiTests
     {
         using var factory = new ValidationApiFactory();
         using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Accept.ParseAdd("text/html");
         using var response = await client.GetAsync("/tests/validation/unexpected-error");
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         var body = await response.Content.ReadAsStringAsync();
         Assert.DoesNotContain("Private internal error details", body);
         Assert.DoesNotContain("stackTrace", body, StringComparison.OrdinalIgnoreCase);
+        var problem = JsonDocument.Parse(body).RootElement;
+        Assert.False(string.IsNullOrEmpty(problem.GetProperty("traceId").GetString()));
     }
 
     [Fact]
@@ -92,5 +114,46 @@ public sealed class ValidationApiTests
     {
         using var factory = new ApiFactory();
         factory.Services.GetRequiredService<IMapper>().ConfigurationProvider.AssertConfigurationIsValid();
+    }
+
+    [Fact]
+    public async Task Global_exception_handler_maps_minio_404_lr_conflict_type_and_postgres_errors_safely_with_traceId()
+    {
+        using var factory = new ValidationApiFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Accept.ParseAdd("text/html");
+
+        using var minioResponse = await client.GetAsync("/tests/validation/minio-not-found");
+        Assert.Equal(HttpStatusCode.NotFound, minioResponse.StatusCode);
+        Assert.Equal("application/problem+json", minioResponse.Content.Headers.ContentType?.MediaType);
+        var minioProblem = await minioResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(string.IsNullOrEmpty(minioProblem.GetProperty("traceId").GetString()));
+
+        using var bucketResponse = await client.GetAsync("/tests/validation/minio-bucket-not-found");
+        Assert.Equal(HttpStatusCode.NotFound, bucketResponse.StatusCode);
+        Assert.Equal("application/problem+json", bucketResponse.Content.Headers.ContentType?.MediaType);
+        var bucketProblem = await bucketResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(string.IsNullOrEmpty(bucketProblem.GetProperty("traceId").GetString()));
+
+        using var conflictResponse = await client.GetAsync("/tests/validation/lr-conflict");
+        Assert.Equal(HttpStatusCode.Conflict, conflictResponse.StatusCode);
+        var conflictProblem = await conflictResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("https://tools.ietf.org/html/rfc9110#section-15.5.10", conflictProblem.GetProperty("type").GetString());
+        Assert.False(string.IsNullOrEmpty(conflictProblem.GetProperty("traceId").GetString()));
+
+        foreach (var (sqlState, expectedStatus) in new[]
+                 {
+                     (PostgresErrorCodes.UniqueViolation, HttpStatusCode.Conflict),
+                     (PostgresErrorCodes.StringDataRightTruncation, HttpStatusCode.BadRequest),
+                     (PostgresErrorCodes.ForeignKeyViolation, HttpStatusCode.Conflict)
+                 })
+        {
+            using var pgResponse = await client.GetAsync($"/tests/validation/postgres-error/{sqlState}");
+            Assert.Equal(expectedStatus, pgResponse.StatusCode);
+            var body = await pgResponse.Content.ReadAsStringAsync();
+            Assert.DoesNotContain("sensitive", body, StringComparison.OrdinalIgnoreCase);
+            var pgProblem = JsonDocument.Parse(body).RootElement;
+            Assert.False(string.IsNullOrEmpty(pgProblem.GetProperty("traceId").GetString()));
+        }
     }
 }

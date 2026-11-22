@@ -5,7 +5,7 @@ using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Infrastructure.Persistence.Knowledge;
 
-public sealed class EfKnowledgeReader(ToeicDbContext db, IKnowledgeAdminRepository admin) : IKnowledgeReader
+public sealed class EfKnowledgeReader(ToeicDbContext db, IKnowledgeAdminRepository admin, TimeProvider timeProvider) : IKnowledgeReader
 {
     public Task<Guid?> FindPublishedAsync(string slug, CancellationToken ct) => db.KnowledgeArticles
         .Where(a => a.Status == KnowledgeArticleStatus.Published && a.Slug == slug)
@@ -60,7 +60,7 @@ public sealed class EfKnowledgeReader(ToeicDbContext db, IKnowledgeAdminReposito
     {
         if (!await db.KnowledgeArticles.AnyAsync(a => a.Id == articleId && a.Status == KnowledgeArticleStatus.Published, ct))
             throw new KnowledgeNotFoundException("Không tìm thấy bài học.");
-        await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO knowledge_bookmarks (user_id, article_id, saved_at_utc) VALUES ({userId}, {articleId}, {DateTimeOffset.UtcNow}) ON CONFLICT DO NOTHING", ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO knowledge_bookmarks (user_id, article_id, saved_at_utc) VALUES ({userId}, {articleId}, {timeProvider.GetUtcNow()}) ON CONFLICT DO NOTHING", ct);
     }
 
     public Task RemoveAsync(Guid userId, Guid articleId, CancellationToken ct) => db.Set<KnowledgeBookmark>()

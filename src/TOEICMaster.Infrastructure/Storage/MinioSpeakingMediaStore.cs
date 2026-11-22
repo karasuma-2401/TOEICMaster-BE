@@ -18,14 +18,15 @@ public sealed class MinioSpeakingMediaStore(IMinioClient client) : ISpeakingMedi
             .WithStreamData(stream).WithObjectSize(content.Length).WithContentType(contentType), cancellationToken);
     }
 
-    public async Task<byte[]> DownloadAsync(SpeakingMediaKind kind, string objectKey,
-        CancellationToken cancellationToken)
-    {
-        using var output = new MemoryStream();
-        await client.GetObjectAsync(new GetObjectArgs().WithBucket(Bucket(kind)).WithObject(objectKey)
-            .WithCallbackStream(stream => stream.CopyTo(output)), cancellationToken);
-        return output.ToArray();
-    }
+    public Task<byte[]> DownloadAsync(SpeakingMediaKind kind, string objectKey,
+        CancellationToken cancellationToken) =>
+        MinioStorageGuard.ExecuteDownloadAsync(async () =>
+        {
+            using var output = new MemoryStream();
+            await client.GetObjectAsync(new GetObjectArgs().WithBucket(Bucket(kind)).WithObject(objectKey)
+                .WithCallbackStream(stream => stream.CopyTo(output)), cancellationToken);
+            return output.ToArray();
+        }, _ => new SpeakingNotFoundException("Không tìm thấy tệp media Speaking."));
 
     public Task DeleteAsync(SpeakingMediaKind kind, string objectKey, CancellationToken cancellationToken) =>
         client.RemoveObjectAsync(new RemoveObjectArgs().WithBucket(Bucket(kind)).WithObject(objectKey),

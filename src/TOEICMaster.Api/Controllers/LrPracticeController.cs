@@ -1,8 +1,7 @@
-using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.JsonWebTokens;
+using TOEICMaster.Api.Extensions;
 using TOEICMaster.Application.ExerciseBank;
 
 namespace TOEICMaster.Api.Controllers;
@@ -54,10 +53,7 @@ public sealed class LrPracticeController(ISender sender) : ControllerBase
         [FromBody] LrPracticeSubmitRequest request,
         CancellationToken cancellationToken)
     {
-        var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
-            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (!Guid.TryParse(subject, out var userId))
+        if (User.TryGetUserId() is not { } userId)
             return Unauthorized();
 
         var result = await sender.Send(
@@ -76,10 +72,7 @@ public sealed class LrPracticeController(ISender sender) : ControllerBase
         int part,
         CancellationToken cancellationToken)
     {
-        var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
-            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (!Guid.TryParse(subject, out var userId))
+        if (User.TryGetUserId() is not { } userId)
             return Unauthorized();
 
         var result = await sender.Send(

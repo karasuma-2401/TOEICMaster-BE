@@ -5,7 +5,8 @@ namespace TOEICMaster.Application.ExerciseBank;
 
 public sealed class SubmitLrPracticeCommandHandler(
     ILrExerciseBankRepository repository,
-    ILrPracticeAttemptRepository attemptRepository
+    ILrPracticeAttemptRepository attemptRepository,
+    TimeProvider timeProvider
 ) : IRequestHandler<SubmitLrPracticeCommand, LrPracticeSubmitResultDto>
 {
     public async Task<LrPracticeSubmitResultDto> Handle(
@@ -76,7 +77,7 @@ public sealed class SubmitLrPracticeCommandHandler(
                 result.IsCorrect,
                 result.Translation,
                 result.Explanation)).ToList(),
-            DateTimeOffset.UtcNow);
+            timeProvider.GetUtcNow());
 
         await attemptRepository.AddAsync(attempt, cancellationToken);
         await attemptRepository.SaveChangesAsync(cancellationToken);

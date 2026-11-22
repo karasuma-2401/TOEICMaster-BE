@@ -33,8 +33,8 @@ public sealed class MediatorPipelineTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddApplication();
-        services.AddSingleton<IAccountReader, SampleAccountReader>();
         services.AddSingleton<IAdminUserReader, EmptyAdminUserReader>();
+        services.AddSingleton<IAdminUserRepository, EmptyAdminUserRepository>();
         services.AddSingleton<IProfileRepository, EmptyProfileRepository>();
         services.AddSingleton<IAvatarStore, EmptyAvatarStore>();
         services.AddSingleton<IWritingAdminRepository, EmptyWritingAdminRepository>();
@@ -300,5 +300,31 @@ public sealed class MediatorPipelineTests
             Task.FromResult<UserFlashcardMatchRecord?>(null);
         public Task AddMatchRecordAsync(UserFlashcardMatchRecord record, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class EmptyAdminUserRepository : IAdminUserRepository
+    {
+        public Task<TOEICMaster.Application.Accounts.Queries.GetAdminUsers.AdminUserDto?> GetByIdAsync(Guid userId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<TOEICMaster.Application.Accounts.Queries.GetAdminUsers.AdminUserDto?>(null);
+
+        public Task<bool> TryCreateAsync(User user, EmailVerificationChallenge? challenge,
+            CancellationToken cancellationToken) => Task.FromResult(true);
+
+        public Task<TOEICMaster.Application.Accounts.Queries.GetAdminUsers.AdminUserDto> UpdateRoleAsync(
+            Guid actorUserId, Guid targetUserId, UserRole role, DateTimeOffset nowUtc,
+            CancellationToken cancellationToken) =>
+            throw new AdminUserNotFoundException();
+
+        public Task<string?> DeleteAsync(Guid actorUserId, Guid targetUserId, CancellationToken cancellationToken) =>
+            Task.FromResult<string?>(null);
+
+        public Task LockAsync(Guid actorUserId, Guid targetUserId, DateTimeOffset nowUtc,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task UnlockAsync(Guid targetUserId, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<AdminPasswordResetTarget?> GetPasswordResetTargetAsync(Guid targetUserId,
+            CancellationToken cancellationToken) => Task.FromResult<AdminPasswordResetTarget?>(null);
     }
 }

@@ -7,8 +7,10 @@ public static class ExamDataSeeder
 {
     private const long SampleExamSeedLockKey = 0x544F454943534545;
 
-    public static async Task SeedSampleExamAsync(ToeicDbContext db, CancellationToken cancellationToken = default)
+    public static async Task SeedSampleExamAsync(ToeicDbContext db, CancellationToken cancellationToken = default,
+        TimeProvider? timeProvider = null)
     {
+        var clock = timeProvider ?? TimeProvider.System;
         var executionStrategy = db.Database.CreateExecutionStrategy();
         await executionStrategy.ExecuteAsync(async retryToken =>
         {
@@ -17,7 +19,7 @@ public static class ExamDataSeeder
                 $"SELECT pg_advisory_xact_lock({SampleExamSeedLockKey})", retryToken);
             try
             {
-                await SeedSampleExamCoreAsync(db, retryToken);
+                await SeedSampleExamCoreAsync(db, clock.GetUtcNow(), retryToken);
                 await transaction.CommitAsync(retryToken);
             }
             catch
@@ -28,12 +30,11 @@ public static class ExamDataSeeder
         }, cancellationToken);
     }
 
-    private static async Task SeedSampleExamCoreAsync(ToeicDbContext db, CancellationToken cancellationToken)
+    private static async Task SeedSampleExamCoreAsync(ToeicDbContext db, DateTimeOffset now,
+        CancellationToken cancellationToken)
     {
         if (await db.Exams.AnyAsync(cancellationToken))
             return;
-
-        var now = DateTimeOffset.UtcNow;
 
         var profile = ScoreProfile.Create("ETS TOEIC Standard Score Profile", now);
 

@@ -1,7 +1,7 @@
-using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TOEICMaster.Api.Extensions;
 using TOEICMaster.Application.Knowledge;
 using TOEICMaster.Application.Knowledge.Admin;
 
@@ -58,8 +58,7 @@ public sealed class KnowledgeController(ISender sender, IKnowledgeReader reader)
     [Authorize, HttpDelete("saved/{articleId:guid}")]
     public async Task<IActionResult> Remove(Guid articleId, CancellationToken ct)
     { await reader.RemoveAsync(UserId(), articleId, ct); return NoContent(); }
-    private Guid UserId() => Guid.TryParse(User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier), out var id)
-        ? id : throw new UnauthorizedAccessException();
+    private Guid UserId() => User.GetRequiredUserId();
     private static string? PublicImage(Guid? id) => id is null ? null : $"/api/v1/knowledge/media/{id}";
     private static KnowledgeArticleSummaryDto PublicSummary(KnowledgeArticleSummaryDto article) =>
         article with { CoverImageUrl = PublicImage(article.CoverImageAssetId) };

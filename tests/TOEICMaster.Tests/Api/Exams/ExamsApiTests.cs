@@ -144,6 +144,22 @@ public sealed class ExamsApiTests(ExamsApiFactory factory) : IClassFixture<Exams
     }
 
     [Fact]
+    public async Task Admin_creates_a_score_profile_accepting_integer_enum_values()
+    {
+        using var client = CreateAdminClient();
+
+        using var response = await client.PostAsJsonAsync("/api/v1/admin/score-profiles", new
+        {
+            name = "Integer enum profile",
+            conversions = new[] { new { skill = 0, rawCorrectCount = 0, scaledScore = 5 } }
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Integer enum profile", result.GetProperty("name").GetString());
+    }
+
+    [Fact]
     public async Task Import_rejects_an_invalid_workbook_without_creating_a_draft()
     {
         using var client = CreateAdminClient();
@@ -254,6 +270,56 @@ public sealed class ExamsApiTests(ExamsApiFactory factory) : IClassFixture<Exams
 
         Assert.True(response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed);
     }
+
+    [Fact]
+    public async Task Admin_exam_list_and_revision_detail_serialize_enums_as_PascalCase_strings()
+    {
+        using var client = CreateAdminClient();
+        var (examId, revisionId) = await CreateDraftAsync(client, "LR-2026-ENUM-1");
+
+        // Add both Text and Image context blocks to verify ExamContextType serialization
+        var targetExam = await factory.Repository.FindExamAsync(examId, CancellationToken.None);
+        var revision = targetExam!.Revisions.Single(r => r.Id == revisionId);
+        revision.ReplaceContextBlocks("P3-G32",
+        [
+            new ExamContextContent(1, ExamContextType.Text, "Read the passage.", null, null, false),
+            new ExamContextContent(2, ExamContextType.Image, null, Guid.NewGuid(), "Chart", false)
+        ]);
+
+        using var listResponse = await client.GetAsync("/api/v1/admin/exams?pageNumber=1&pageSize=20");
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        var listJson = await listResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var listItem = listJson.GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("examId").GetGuid() == examId);
+        Assert.Equal("Draft", listItem.GetProperty("status").GetString());
+
+        using var detailResponse = await client.GetAsync($"/api/v1/admin/exams/{examId}/revisions/{revisionId}");
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+        var detailJson = await detailResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Draft", detailJson.GetProperty("status").GetString());
+
+        var blocks = detailJson.GetProperty("blocks").EnumerateArray().ToArray();
+        Assert.Contains(blocks, b => b.GetProperty("type").GetString() == "Single");
+        var groupBlock = blocks.First(b => b.GetProperty("key").GetString() == "P3-G32");
+        Assert.Equal("Group", groupBlock.GetProperty("type").GetString());
+
+        var contextTypes = groupBlock.GetProperty("contextBlocks").EnumerateArray()
+            .Select(c => c.GetProperty("type").GetString()).ToArray();
+        Assert.Equal(new[] { "Text", "Image" }, contextTypes);
+
+        targetExam.PublishDraft(revisionId);
+        using var publishedListResponse = await client.GetAsync("/api/v1/admin/exams?pageNumber=1&pageSize=20");
+        Assert.Equal(HttpStatusCode.OK, publishedListResponse.StatusCode);
+        var publishedListItem = (await publishedListResponse.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("examId").GetGuid() == examId);
+        Assert.Equal("Published", publishedListItem.GetProperty("status").GetString());
+
+        using var publishedDetailResponse = await client.GetAsync($"/api/v1/admin/exams/{examId}/revisions/{revisionId}");
+        Assert.Equal(HttpStatusCode.OK, publishedDetailResponse.StatusCode);
+        Assert.Equal("Published",
+            (await publishedDetailResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+    }
 }
 
 internal sealed class FakeExamMediaStore : IExamMediaStore
@@ -292,7 +358,23 @@ internal sealed class FakeExamRepository(ScoreProfile scoreProfile) : IExamRepos
         Task.FromResult<Exam?>(_exams.SingleOrDefault(exam => exam.Id == examId));
 
     public Task<ExamPageDto> GetExamPageAsync(ExamRevisionStatus? status, int pageNumber, int pageSize,
-        CancellationToken cancellationToken) => Task.FromResult(new ExamPageDto([], pageNumber, pageSize, 0));
+        CancellationToken cancellationToken)
+    {
+        var items = _exams
+            .Select(exam =>
+            {
+                var latest = exam.Revisions.OrderByDescending(r => r.VersionNumber).First();
+                return new ExamListItemDto(exam.Id, exam.Code, exam.Title, latest.Id, latest.VersionNumber,
+                    latest.Status, exam.CreatedAtUtc);
+            })
+            .Where(item => status is null || item.Status == status)
+            .ToArray();
+        return Task.FromResult(new ExamPageDto(
+            items.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToArray(),
+            pageNumber,
+            pageSize,
+            items.Length));
+    }
 
     public Task<ScoreProfile?> FindScoreProfileAsync(Guid scoreProfileId, CancellationToken cancellationToken) =>
         Task.FromResult<ScoreProfile?>(scoreProfile.Id == scoreProfileId ? scoreProfile : null);

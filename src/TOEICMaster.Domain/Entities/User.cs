@@ -42,7 +42,18 @@ public sealed class User
         DateTimeOffset createdAtUtc) =>
         new(Guid.NewGuid(), displayName, email, normalizedEmail, null, UserRole.User, true, createdAtUtc, createdAtUtc);
 
+    public static User CreateByAdmin(string displayName, string email, string normalizedEmail, string passwordHash,
+        UserRole role, bool isActive, DateTimeOffset? emailVerifiedAtUtc, DateTimeOffset createdAtUtc) =>
+        new(Guid.NewGuid(), displayName, email, normalizedEmail, passwordHash, role, isActive, emailVerifiedAtUtc,
+            createdAtUtc);
+
     public void PromoteToAdmin() => Role = UserRole.Admin;
+
+    public void ChangeRole(UserRole role) => Role = role;
+
+    public void Lock() => IsActive = false;
+
+    public void Unlock() => IsActive = true;
 
     public void VerifyEmail(DateTimeOffset verifiedAtUtc)
     {

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
@@ -21,16 +20,9 @@ public sealed class ValidationExceptionHandler(IProblemDetailsService problemDet
             Title = "One or more validation errors occurred.",
             Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1"
         };
-        problem.Extensions["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier;
-        httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-        if (!await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
-        {
-            HttpContext = httpContext,
-            Exception = exception,
-            ProblemDetails = problem
-        }))
-            await httpContext.Response.WriteAsJsonAsync(problem, options: null,
-                contentType: "application/problem+json", cancellationToken: cancellationToken);
+
+        await ProblemDetailsResponseWriter.WriteAsync(problemDetailsService, httpContext, exception, problem,
+            cancellationToken);
         return true;
     }
 }

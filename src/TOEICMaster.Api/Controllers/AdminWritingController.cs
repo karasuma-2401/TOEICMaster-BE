@@ -1,8 +1,7 @@
-using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.JsonWebTokens;
+using TOEICMaster.Api.Extensions;
 using TOEICMaster.Application.Writing.Admin;
 using TOEICMaster.Application.Writing.Attempts;
 using TOEICMaster.Application.Writing.Evaluations;
@@ -213,13 +212,7 @@ public sealed class AdminWritingController(ISender sender) : ControllerBase
         CancellationToken cancellationToken) =>
         Ok(await sender.Send(new GetAdminWritingEvaluationQuery(attemptId), cancellationToken));
 
-    private Guid CurrentUserId()
-    {
-        var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
-        if (!Guid.TryParse(subject, out var userId))
-            throw new UnauthorizedAccessException();
-        return userId;
-    }
+    private Guid CurrentUserId() => User.GetRequiredUserId();
 }
 
 public sealed record VersionedRequest(int Version);

@@ -1,8 +1,7 @@
-using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.JsonWebTokens;
+using TOEICMaster.Api.Extensions;
 using TOEICMaster.Application.Flashcards;
 
 namespace TOEICMaster.Api.Controllers;
@@ -155,10 +154,5 @@ public sealed class FlashcardsController(ISender sender) : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
-    private Guid? TryGetUserId()
-    {
-        var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
-            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.TryParse(subject, out var userId) ? userId : null;
-    }
+    private Guid? TryGetUserId() => User.TryGetUserId();
 }
