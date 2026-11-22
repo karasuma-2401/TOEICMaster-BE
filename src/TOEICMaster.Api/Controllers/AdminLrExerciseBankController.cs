@@ -1,8 +1,7 @@
-using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.JsonWebTokens;
+using TOEICMaster.Api.Extensions;
 using TOEICMaster.Application.ExerciseBank;
 
 namespace TOEICMaster.Api.Controllers;
@@ -65,11 +64,5 @@ public sealed class AdminLrExerciseBankController(ISender sender, IWebHostEnviro
             enableRangeProcessing: false);
     }
 
-    private Guid CurrentUserId()
-    {
-        var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!Guid.TryParse(subject, out var userId))
-            throw new UnauthorizedAccessException();
-        return userId;
-    }
+    private Guid CurrentUserId() => User.GetRequiredUserId();
 }

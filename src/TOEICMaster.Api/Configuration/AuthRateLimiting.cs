@@ -13,6 +13,11 @@ public static class AuthRateLimitPolicies
     public const string Sessions = "auth-sessions";
 }
 
+internal static class AuthRateLimitContext
+{
+    public const string LoginEmailItemKey = "AuthRateLimit:LoginEmail";
+}
+
 public static class AuthRateLimitingExtensions
 {
     private static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
@@ -24,18 +29,31 @@ public static class AuthRateLimitingExtensions
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = WriteRejectionAsync;
             options.AddPolicy(AuthRateLimitPolicies.EmailDelivery,
-                context => CreatePartition(context, permitLimit: 5));
+                context => CreatePartition(ClientIpKey(context), permitLimit: 5));
             options.AddPolicy(AuthRateLimitPolicies.Credentials,
-                context => CreatePartition(context, permitLimit: 10));
+                context => CreatePartition(CredentialsPartitionKey(context), permitLimit: 10));
             options.AddPolicy(AuthRateLimitPolicies.Sessions,
-                context => CreatePartition(context, permitLimit: 30));
+                context => CreatePartition(ClientIpKey(context), permitLimit: 30));
         });
         return services;
     }
 
-    private static RateLimitPartition<string> CreatePartition(HttpContext context, int permitLimit) =>
+    private static string ClientIpKey(HttpContext context) =>
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown-client";
+
+    private static string CredentialsPartitionKey(HttpContext context)
+    {
+        var clientIp = ClientIpKey(context);
+        return context.Items.TryGetValue(AuthRateLimitContext.LoginEmailItemKey, out var value) &&
+               value is string normalizedEmail &&
+               normalizedEmail.Length > 0
+            ? $"{clientIp}|{normalizedEmail}"
+            : clientIp;
+    }
+
+    private static RateLimitPartition<string> CreatePartition(string partitionKey, int permitLimit) =>
         RateLimitPartition.GetFixedWindowLimiter(
-            context.Connection.RemoteIpAddress?.ToString() ?? "unknown-client",
+            partitionKey,
             _ => new FixedWindowRateLimiterOptions
             {
                 AutoReplenishment = true,

@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.IdentityModel.JsonWebTokens;
+using TOEICMaster.Api.Extensions;
 using TOEICMaster.Infrastructure.Pronunciation;
 
 namespace TOEICMaster.Api.Configuration;
@@ -30,9 +30,8 @@ public static class PronunciationConfigurationExtensions
 
     private static string PartitionKey(HttpContext context)
     {
-        if (context.User.Identity is ClaimsIdentity { IsAuthenticated: true } identity &&
-            Guid.TryParse(identity.FindFirst(JwtRegisteredClaimNames.Sub)?.Value ??
-                          identity.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+        if (context.User.Identity is ClaimsIdentity { IsAuthenticated: true } &&
+            context.User.TryGetUserId() is { } userId)
             return $"pronunciation-user:{userId:D}";
 
         return $"pronunciation-address:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown-client"}";

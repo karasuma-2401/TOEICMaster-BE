@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.IdentityModel.JsonWebTokens;
 using TOEICMaster.Api.Configuration;
+using TOEICMaster.Api.Extensions;
 using TOEICMaster.Application.Profile;
 
 namespace TOEICMaster.Api.Controllers;
@@ -97,18 +96,11 @@ public sealed class ProfileController(ISender sender) : ControllerBase
         return NoContent();
     }
 
-    private Guid CurrentUserId()
-    {
-        var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
-        if (!Guid.TryParse(subject, out var userId))
-            throw new UnauthorizedAccessException();
-        return userId;
-    }
+    private Guid CurrentUserId() => User.GetRequiredUserId();
 }
 
 public sealed record UpdateProfileNameRequest(string DisplayName);
 public sealed record UpdateProfileRequest(string DisplayName, string? Phone, DateOnly? DateOfBirth, int? TargetScore);
-public sealed record UpdateProfileDetailsRequest(string DisplayName, string? Phone, int? TargetScore);
 public sealed record ChangeProfilePasswordRequest(string CurrentPassword, string NewPassword);
 public sealed record ChangeProfilePasswordFrontendRequest(
     string CurrentPassword, string NewPassword, string ConfirmPassword);

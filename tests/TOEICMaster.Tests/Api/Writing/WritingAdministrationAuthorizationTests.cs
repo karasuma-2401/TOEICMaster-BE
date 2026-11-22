@@ -9,8 +9,8 @@ using TOEICMaster.Tests.TestDoubles;
 
 namespace TOEICMaster.Tests.Api.Writing;
 
-public sealed class WritingAdministrationAuthorizationTests(AccountsApiFactory factory)
-    : IClassFixture<AccountsApiFactory>
+public sealed class WritingAdministrationAuthorizationTests(AdminUsersApiFactory factory)
+    : IClassFixture<AdminUsersApiFactory>
 {
     [Theory]
     [InlineData(null, HttpStatusCode.Unauthorized)]

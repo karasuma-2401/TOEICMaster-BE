@@ -221,4 +221,25 @@ public sealed class ExamAttemptsApiTests : IDisposable
         using var response = await client.GetAsync($"/api/v1/exam-attempts/{attemptId}/audio");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Attempt_history_serializes_status_enum_as_PascalCase_strings()
+    {
+        var userId = Guid.NewGuid();
+        using var client = CreateUserClient(userId);
+        var attemptId = await StartAttemptAsync(client);
+
+        using var inProgressHistory = await client.GetAsync("/api/v1/exam-attempts/history");
+        Assert.Equal(HttpStatusCode.OK, inProgressHistory.StatusCode);
+        var inProgressJson = await inProgressHistory.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("InProgress", inProgressJson.GetProperty("items")[0].GetProperty("status").GetString());
+
+        using var submitResponse = await client.PostAsync($"/api/v1/exam-attempts/{attemptId}/submit", null);
+        Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
+
+        using var completedHistory = await client.GetAsync("/api/v1/exam-attempts/history");
+        Assert.Equal(HttpStatusCode.OK, completedHistory.StatusCode);
+        var completedJson = await completedHistory.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Completed", completedJson.GetProperty("items")[0].GetProperty("status").GetString());
+    }
 }

@@ -1,5 +1,6 @@
 using Minio;
 using Minio.DataModel.Args;
+using TOEICMaster.Application.Knowledge;
 using TOEICMaster.Application.Knowledge.Admin;
 
 namespace TOEICMaster.Infrastructure.Storage;
@@ -18,13 +19,14 @@ public sealed class MinioKnowledgeMediaStore(IMinioClient client) : IKnowledgeMe
             .WithStreamData(stream).WithObjectSize(content.Length).WithContentType(contentType), cancellationToken);
     }
 
-    public async Task<byte[]> DownloadAsync(string objectKey, CancellationToken cancellationToken)
-    {
-        using var output = new MemoryStream();
-        await client.GetObjectAsync(new GetObjectArgs().WithBucket(Bucket).WithObject(objectKey)
-            .WithCallbackStream(stream => stream.CopyTo(output)), cancellationToken);
-        return output.ToArray();
-    }
+    public Task<byte[]> DownloadAsync(string objectKey, CancellationToken cancellationToken) =>
+        MinioStorageGuard.ExecuteDownloadAsync(async () =>
+        {
+            using var output = new MemoryStream();
+            await client.GetObjectAsync(new GetObjectArgs().WithBucket(Bucket).WithObject(objectKey)
+                .WithCallbackStream(stream => stream.CopyTo(output)), cancellationToken);
+            return output.ToArray();
+        }, _ => new KnowledgeNotFoundException("Không tìm thấy hình ảnh kiến thức."));
 
     public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) =>
         client.RemoveObjectAsync(new RemoveObjectArgs().WithBucket(Bucket).WithObject(objectKey), cancellationToken);

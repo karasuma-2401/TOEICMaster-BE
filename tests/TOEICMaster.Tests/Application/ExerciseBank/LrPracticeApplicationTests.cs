@@ -12,7 +12,8 @@ public sealed class LrPracticeApplicationTests
         var attempts = new RecordingAttemptRepository();
         var handler = new SubmitLrPracticeCommandHandler(
             new StubExerciseBankRepository(item),
-            attempts);
+            attempts,
+            TimeProvider.System);
 
         var result = await handler.Handle(
             new SubmitLrPracticeCommand(
@@ -37,7 +38,8 @@ public sealed class LrPracticeApplicationTests
         var attempts = new RecordingAttemptRepository();
         var handler = new SubmitLrPracticeCommandHandler(
             new StubExerciseBankRepository(item),
-            attempts);
+            attempts,
+            TimeProvider.System);
 
         var result = await handler.Handle(
             new SubmitLrPracticeCommand(
@@ -61,7 +63,8 @@ public sealed class LrPracticeApplicationTests
         var attempts = new RecordingAttemptRepository();
         var handler = new SubmitLrPracticeCommandHandler(
             new StubExerciseBankRepository(item),
-            attempts);
+            attempts,
+            TimeProvider.System);
 
         var result = await handler.Handle(
             new SubmitLrPracticeCommand(
@@ -84,7 +87,8 @@ public sealed class LrPracticeApplicationTests
         var item = CreateItem();
         var handler = new SubmitLrPracticeCommandHandler(
             new StubExerciseBankRepository(item),
-            new RecordingAttemptRepository());
+            new RecordingAttemptRepository(),
+            TimeProvider.System);
 
         await Assert.ThrowsAsync<InvalidLrPracticeSubmissionException>(() => handler.Handle(
             new SubmitLrPracticeCommand(
@@ -100,7 +104,8 @@ public sealed class LrPracticeApplicationTests
         var item = CreateItem();
         var handler = new SubmitLrPracticeCommandHandler(
             new StubExerciseBankRepository(item),
-            new RecordingAttemptRepository());
+            new RecordingAttemptRepository(),
+            TimeProvider.System);
 
         await Assert.ThrowsAsync<InvalidLrPracticeSubmissionException>(() => handler.Handle(
             new SubmitLrPracticeCommand(
@@ -137,7 +142,8 @@ public sealed class LrPracticeApplicationTests
             DateTimeOffset.UtcNow);
         var handler = new SubmitLrPracticeCommandHandler(
             new StubExerciseBankRepository(item),
-            new RecordingAttemptRepository());
+            new RecordingAttemptRepository(),
+            TimeProvider.System);
 
         await Assert.ThrowsAsync<InvalidLrPracticeSubmissionException>(() => handler.Handle(
             new SubmitLrPracticeCommand(
@@ -171,7 +177,8 @@ public sealed class LrPracticeApplicationTests
         var attempts = new RecordingAttemptRepository();
         var handler = new SubmitLrPracticeCommandHandler(
             new StubExerciseBankRepository(item),
-            attempts);
+            attempts,
+            TimeProvider.System);
 
         var result = await handler.Handle(
             new SubmitLrPracticeCommand(
@@ -205,7 +212,8 @@ public sealed class LrPracticeApplicationTests
         var item = CreateItem();
         var handler = new SubmitLrPracticeCommandHandler(
             new StubExerciseBankRepository(item),
-            new RecordingAttemptRepository());
+            new RecordingAttemptRepository(),
+            TimeProvider.System);
 
         await Assert.ThrowsAsync<InvalidLrPracticeSubmissionException>(() => handler.Handle(
             new SubmitLrPracticeCommand(
@@ -223,7 +231,8 @@ public sealed class LrPracticeApplicationTests
         var questionId = item.Questions.Single().Id;
         var handler = new SubmitLrPracticeCommandHandler(
             new StubExerciseBankRepository(item),
-            new RecordingAttemptRepository());
+            new RecordingAttemptRepository(),
+            TimeProvider.System);
 
         await Assert.ThrowsAsync<InvalidLrPracticeSubmissionException>(() => handler.Handle(
             new SubmitLrPracticeCommand(
@@ -242,7 +251,8 @@ public sealed class LrPracticeApplicationTests
     {
         var handler = new SubmitLrPracticeCommandHandler(
             new StubExerciseBankRepository(null),
-            new RecordingAttemptRepository());
+            new RecordingAttemptRepository(),
+            TimeProvider.System);
 
         await Assert.ThrowsAsync<LrPracticeItemNotFoundException>(() => handler.Handle(
             new SubmitLrPracticeCommand(

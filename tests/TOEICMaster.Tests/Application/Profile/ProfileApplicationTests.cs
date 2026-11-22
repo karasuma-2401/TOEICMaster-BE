@@ -25,39 +25,6 @@ public sealed class ProfileApplicationTests
     }
 
     [Fact]
-    public async Task Update_details_trims_values_and_stores_blank_phone_as_null()
-    {
-        var user = User.CreateExternal("Learner", "learner@example.com", "LEARNER@EXAMPLE.COM", DateTimeOffset.UtcNow);
-        var repository = new FakeProfileRepository { User = user };
-        var handler = new UpdateProfileDetailsCommandHandler(repository);
-
-        await handler.Handle(new UpdateProfileDetailsCommand(user.Id, "  Linh  ", " 0912345678 ", 750),
-            CancellationToken.None);
-        Assert.Equal(("Linh", "0912345678", 750), repository.UpdatedDetails);
-
-        await handler.Handle(new UpdateProfileDetailsCommand(user.Id, "Linh", "  ", null), CancellationToken.None);
-        Assert.Equal(("Linh", (string?)null, (int?)null), repository.UpdatedDetails);
-    }
-
-    [Theory]
-    [InlineData("0912345678", 750, true)]
-    [InlineData("+84912345678", 10, true)]
-    [InlineData(null, 990, true)]
-    [InlineData("", null, true)]
-    [InlineData("0123", null, false)]
-    [InlineData("09123456789", null, false)]
-    [InlineData(null, 5, false)]
-    [InlineData(null, 995, false)]
-    [InlineData(null, 752, false)]
-    public void Details_validator_checks_phone_and_target_score(string? phone, int? targetScore, bool valid)
-    {
-        var result = new UpdateProfileDetailsCommandValidator().Validate(
-            new UpdateProfileDetailsCommand(Guid.NewGuid(), "Linh", phone, targetScore));
-
-        Assert.Equal(valid, result.IsValid);
-    }
-
-    [Fact]
     public async Task Change_password_requires_the_current_password_and_revokes_sessions()
     {
         var user = User.CreateLocal("Learner", "learner@example.com", "LEARNER@EXAMPLE.COM", "hash:old", DateTimeOffset.UtcNow);

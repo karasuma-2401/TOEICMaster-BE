@@ -1,7 +1,7 @@
-using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TOEICMaster.Api.Extensions;
 using TOEICMaster.Application.ExamAttempts;
 
 namespace TOEICMaster.Api.Controllers;
@@ -11,13 +11,7 @@ namespace TOEICMaster.Api.Controllers;
 [Route("api/v1")]
 public sealed class ExamAttemptsController(ISender sender) : ControllerBase
 {
-    private Guid GetUserId()
-    {
-        var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? User.FindFirstValue("sub")
-            ?? throw new UnauthorizedAccessException("User identifier not found in claims.");
-        return Guid.Parse(idClaim);
-    }
+    private Guid GetUserId() => User.GetRequiredUserId();
 
     /// <summary>Published Listening and Reading exams available to learners.</summary>
     [HttpGet("exams/lr")]

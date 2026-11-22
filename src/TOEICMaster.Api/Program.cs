@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
 using TOEICMaster.Api.Configuration;
@@ -13,7 +14,6 @@ var runAdminSeed = args.Any(argument => argument.Equals("--seed-admin", StringCo
 var configurationArgs = args.Where(argument => !argument.Equals("--seed-admin", StringComparison.OrdinalIgnoreCase))
     .ToArray();
 var builder = WebApplication.CreateBuilder(configurationArgs);
-builder.Services.AddExceptionHandler<ExamAttemptExceptionHandler>();
 var dotEnvPath = DotEnvConfiguration.FindFile(Directory.GetCurrentDirectory(), builder.Environment.ContentRootPath);
 if (dotEnvPath is not null)
 {
@@ -24,21 +24,18 @@ if (configurationArgs.Length > 0)
     builder.Configuration.AddCommandLine(configurationArgs);
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
+builder.Services.AddForwardedHeadersConfiguration(builder.Configuration);
 builder.Services.AddAuthRateLimiting();
 builder.Services.AddSpeakingRateLimiting();
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
     context.ProblemDetails.Extensions["traceId"] = Activity.Current?.Id ?? context.HttpContext.TraceIdentifier);
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
-builder.Services.AddExceptionHandler<DuplicateEmailExceptionHandler>();
-builder.Services.AddExceptionHandler<AuthenticationExceptionHandler>();
-builder.Services.AddExceptionHandler<WritingAdministrationExceptionHandler>();
-builder.Services.AddExceptionHandler<LrExerciseBankExceptionHandler>();
-builder.Services.AddExceptionHandler<WritingAttemptExceptionHandler>();
-builder.Services.AddExceptionHandler<SpeakingExceptionHandler>();
-builder.Services.AddExceptionHandler<ExamExceptionHandler>();
-builder.Services.AddExceptionHandler<KnowledgeExceptionHandler>();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddExceptionHandler(options => options.StatusCodeSelector = _ => StatusCodes.Status500InternalServerError);
 builder.Services.AddApplication(builder.Configuration["MediatR:LicenseKey"],
     builder.Configuration["AutoMapper:LicenseKey"], typeof(Program).Assembly);
@@ -59,13 +56,16 @@ builder.Services.AddCors(options => options.AddPolicy("Frontend", policy =>
 }));
 
 var app = builder.Build();
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() && !app.Configuration.GetValue<bool>("Startup:SkipSeeders"))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ToeicDbContext>();
     await ExamDataSeeder.SeedSampleExamAsync(db);
     await FlashcardDataSeeder.SeedBuiltInDecksAsync(db);
 }
+app.UseForwardedHeaders();
+if (!app.Environment.IsDevelopment())
+    app.UseHsts();
 app.Use((context, next) =>
 {
     context.Response.OnStarting(() =>
@@ -81,6 +81,7 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseCors("Frontend");
 app.UseAuthentication();
+app.UseAuthLoginRateLimitContext();
 app.UseRateLimiter();
 app.UseAuthorization();
 if (app.Environment.IsDevelopment())

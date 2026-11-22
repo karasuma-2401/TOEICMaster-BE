@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.IdentityModel.JsonWebTokens;
 using TOEICMaster.Api.Configuration;
+using TOEICMaster.Api.Extensions;
 using TOEICMaster.Application.Speaking;
 using TOEICMaster.Application.Speaking.Attempts;
 using TOEICMaster.Application.Speaking.Evaluations;
@@ -148,9 +147,7 @@ public sealed class SpeakingAttemptsController(ISender sender) : ControllerBase
     private SpeakingAttemptOwner CurrentOwner()
     {
         if (User.Identity?.IsAuthenticated == true)
-            return Guid.TryParse(User.FindFirstValue(JwtRegisteredClaimNames.Sub), out var userId)
-                ? SpeakingAttemptOwner.ForUser(userId)
-                : throw new UnauthorizedAccessException();
+            return SpeakingAttemptOwner.ForUser(User.GetRequiredUserId());
         var anonymousSession = Request.Headers[SpeakingRateLimitPolicies.AnonymousSessionHeader].ToString();
         return Guid.TryParse(anonymousSession, out _)
             ? SpeakingAttemptOwner.ForAnonymousSession(anonymousSession)

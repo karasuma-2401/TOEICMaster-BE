@@ -1,8 +1,7 @@
-using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.JsonWebTokens;
+using TOEICMaster.Api.Extensions;
 using TOEICMaster.Application.Writing.Attempts;
 
 namespace TOEICMaster.Api.Controllers;
@@ -119,12 +118,7 @@ public sealed class WritingAttemptsController(ISender sender) : ControllerBase
     private WritingAttemptOwner CurrentOwner()
     {
         if (User.Identity?.IsAuthenticated == true)
-        {
-            var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
-            if (!Guid.TryParse(subject, out var userId))
-                throw new UnauthorizedAccessException();
-            return WritingAttemptOwner.ForUser(userId);
-        }
+            return WritingAttemptOwner.ForUser(User.GetRequiredUserId());
 
         var rawAnonymousSession = Request.Headers[AnonymousSessionHeader].ToString();
         if (!Guid.TryParse(rawAnonymousSession, out _))

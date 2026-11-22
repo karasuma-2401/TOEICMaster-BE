@@ -18,16 +18,17 @@ public sealed class MinioAvatarStore(IMinioClient client) : IAvatarStore
             .WithStreamData(stream).WithObjectSize(content.Length).WithContentType(contentType), cancellationToken);
     }
 
-    public async Task<AvatarContent> DownloadAsync(string objectKey, CancellationToken cancellationToken)
-    {
-        using var output = new MemoryStream();
-        await client.GetObjectAsync(new GetObjectArgs().WithBucket(Bucket).WithObject(objectKey)
-            .WithCallbackStream(stream => stream.CopyTo(output)), cancellationToken);
-        var contentType = objectKey.EndsWith(".png", StringComparison.Ordinal)
-            ? "image/png"
-            : objectKey.EndsWith(".webp", StringComparison.Ordinal) ? "image/webp" : "image/jpeg";
-        return new AvatarContent(output.ToArray(), contentType);
-    }
+    public Task<AvatarContent> DownloadAsync(string objectKey, CancellationToken cancellationToken) =>
+        MinioStorageGuard.ExecuteDownloadAsync(async () =>
+        {
+            using var output = new MemoryStream();
+            await client.GetObjectAsync(new GetObjectArgs().WithBucket(Bucket).WithObject(objectKey)
+                .WithCallbackStream(stream => stream.CopyTo(output)), cancellationToken);
+            var contentType = objectKey.EndsWith(".png", StringComparison.Ordinal)
+                ? "image/png"
+                : objectKey.EndsWith(".webp", StringComparison.Ordinal) ? "image/webp" : "image/jpeg";
+            return new AvatarContent(output.ToArray(), contentType);
+        });
 
     public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) =>
         client.RemoveObjectAsync(new RemoveObjectArgs().WithBucket(Bucket).WithObject(objectKey), cancellationToken);
