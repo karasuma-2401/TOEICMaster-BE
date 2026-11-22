@@ -5,12 +5,37 @@ namespace TOEICMaster.Infrastructure.Persistence.Seeders;
 
 public static class FlashcardDataSeeder
 {
+    private const long FlashcardSeedLockKey = 0x544F454943464353;
+
     private static readonly DateTimeOffset SeedTimestamp =
         new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     public static async Task SeedBuiltInDecksAsync(
         ToeicDbContext dbContext,
         CancellationToken cancellationToken = default)
+    {
+        var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+        await executionStrategy.ExecuteAsync(async retryToken =>
+        {
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(retryToken);
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock({FlashcardSeedLockKey})", retryToken);
+            try
+            {
+                await SeedBuiltInDecksCoreAsync(dbContext, retryToken);
+                await transaction.CommitAsync(retryToken);
+            }
+            catch
+            {
+                dbContext.ChangeTracker.Clear();
+                throw;
+            }
+        }, cancellationToken);
+    }
+
+    private static async Task SeedBuiltInDecksCoreAsync(
+        ToeicDbContext dbContext,
+        CancellationToken cancellationToken)
     {
         var existingSlugs = await dbContext.FlashcardDecks
             .AsNoTracking()
