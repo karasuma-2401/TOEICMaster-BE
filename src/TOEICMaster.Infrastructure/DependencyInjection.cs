@@ -68,6 +68,7 @@ public static class DependencyInjection
         services.AddScoped<IWritingEvaluationRepository, EfWritingEvaluationRepository>();
         services.AddScoped<IWritingImageStore, MinioWritingImageStore>();
         services.AddScoped<IKnowledgeAdminRepository, EfKnowledgeAdminRepository>();
+        services.AddScoped<TOEICMaster.Application.Knowledge.IKnowledgeReader, EfKnowledgeReader>();
         services.AddScoped<IKnowledgeMediaStore, MinioKnowledgeMediaStore>();
         services.AddSingleton<IWritingExerciseImportParser, XlsxWritingExerciseImportParser>();
         services.AddSingleton<IWritingTestImportParser, XlsxWritingTestImportParser>();
