@@ -1,40 +1,40 @@
 # Checklist: TOEIC Listening & Reading
 
-> Dấu `[x]` xác nhận có mã nguồn tương ứng; không đồng nghĩa đã deploy hoặc UAT.
+> A `[x]` indicates corresponding source code exists; it does not imply deployment or UAT completion.
 
 ## Backend
 
-- [x] Quản trị Exam/ExamRevision, publish/fork, 200 câu và media Admin.
-- [x] ScoreProfile đủ 101 mốc cho mỗi kỹ năng.
-- [x] Persistence cho ExamAttempt và ExamAttemptAnswer.
-- [x] Learner API: danh sách Published, overview, create/resume, tải attempt.
-- [x] Autosave đáp án, gắn cờ, chuyển Listening → Reading và khóa Listening ở server.
-- [x] Server-side deadline, auto-grade khi hết giờ, submit, result, review, history.
-- [x] Không trả correctKey/explanation/translation trước submit.
-- [x] Kiểm thử application cho lifecycle, quyền sở hữu, validation, deadline và scoring.
-- [x] Presigned GET media learner: playlist audio Part 1–4, audio đơn theo asset và ảnh của attempt. Master Audio legacy đã bị loại bỏ.
-- [x] Kiểm thử tích hợp HTTP/DB (Postgres) cho media, playlist Listening, khóa Listening và review.
-- [ ] UAT với MinIO/production storage.
-- [ ] API luyện tập từ L&R exercise bank và lắp đề từ ngân hàng.
+- [x] Exam/ExamRevision administration, publish/fork, 200 questions, and Admin media.
+- [x] ScoreProfile with all 101 conversion entries per skill.
+- [x] Persistence for ExamAttempt and ExamAttemptAnswer.
+- [x] Learner API: Published list, overview, create/resume, load attempt.
+- [x] Answer autosave, flagging, Listening -> Reading transition, and server-side Listening lock.
+- [x] Server-side deadline, auto-grade on timeout, submit, result, review, history.
+- [x] Never return correctKey/explanation/translation before submit.
+- [x] Application tests for lifecycle, ownership, validation, deadline, and scoring.
+- [x] Learner presigned GET media: Part 1-4 audio playlist, single audio by asset, and attempt images. Legacy Master Audio has been removed.
+- [x] HTTP/DB integration tests (Postgres) for media, Listening playlist, Listening lock, and review.
+- [ ] UAT with MinIO/production storage.
+- [ ] Practice API from the L&R exercise bank and exam assembly from the bank.
 
 ## Frontend/BFF
 
-- [x] BFF learner `/api/lr/*`: same-origin mutation, session token forwarding, no-store.
-- [x] Typed API client cho catalog, overview, attempt, autosave, start-reading, submit, result và review.
-- [x] Danh sách đề Published dùng API Backend.
-- [x] Trang hướng dẫn lấy dữ liệu đề thật và bắt đầu/resume attempt.
-- [x] Trang attempt lấy snapshot thật, map question/options/context.
-- [x] Autosave đáp án/cờ; submit và chuyển Reading gọi Backend.
-- [x] Trang kết quả và review dùng dữ liệu Backend.
-- [ ] Player audio thật, tự phát và khóa pause/seek; dùng playlist presigned GET đã có ở Backend.
-- [ ] Render ảnh/context image từ media asset ID; dùng endpoint presigned GET ảnh đã có ở Backend.
-- [ ] Hiển thị attempt history và số lần thi/điểm tốt nhất trên library.
-- [ ] Tích hợp practice Part 1–7 với learner exercise API (Backend chưa có API learner cho exercise bank).
-- [ ] E2E test và UAT trên môi trường có dữ liệu đề Published thực tế.
+- [x] Learner `/api/lr/*` BFF: same-origin mutation, session token forwarding, no-store.
+- [x] Typed API client for catalog, overview, attempt, autosave, start-reading, submit, result, and review.
+- [x] Published exam list backed by Backend API.
+- [x] Instructions page loading real exam data and starting/resuming attempts.
+- [x] Attempt page loading real snapshot and mapping questions/options/contexts.
+- [x] Answer/flag autosave; submit and switch to Reading call the Backend.
+- [x] Result and review pages backed by Backend data.
+- [ ] Real audio player with autoplay and pause/seek lock using the Backend presigned GET playlist.
+- [ ] Render question/context images from media asset IDs using the Backend presigned GET image endpoint.
+- [ ] Display attempt history and attempt count/best score on the library.
+- [ ] Integrate Part 1-7 practice with the learner exercise API (Backend does not yet have a learner API for the exercise bank).
+- [ ] E2E tests and UAT in an environment with real Published exam data.
 
-## Rủi ro / giới hạn còn lại
+## Remaining Risks / Limitations
 
-- Không dùng Admin preview API ở learner flow vì response có đáp án đúng.
-- Learner media dùng presigned GET URL thời hạn 3 giờ; playlist và endpoint audio trong lúc làm bài trả `409` sau khi Listening bị khóa.
-- Backend chưa enforcement pause/seek của player; đây là ràng buộc UI, không phải kiểm tra server-side.
-- Cần chạy test/build ở cả hai repository và kiểm tra deployment env `API_BASE_URL` trước khi merge.
+- Do not use the Admin preview API in the learner flow because its response includes correct answers.
+- Learner media uses presigned GET URLs with a 3-hour TTL; the playlist and in-attempt audio endpoints return `409` once Listening is locked.
+- The backend does not enforce player pause/seek restrictions; this is a UI constraint, not a server-side check.
+- Tests/builds must pass in both repositories and the `API_BASE_URL` deployment env var must be verified before merging.

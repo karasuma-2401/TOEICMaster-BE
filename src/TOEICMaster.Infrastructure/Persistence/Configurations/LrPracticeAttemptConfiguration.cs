@@ -33,7 +33,7 @@ public sealed class LrPracticeAttemptConfiguration
             .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Không cho xóa bài tập nếu đã có lịch sử làm bài.
+        // Prevent deleting an exercise if it already has practice attempt history.
         builder.HasOne<LrExerciseBankItem>()
             .WithMany()
             .HasForeignKey(x => x.ItemId)

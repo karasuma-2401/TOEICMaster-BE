@@ -12,8 +12,8 @@ public static partial class KnowledgeSlug
             return string.Empty;
 
         var replaced = source.Trim()
-            .Replace('đ', 'd')
-            .Replace('Đ', 'd');
+            .Replace('\u0111', 'd')
+            .Replace('\u0110', 'd');
         var decomposed = replaced.Normalize(NormalizationForm.FormD);
         var builder = new StringBuilder(decomposed.Length);
         foreach (var ch in decomposed)

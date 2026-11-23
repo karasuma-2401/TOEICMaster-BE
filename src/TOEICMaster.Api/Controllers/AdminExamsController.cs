@@ -72,7 +72,7 @@ public sealed class AdminExamsController(ISender sender, IWebHostEnvironment env
         CancellationToken cancellationToken)
     {
         if (workbook is null || workbook.Length == 0 || workbook.Length > XlsxExamWorkbookReader.MaxBytes)
-            throw new ExamWorkbookFormatException(["Workbook phải là tệp XLSX không rỗng, tối đa 10 MiB."]);
+            throw new ExamWorkbookFormatException(["Workbook must be a non-empty XLSX file of at most 10 MiB."]);
 
         await using var workbookStream = new MemoryStream();
         await workbook.CopyToAsync(workbookStream, cancellationToken);

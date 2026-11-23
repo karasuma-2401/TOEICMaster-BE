@@ -181,8 +181,8 @@ public sealed class WritingAttemptApplicationTests
             StartedAt);
         evaluation.GrantConsentAndQueue(StartedAt, "gemini", "gemini-2.5-flash-lite", "writing-v1");
         evaluation.BeginProcessing(StartedAt, StartedAt.AddMinutes(2));
-        evaluation.Complete(200, "Nhận xét", [], [], [WritingEvaluationFeedback.Create(evaluation.Id, 1, 3,
-            "Nhận xét theo câu.", "Gợi ý ngắn.")], StartedAt.AddMinutes(1));
+        evaluation.Complete(200, "Feedback", [], [], [WritingEvaluationFeedback.Create(evaluation.Id, 1, 3,
+            "Question-level feedback.", "Short suggestion.")], StartedAt.AddMinutes(1));
 
         var result = attempt.ToDto(StartedAt.AddMinutes(1), evaluation);
 
@@ -212,11 +212,11 @@ public sealed class WritingAttemptApplicationTests
         Assert.False(evaluation.CanBeClaimed(StartedAt));
         Assert.True(evaluation.GrantConsentAndQueue(StartedAt, "gemini", "gemini-2.5-flash-lite", "writing-v1"));
         evaluation.BeginProcessing(StartedAt, StartedAt.AddMinutes(2));
-        var feedback = WritingEvaluationFeedback.Create(evaluation.Id, 1, 3, "Câu có đủ từ gợi ý.",
-            "Thêm mạo từ để câu tự nhiên hơn.");
+        var feedback = WritingEvaluationFeedback.Create(evaluation.Id, 1, 3, "The sentence includes both required keywords.",
+            "Add an article to make the sentence sound more natural.");
 
-        evaluation.Complete(160, "Bài có ý rõ ràng và cần cải thiện độ chính xác ngữ pháp.", ["Đáp ứng đúng yêu cầu."],
-            ["Rà soát mạo từ."], [feedback], StartedAt.AddSeconds(3));
+        evaluation.Complete(160, "The response expresses clear ideas and needs improvement in grammatical accuracy.", ["Meets the task requirements."],
+            ["Review article usage."], [feedback], StartedAt.AddSeconds(3));
 
         Assert.Equal(WritingEvaluationStatus.Completed, evaluation.Status);
         Assert.Equal(160, evaluation.EstimatedScore);
@@ -231,7 +231,7 @@ public sealed class WritingAttemptApplicationTests
         evaluation.GrantConsentAndQueue(StartedAt, "gemini", "gemini-2.5-flash-lite", "writing-v1");
         evaluation.BeginProcessing(StartedAt, StartedAt.AddMinutes(2));
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => evaluation.Complete(155, "Nhận xét", [], [], [], StartedAt));
+        Assert.Throws<ArgumentOutOfRangeException>(() => evaluation.Complete(155, "Feedback", [], [], [], StartedAt));
     }
 
     [Fact]

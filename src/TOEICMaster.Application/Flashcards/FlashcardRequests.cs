@@ -42,22 +42,22 @@ public sealed class CreateFlashcardDeckCommandValidator : AbstractValidator<Crea
         RuleFor(x => x.UserId).NotEmpty();
         RuleFor(x => x.Request).NotNull();
         RuleFor(x => x.Request.Title)
-            .NotEmpty().WithMessage("Tên bộ thẻ không được để trống.")
+            .NotEmpty().WithMessage("Deck title cannot be empty.")
             .MaximumLength(120);
         RuleFor(x => x.Request.Description)
             .MaximumLength(400)
             .When(x => x.Request.Description is not null);
         RuleFor(x => x.Request.Cards)
-            .NotEmpty().WithMessage("Bộ thẻ phải có ít nhất 1 thẻ từ vựng.")
-            .Must(cards => cards.Count <= 200).WithMessage("Mỗi bộ thẻ tối đa 200 thẻ.");
+            .NotEmpty().WithMessage("Deck must contain at least 1 vocabulary card.")
+            .Must(cards => cards.Count <= 200).WithMessage("Each deck can contain at most 200 cards.");
 
         RuleForEach(x => x.Request.Cards).ChildRules(card =>
         {
             card.RuleFor(c => c.Term)
-                .NotEmpty().WithMessage("Từ tiếng Anh không được để trống.")
+                .NotEmpty().WithMessage("English term cannot be empty.")
                 .MaximumLength(120);
             card.RuleFor(c => c.MeaningVi)
-                .NotEmpty().WithMessage("Nghĩa tiếng Việt không được để trống.")
+                .NotEmpty().WithMessage("Vietnamese meaning cannot be empty.")
                 .MaximumLength(300);
             card.RuleFor(c => c.Phonetic)
                 .MaximumLength(120)
@@ -85,7 +85,7 @@ public sealed class UpsertFlashcardProgressCommandValidator : AbstractValidator<
         RuleFor(x => x.Request.Status)
             .NotEmpty()
             .Must(status => FlashcardMasteryStatus.Allowed.Contains(status.Trim()))
-            .WithMessage("Trạng thái phải là một trong: new, learning, review, mastered.");
+            .WithMessage("Status must be one of: new, learning, review, mastered.");
     }
 }
 
@@ -97,10 +97,10 @@ public sealed class AddFlashcardCardCommandValidator : AbstractValidator<AddFlas
         RuleFor(x => x.DeckId).NotEmpty();
         RuleFor(x => x.Request).NotNull();
         RuleFor(x => x.Request.Term)
-            .NotEmpty().WithMessage("Từ tiếng Anh không được để trống.")
+            .NotEmpty().WithMessage("English term cannot be empty.")
             .MaximumLength(120);
         RuleFor(x => x.Request.MeaningVi)
-            .NotEmpty().WithMessage("Nghĩa tiếng Việt không được để trống.")
+            .NotEmpty().WithMessage("Vietnamese meaning cannot be empty.")
             .MaximumLength(300);
         RuleFor(x => x.Request.Phonetic)
             .MaximumLength(120)
@@ -125,8 +125,8 @@ public sealed class RecordFlashcardMatchCommandValidator : AbstractValidator<Rec
         RuleFor(x => x.DeckId).NotEmpty();
         RuleFor(x => x.Request).NotNull();
         RuleFor(x => x.Request.ElapsedMs)
-            .GreaterThan(0).WithMessage("Thời gian hoàn thành phải lớn hơn 0.")
-            .LessThanOrEqualTo(3_600_000).WithMessage("Thời gian hoàn thành không hợp lệ.");
+            .GreaterThan(0).WithMessage("Completion time must be greater than 0.")
+            .LessThanOrEqualTo(3_600_000).WithMessage("Invalid completion time.");
         RuleFor(x => x.Request.MaxCombo)
             .GreaterThanOrEqualTo(0)
             .LessThanOrEqualTo(500);

@@ -22,19 +22,19 @@ public sealed class GetAdminKnowledgeArticlesQueryValidator : AbstractValidator<
         {
             RuleFor(x => x.Filter.PageNumber).Cascade(CascadeMode.Stop).GreaterThanOrEqualTo(1)
                 .Must((query, pageNumber) => KnowledgePagination.CanRepresentOffset(pageNumber, query.Filter.PageSize))
-                .WithMessage("Số trang vượt quá giới hạn cho kích thước trang đã chọn.");
+                .WithMessage("Page number exceeds the limit for the selected page size.");
             RuleFor(x => x.Filter.PageSize).InclusiveBetween(1, 100);
             RuleFor(x => x.Filter.Query).MaximumLength(200);
             RuleFor(x => x.Filter.Tag).MaximumLength(64);
             RuleFor(x => x.Filter.Skill)
                 .Must(skill => string.IsNullOrWhiteSpace(skill) || KnowledgeEnumParsing.TryParseSkill(skill, out _))
-                .WithMessage("Kỹ năng không hợp lệ. Giá trị hợp lệ: General, Listening, Reading, Speaking, Writing.");
+                .WithMessage("Invalid skill. Allowed values: General, Listening, Reading, Speaking, Writing.");
             RuleFor(x => x.Filter.Status)
                 .Must(status => string.IsNullOrWhiteSpace(status) || KnowledgeEnumParsing.TryParseStatus(status, out _))
-                .WithMessage("Trạng thái không hợp lệ. Giá trị hợp lệ: Draft, Published, Archived.");
+                .WithMessage("Invalid status. Allowed values: Draft, Published, Archived.");
             RuleFor(x => x.Filter.Sort)
                 .Must(sort => string.IsNullOrWhiteSpace(sort) || AllowedSorts.Contains(sort.Trim()))
-                .WithMessage("Kiểu sắp xếp không hợp lệ.");
+                .WithMessage("Invalid sort option.");
         });
     }
 }
@@ -55,7 +55,7 @@ public sealed class GetAdminKnowledgeArticleQueryHandler(IKnowledgeAdminReposito
     public async Task<KnowledgeArticleDetailDto> Handle(GetAdminKnowledgeArticleQuery request,
         CancellationToken cancellationToken) =>
         await repository.GetArticleDetailAsync(request.ArticleId, cancellationToken)
-        ?? throw new KnowledgeNotFoundException("Không tìm thấy bài viết kiến thức.");
+        ?? throw new KnowledgeNotFoundException("Knowledge article not found.");
 }
 
 internal sealed class KnowledgeArticleInputValidator : AbstractValidator<KnowledgeArticleInput>
@@ -66,18 +66,18 @@ internal sealed class KnowledgeArticleInputValidator : AbstractValidator<Knowled
         RuleFor(x => x.Slug).MaximumLength(220)
             .Must(slug => string.IsNullOrWhiteSpace(slug) ||
                           KnowledgeSlug.IsValid(slug.Trim().ToLowerInvariant(), 220))
-            .WithMessage("Slug chỉ gồm chữ thường không dấu, số và dấu gạch ngang.");
+            .WithMessage("Slug may only contain lowercase unaccented letters, numbers, and hyphens.");
         RuleFor(x => x.Summary).NotEmpty().MaximumLength(500);
         RuleFor(x => x.Skill).NotEmpty()
             .Must(skill => KnowledgeEnumParsing.TryParseSkill(skill, out _))
-            .WithMessage("Kỹ năng không hợp lệ. Giá trị hợp lệ: General, Listening, Reading, Speaking, Writing.");
+            .WithMessage("Invalid skill. Allowed values: General, Listening, Reading, Speaking, Writing.");
         RuleFor(x => x.CategoryId).NotEmpty();
         RuleFor(x => x.CoverImageAssetId).Must(assetId => assetId != Guid.Empty)
-            .WithMessage("Mã ảnh bìa không hợp lệ.");
+            .WithMessage("Invalid cover image asset ID.");
         RuleFor(x => x.CoverImageAlt).MaximumLength(300);
         RuleFor(x => x.Tags)
             .Must(tags => tags is null || tags.Count <= 10)
-            .WithMessage("Mỗi bài viết chỉ được gắn tối đa 10 thẻ (tags).");
+            .WithMessage("Each article can have at most 10 tags.");
         RuleForEach(x => x.Tags)
             .NotEmpty().MaximumLength(50)
             .When(x => x.Tags is not null);
@@ -105,17 +105,17 @@ public sealed class CreateKnowledgeArticleCommandHandler(
     {
         var input = request.Input;
         if (!KnowledgeEnumParsing.TryParseSkill(input.Skill, out var skill))
-            throw new InvalidKnowledgeContentException("Kỹ năng bài viết không hợp lệ.", "skill");
+            throw new InvalidKnowledgeContentException("Invalid article skill.", "skill");
 
         if (!await repository.CategoryExistsAsync(input.CategoryId, cancellationToken))
-            throw new KnowledgeNotFoundException("Không tìm thấy danh mục kiến thức được chọn.");
+            throw new KnowledgeNotFoundException("Selected knowledge category not found.");
 
         var slug = KnowledgeSlug.Resolve(input.Slug, input.Title, 220);
         if (!KnowledgeSlug.IsValid(slug, 220))
-            throw new InvalidKnowledgeContentException("Không thể tạo slug hợp lệ từ tiêu đề. Hãy nhập slug thủ công.", "slug");
+            throw new InvalidKnowledgeContentException("Could not generate a valid slug from the title. Please enter a slug manually.", "slug");
 
         if (await repository.ArticleSlugExistsAsync(slug, null, cancellationToken))
-            throw new KnowledgeConflictException($"Slug bài viết '{slug}' đã tồn tại.");
+            throw new KnowledgeConflictException($"Article slug '{slug}' already exists.");
 
         var processed = KnowledgeContentProcessor.Process(input.Content);
         await EnsureMediaAssetsExistAsync(repository, input.CoverImageAssetId, processed.EmbeddedMediaAssetIds,
@@ -132,7 +132,7 @@ public sealed class CreateKnowledgeArticleCommandHandler(
         await repository.SaveChangesAsync(cancellationToken);
 
         return await repository.GetArticleDetailAsync(article.Id, cancellationToken)
-               ?? throw new KnowledgeNotFoundException("Không tìm thấy bài viết kiến thức vừa tạo.");
+               ?? throw new KnowledgeNotFoundException("Newly created knowledge article not found.");
     }
 
     internal static async Task EnsureMediaAssetsExistAsync(IKnowledgeAdminRepository repository,
@@ -146,7 +146,7 @@ public sealed class CreateKnowledgeArticleCommandHandler(
 
         var existing = await repository.FindExistingMediaAssetIdsAsync(requested, cancellationToken);
         if (existing.Count != requested.Count)
-            throw new InvalidKnowledgeContentException("Có hình ảnh tham chiếu không tồn tại trong hệ thống.", "content");
+            throw new InvalidKnowledgeContentException("One or more referenced images do not exist in the system.", "content");
     }
 
     internal static async Task<IReadOnlyList<Guid>> ResolveTagsAsync(IKnowledgeAdminRepository repository,
@@ -163,7 +163,7 @@ public sealed class CreateKnowledgeArticleCommandHandler(
             var name = raw.Trim();
             var slug = KnowledgeSlug.Generate(name, 64);
             if (!KnowledgeSlug.IsValid(slug, 64))
-                throw new InvalidKnowledgeContentException($"Thẻ '{name}' không hợp lệ.", "tags");
+                throw new InvalidKnowledgeContentException($"Tag '{name}' is invalid.", "tags");
             normalizedBySlug.TryAdd(slug, name);
         }
 
@@ -221,23 +221,23 @@ public sealed class UpdateKnowledgeArticleCommandHandler(
         CancellationToken cancellationToken)
     {
         var article = await repository.FindArticleForUpdateAsync(request.ArticleId, cancellationToken)
-            ?? throw new KnowledgeNotFoundException("Không tìm thấy bài viết kiến thức.");
+            ?? throw new KnowledgeNotFoundException("Knowledge article not found.");
         if (article.Version != request.Version)
-            throw new KnowledgeConflictException("Bài viết đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
+            throw new KnowledgeConflictException("Article was updated by another user. Please reload the data.");
 
         var input = request.Input;
         if (!KnowledgeEnumParsing.TryParseSkill(input.Skill, out var skill))
-            throw new InvalidKnowledgeContentException("Kỹ năng bài viết không hợp lệ.", "skill");
+            throw new InvalidKnowledgeContentException("Invalid article skill.", "skill");
 
         if (!await repository.CategoryExistsAsync(input.CategoryId, cancellationToken))
-            throw new KnowledgeNotFoundException("Không tìm thấy danh mục kiến thức được chọn.");
+            throw new KnowledgeNotFoundException("Selected knowledge category not found.");
 
         var slug = KnowledgeSlug.Resolve(input.Slug, input.Title, 220);
         if (!KnowledgeSlug.IsValid(slug, 220))
-            throw new InvalidKnowledgeContentException("Không thể tạo slug hợp lệ từ tiêu đề. Hãy nhập slug thủ công.", "slug");
+            throw new InvalidKnowledgeContentException("Could not generate a valid slug from the title. Please enter a slug manually.", "slug");
 
         if (await repository.ArticleSlugExistsAsync(slug, article.Id, cancellationToken))
-            throw new KnowledgeConflictException($"Slug bài viết '{slug}' đã tồn tại.");
+            throw new KnowledgeConflictException($"Article slug '{slug}' already exists.");
 
         var processed = KnowledgeContentProcessor.Process(input.Content);
         await CreateKnowledgeArticleCommandHandler.EnsureMediaAssetsExistAsync(repository, input.CoverImageAssetId,
@@ -254,7 +254,7 @@ public sealed class UpdateKnowledgeArticleCommandHandler(
         await repository.SaveChangesAsync(cancellationToken);
 
         return await repository.GetArticleDetailAsync(article.Id, cancellationToken)
-               ?? throw new KnowledgeNotFoundException("Không tìm thấy bài viết kiến thức.");
+               ?? throw new KnowledgeNotFoundException("Knowledge article not found.");
     }
 }
 
@@ -279,17 +279,17 @@ public sealed class PublishKnowledgeArticleCommandHandler(
         CancellationToken cancellationToken)
     {
         var article = await repository.FindArticleForUpdateAsync(request.ArticleId, cancellationToken)
-            ?? throw new KnowledgeNotFoundException("Không tìm thấy bài viết kiến thức.");
+            ?? throw new KnowledgeNotFoundException("Knowledge article not found.");
         if (article.Version != request.Version)
-            throw new KnowledgeConflictException("Bài viết đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
+            throw new KnowledgeConflictException("Article was updated by another user. Please reload the data.");
         if (article.Status == KnowledgeArticleStatus.Published)
-            throw new KnowledgeConflictException("Bài viết đã ở trạng thái xuất bản.");
+            throw new KnowledgeConflictException("Article is already published.");
 
         article.Publish(request.ActorUserId, timeProvider.GetUtcNow());
         await repository.SaveChangesAsync(cancellationToken);
 
         return await repository.GetArticleDetailAsync(article.Id, cancellationToken)
-               ?? throw new KnowledgeNotFoundException("Không tìm thấy bài viết kiến thức.");
+               ?? throw new KnowledgeNotFoundException("Knowledge article not found.");
     }
 }
 
@@ -314,17 +314,17 @@ public sealed class UnpublishKnowledgeArticleCommandHandler(
         CancellationToken cancellationToken)
     {
         var article = await repository.FindArticleForUpdateAsync(request.ArticleId, cancellationToken)
-            ?? throw new KnowledgeNotFoundException("Không tìm thấy bài viết kiến thức.");
+            ?? throw new KnowledgeNotFoundException("Knowledge article not found.");
         if (article.Version != request.Version)
-            throw new KnowledgeConflictException("Bài viết đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
+            throw new KnowledgeConflictException("Article was updated by another user. Please reload the data.");
         if (article.Status != KnowledgeArticleStatus.Published)
-            throw new KnowledgeConflictException("Chỉ có thể gỡ bài viết đang ở trạng thái xuất bản.");
+            throw new KnowledgeConflictException("Only published articles can be unpublished.");
 
         article.Unpublish(request.ActorUserId, timeProvider.GetUtcNow());
         await repository.SaveChangesAsync(cancellationToken);
 
         return await repository.GetArticleDetailAsync(article.Id, cancellationToken)
-               ?? throw new KnowledgeNotFoundException("Không tìm thấy bài viết kiến thức.");
+               ?? throw new KnowledgeNotFoundException("Knowledge article not found.");
     }
 }
 
@@ -349,17 +349,17 @@ public sealed class ArchiveKnowledgeArticleCommandHandler(
         CancellationToken cancellationToken)
     {
         var article = await repository.FindArticleForUpdateAsync(request.ArticleId, cancellationToken)
-            ?? throw new KnowledgeNotFoundException("Không tìm thấy bài viết kiến thức.");
+            ?? throw new KnowledgeNotFoundException("Knowledge article not found.");
         if (article.Version != request.Version)
-            throw new KnowledgeConflictException("Bài viết đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
+            throw new KnowledgeConflictException("Article was updated by another user. Please reload the data.");
         if (article.Status == KnowledgeArticleStatus.Archived)
-            throw new KnowledgeConflictException("Bài viết đã ở trạng thái lưu trữ.");
+            throw new KnowledgeConflictException("Article is already archived.");
 
         article.Archive(request.ActorUserId, timeProvider.GetUtcNow());
         await repository.SaveChangesAsync(cancellationToken);
 
         return await repository.GetArticleDetailAsync(article.Id, cancellationToken)
-               ?? throw new KnowledgeNotFoundException("Không tìm thấy bài viết kiến thức.");
+               ?? throw new KnowledgeNotFoundException("Knowledge article not found.");
     }
 }
 
@@ -380,12 +380,12 @@ public sealed class DeleteKnowledgeArticleCommandHandler(IKnowledgeAdminReposito
     public async Task Handle(DeleteKnowledgeArticleCommand request, CancellationToken cancellationToken)
     {
         var article = await repository.FindArticleForUpdateAsync(request.ArticleId, cancellationToken)
-            ?? throw new KnowledgeNotFoundException("Không tìm thấy bài viết kiến thức.");
+            ?? throw new KnowledgeNotFoundException("Knowledge article not found.");
         if (article.Version != request.Version)
-            throw new KnowledgeConflictException("Bài viết đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
+            throw new KnowledgeConflictException("Article was updated by another user. Please reload the data.");
         if (!article.CanBeDeleted)
             throw new KnowledgeConflictException(
-                "Không thể xóa trực tiếp bài viết đang xuất bản. Hãy gỡ bài viết về bản nháp hoặc lưu trữ trước khi xóa.");
+                "Cannot delete a published article directly. Unpublish it to draft or archive it before deleting.");
 
         repository.RemoveArticle(article);
         await repository.SaveChangesAsync(cancellationToken);

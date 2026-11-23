@@ -125,11 +125,11 @@ public sealed class EfLrExerciseBankRepository(ToeicDbContext context) : ILrExer
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new LrExerciseBankConflictException("Dữ liệu ngân hàng bài tập đã được cập nhật bởi người khác.");
+            throw new LrExerciseBankConflictException("Exercise bank data was updated by another user.");
         }
         catch (DbUpdateException exception) when (exception.InnerException?.Message.Contains("duplicate", StringComparison.OrdinalIgnoreCase) == true)
         {
-            throw new LrExerciseBankConflictException("Mã cụm bài tập hoặc mã câu hỏi đã tồn tại.");
+            throw new LrExerciseBankConflictException("Exercise item code or question code already exists.");
         }
     }
 }

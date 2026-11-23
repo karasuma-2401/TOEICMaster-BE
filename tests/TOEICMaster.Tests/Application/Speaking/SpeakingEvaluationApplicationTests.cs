@@ -113,8 +113,8 @@ public sealed class SpeakingEvaluationApplicationTests
         Assert.Null(items[1].SuggestedResponse);
         // Raw 3+3+0+2+2·3+2·3+0 = 20 of 35 → 20 × 20 / 35 = 11.4 → 110.
         Assert.Equal(110, evaluation.EstimatedScore);
-        Assert.Equal("Bài nói khá tốt.", evaluation.Summary);
-        Assert.Equal(["Phát âm rõ."], evaluation.Strengths);
+        Assert.Equal("Good speaking performance.", evaluation.Summary);
+        Assert.Equal(["Clear pronunciation."], evaluation.Strengths);
 
         var history = await new GetSpeakingAttemptsQueryHandler(_store, _evaluations).Handle(
             new GetSpeakingAttemptsQuery(Learner), CancellationToken.None);
@@ -142,12 +142,12 @@ public sealed class SpeakingEvaluationApplicationTests
     {
         var attemptId = await RecordAndSubmitAsync(Learner, "PART_3");
         await ConsentAsync(Learner, attemptId);
-        _language.Failure = new SpeakingEvaluatorException("QUOTA", "Dịch vụ chấm AI đang bận.", true);
+        _language.Failure = new SpeakingEvaluatorException("QUOTA", "The AI evaluation service is busy.", true);
 
         await ProcessAsync();
 
         var retrying = (await GetAsync(Learner, attemptId)).Evaluation!;
-        Assert.Equal(("RETRYING", 1, "Dịch vụ chấm AI đang bận."), (retrying.Status, retrying.RetryCount,
+        Assert.Equal(("RETRYING", 1, "The AI evaluation service is busy."), (retrying.Status, retrying.RetryCount,
             retrying.FailureMessage));
         Assert.Equal(3, _speech.Calls);
         Assert.False(await ProcessAsync(), "the retry waits for its back-off delay");
@@ -165,7 +165,7 @@ public sealed class SpeakingEvaluationApplicationTests
     {
         var attemptId = await RecordAndSubmitAsync(Learner, "PART_5");
         await ConsentAsync(Learner, attemptId);
-        _speech.Failure = new SpeakingEvaluatorException("SPEECH_AUTHENTICATION", "Chưa cấu hình đúng.", false);
+        _speech.Failure = new SpeakingEvaluatorException("SPEECH_AUTHENTICATION", "Not configured properly.", false);
 
         await ProcessAsync();
         Assert.Equal("FAILED", (await GetAsync(Learner, attemptId)).Evaluation!.Status);
@@ -182,8 +182,8 @@ public sealed class SpeakingEvaluationApplicationTests
     [Fact]
     public async Task An_incomplete_language_model_answer_is_rejected_and_retried()
     {
-        _language.Override = work => new SpeakingLanguageResult("Tóm tắt.", [], [],
-            [new SpeakingLanguageItemResult(work.Items[0].Position, 70, 70, 70, "Nhận xét.", "")]);
+        _language.Override = work => new SpeakingLanguageResult("Summary.", [], [],
+            [new SpeakingLanguageItemResult(work.Items[0].Position, 70, 70, 70, "Feedback.", "")]);
         var attemptId = await RecordAndSubmitAsync(Learner, "PART_3");
         await ConsentAsync(Learner, attemptId);
 
@@ -228,7 +228,7 @@ public sealed class SpeakingEvaluationApplicationTests
     {
         var attemptId = await RecordAndSubmitAsync(Guest, "PART_5");
         await ConsentAsync(Guest, attemptId);
-        _speech.Failure = new SpeakingEvaluatorException("SPEECH_REJECTED", "Lỗi.", false);
+        _speech.Failure = new SpeakingEvaluatorException("SPEECH_REJECTED", "Error.", false);
         await ProcessAsync();
         Assert.Equal("FAILED", (await GetAsync(Guest, attemptId)).Evaluation!.Status);
 
@@ -243,7 +243,7 @@ public sealed class SpeakingEvaluationApplicationTests
     {
         var attemptId = await RecordAndSubmitAsync(Guest, "PART_5");
         await ConsentAsync(Guest, attemptId);
-        _language.Failure = new SpeakingEvaluatorException("PROVIDER_REJECTED", "Lỗi.", false);
+        _language.Failure = new SpeakingEvaluatorException("PROVIDER_REJECTED", "Error.", false);
         await ProcessAsync();
 
         _clock.Advance(31 * 24 * 60 * 60);

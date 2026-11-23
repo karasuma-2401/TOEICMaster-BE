@@ -53,7 +53,7 @@ public sealed class ProfileController(ISender sender) : ControllerBase
     {
         if (string.IsNullOrEmpty(request.ConfirmPassword) || request.NewPassword != request.ConfirmPassword)
         {
-            ModelState.AddModelError(nameof(request.ConfirmPassword), "Mật khẩu xác nhận chưa khớp.");
+            ModelState.AddModelError(nameof(request.ConfirmPassword), "Confirmation password does not match.");
             return ValidationProblem(ModelState);
         }
         await sender.Send(new ChangeProfilePasswordCommand(CurrentUserId(), request.CurrentPassword,
@@ -69,7 +69,7 @@ public sealed class ProfileController(ISender sender) : ControllerBase
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0 || file.Length > UploadProfileAvatarCommandHandler.MaxBytes)
-            return BadRequest(new ProblemDetails { Status = 400, Title = "Ảnh đại diện không hợp lệ." });
+            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid avatar image." });
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         var profile = await sender.Send(

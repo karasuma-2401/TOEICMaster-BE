@@ -1,27 +1,27 @@
-# Trace: danh sách user và chấm Speaking bằng AI
+# Trace: User List and AI Grading for Speaking
 
-Ngày: 2026-11-11. Nhánh: `feat/flowspeaking`. Các thay đổi chưa được commit.
+Date: 2026-11-11. Branch: `feat/flowspeaking`. Changes are uncommitted.
 
-## 1. Không tải được danh sách user
+## 1. Unable to Load User List
 
-### Nguyên nhân
+### Root Cause
 
-BE thiếu endpoint mà FE gọi.
+BE was missing the endpoint called by FE.
 
-| Bước | Kết quả |
+| Step | Result |
 | --- | --- |
-| Trang `/admin/users` gọi `getAdminUsers` | Gọi `/api/admin/users` của Next.js |
-| Next.js chuyển tiếp (`src/app/api/admin/users/route.ts`) | Gọi BE `GET /api/v1/admin/users` |
-| BE trước khi sửa | Trả `404`, không có controller cho route này |
-| Endpoint gần nhất BE có | `GET /api/v1/accounts`, nhưng khác tham số và khác cấu trúc dữ liệu |
+| `/admin/users` page calls `getAdminUsers` | Requests Next.js `/api/admin/users` |
+| Next.js forwards (`src/app/api/admin/users/route.ts`) | Calls BE `GET /api/v1/admin/users` |
+| BE before fix | Returned `404`, no controller existed for this route |
+| Closest existing BE endpoint | `GET /api/v1/accounts`, but has different parameters and response schema |
 
-`/api/v1/accounts` không dùng thay được vì thiếu `role`, `status`, `emailVerified`, `authProvider`, `lastLoginAt`, `stats`, và không hỗ trợ tìm kiếm, lọc, sắp xếp. FE kiểm tra chặt cấu trúc phản hồi nên sẽ báo dữ liệu không hợp lệ.
+`/api/v1/accounts` cannot be substituted because it lacks `role`, `status`, `emailVerified`, `authProvider`, `lastLoginAt`, `stats`, and does not support search, filtering, or sorting. FE strictly validates the response structure and reports invalid data.
 
-### Đã sửa
+### Fix Applied
 
-Thêm `GET /api/v1/admin/users`, yêu cầu quyền Admin. Không có migration, không thêm package, không sửa FE.
+Added `GET /api/v1/admin/users`, requiring the Admin role. No migration, no new packages, and no FE changes.
 
-File mới:
+New files:
 
 - `src/TOEICMaster.Api/Controllers/AdminUsersController.cs`
 - `src/TOEICMaster.Application/Accounts/IAdminUserReader.cs`
@@ -32,69 +32,69 @@ File mới:
 - `tests/TOEICMaster.Tests/Infrastructure/Persistence/AdminUserReaderTests.cs`
 - `tests/TOEICMaster.Tests/TestDoubles/EmptyAdminUserReader.cs`
 
-File sửa:
+Modified files:
 
-- `src/TOEICMaster.Infrastructure/DependencyInjection.cs`: thêm 1 dòng đăng ký.
-- `tests/TOEICMaster.Tests/Application/Common/MediatorPipelineTests.cs`: thêm 1 dòng đăng ký.
-- `docs/contracts/api-contract.md`, `docs/features/auth-profile/spec.md`: mô tả endpoint.
+- `src/TOEICMaster.Infrastructure/DependencyInjection.cs`: added 1 registration line.
+- `tests/TOEICMaster.Tests/Application/Common/MediatorPipelineTests.cs`: added 1 registration line.
+- `docs/contracts/api-contract.md`, `docs/features/auth-profile/spec.md`: documented the endpoint.
 
-### Cách suy ra dữ liệu
+### Data Derivation
 
-DB chưa có cột riêng cho các giá trị này, nên endpoint suy ra từ dữ liệu sẵn có:
+The DB does not have dedicated columns for these values yet, so the endpoint derives them from existing data:
 
-| Trường | Cách tính |
+| Field | Derivation |
 | --- | --- |
 | `status = ACTIVE` | `IsActive = true` |
-| `status = PENDING` | `IsActive = false` và chưa xác thực email |
-| `status = LOCKED` | `IsActive = false` và đã xác thực email |
-| `authProvider` | Không có mật khẩu là `GOOGLE`, còn lại `PASSWORD` |
-| `lastLoginAt` | Phiên mới nhất trong `user_sessions`, bỏ qua phiên sinh ra do refresh |
-| `avatarUrl` | Luôn `null`, vì endpoint ảnh chỉ phục vụ người đang đăng nhập. FE hiển thị chữ viết tắt |
+| `status = PENDING` | `IsActive = false` and email is unverified |
+| `status = LOCKED` | `IsActive = false` and email is verified |
+| `authProvider` | `GOOGLE` if no password is set; otherwise `PASSWORD` |
+| `lastLoginAt` | Most recent session in `user_sessions`, excluding sessions created by token refresh |
+| `avatarUrl` | Always `null`, since the avatar endpoint only serves the currently signed-in user. FE renders initials |
 
-### Kiểm chứng
+### Verification
 
-- `dotnet restore --locked-mode`, `dotnet format --verify-no-changes`, `dotnet build -c Release`: đạt, 0 warning.
-- `dotnet test -c Release`: 382/382 pass.
-- Chạy reader trên một PostgreSQL 17 tạm trong Docker với dữ liệu mẫu: tìm kiếm (kể cả ký tự `%`), lọc, sắp xếp, thống kê, phân trang, `lastLoginAt` đều đúng. Container và test tạm đã xóa.
-- API đang chạy: `GET /api/v1/admin/users` không token trả `401` (trước khi sửa là `404`), route có trong OpenAPI.
-- Chưa kiểm chứng: đăng nhập bằng tài khoản Admin thật và xem trang trên trình duyệt.
+- `dotnet restore --locked-mode`, `dotnet format --verify-no-changes`, `dotnet build -c Release`: passed, 0 warnings.
+- `dotnet test -c Release`: 382/382 passed.
+- Tested the reader against a temporary PostgreSQL 17 instance in Docker with sample data: search (including `%` characters), filtering, sorting, stats, pagination, and `lastLoginAt` all worked as expected. Temporary container and tests were removed.
+- Running API: unauthenticated `GET /api/v1/admin/users` returns `401` (previously `404`), and the route is present in OpenAPI.
+- Not yet verified: logging in with a real Admin account and viewing the page in the browser.
 
-### Còn thiếu
+### Still Missing
 
-FE còn gọi các endpoint sau, BE vẫn chưa có. Các nút tương ứng sẽ lỗi `404`:
+FE also calls the following endpoints that BE does not have yet. Their corresponding buttons will fail with `404`:
 
-- `POST /api/v1/admin/users` (tạo user)
+- `POST /api/v1/admin/users` (create user)
 - `GET`, `PATCH`, `DELETE /api/v1/admin/users/{id}`
 - `POST`, `DELETE /api/v1/admin/users/{id}/lock`
 - `POST /api/v1/admin/users/{id}/reset-password`
 
-Domain `User` hiện chưa có khái niệm khóa tài khoản, nên `lock` cần quyết định thiết kế trước khi làm.
+The `User` domain model does not currently have an account lock concept, so `lock` requires a design decision before implementation.
 
-## 2. Chấm Speaking bằng AI chưa chạy
+## 2. AI Grading for Speaking Not Running
 
-### Nguyên nhân
+### Root Cause
 
-Thiếu cấu hình môi trường, không phải lỗi code. `GET /api/v1/speaking/evaluation-availability` trả `{"available":false}`.
+Missing environment configuration, not a code bug. `GET /api/v1/speaking/evaluation-availability` returned `{"available":false}`.
 
-Điều kiện `SpeakingEvaluationSettings.IsConfigured` cần đủ 4 giá trị:
+`SpeakingEvaluationSettings.IsConfigured` requires all 4 values:
 
-| Điều kiện | Hiện trạng |
+| Requirement | Current Status |
 | --- | --- |
-| `AzureSpeech:Enabled = true` | Thiếu, `.env` không có biến Azure nào |
-| `AzureSpeech:Key` | Thiếu |
-| `Gemini:Enabled = true` | Đạt |
-| `Gemini:ApiKey` | Đạt, key gọi thử model `gemini-2.5-flash-lite` trả `200` |
+| `AzureSpeech:Enabled = true` | Missing, `.env` has no Azure variables |
+| `AzureSpeech:Key` | Missing |
+| `Gemini:Enabled = true` | Met |
+| `Gemini:ApiKey` | Met, test call to `gemini-2.5-flash-lite` returned `200` |
 
-Hệ quả: FE thấy `available = false` nên không cho chấm, và endpoint `evaluation-consent` báo "Dịch vụ chấm AI Speaking chưa được cấu hình".
+Consequence: FE sees `available = false` and disables grading, while the `evaluation-consent` endpoint returns "Speaking AI grading service is not configured".
 
-Nguyên nhân thứ hai sẽ lộ ra ngay sau khi có key: máy chưa cài `ffmpeg`. Worker cần `ffmpeg` để đổi bản ghi sang WAV, nếu thiếu thì bài chấm chuyển `FAILED` với mã `AUDIO_CONVERTER_UNAVAILABLE`.
+A second issue will surface as soon as the key is added: `ffmpeg` is not installed on this machine. The worker needs `ffmpeg` to convert recordings to WAV; if missing, grading jobs fail (`FAILED`) with code `AUDIO_CONVERTER_UNAVAILABLE`.
 
-Lưu ý về tên biến: khi chạy `dotnet run`, phải dùng `AzureSpeech__Enabled`, `AzureSpeech__Key`, `AzureSpeech__Region`. Tên `AZURE_SPEECH_*` chỉ có tác dụng qua `docker-compose.override.yml`, vì `DotEnvConfiguration` không ánh xạ các tên đó.
+Note on variable names: when running via `dotnet run`, you must use `AzureSpeech__Enabled`, `AzureSpeech__Key`, and `AzureSpeech__Region`. The `AZURE_SPEECH_*` names only take effect through `docker-compose.override.yml`, because `DotEnvConfiguration` does not map those names.
 
-### Cần làm để bật
+### Steps to Enable
 
-1. Tạo Azure Speech resource (gói F0 miễn phí đủ để thử, region `southeastasia`), lấy Key.
-2. Thêm vào `.env`:
+1. Create an Azure Speech resource (the free F0 tier is enough for testing, region `southeastasia`), and copy the Key.
+2. Add to `.env`:
 
    ```sh
    AzureSpeech__Enabled=true
@@ -102,13 +102,13 @@ Lưu ý về tên biến: khi chạy `dotnet run`, phải dùng `AzureSpeech__En
    AzureSpeech__Region=southeastasia
    ```
 
-3. Cài `ffmpeg`: `brew install ffmpeg`.
-4. Khởi động lại API, kiểm tra `evaluation-availability` trả `{"available":true}`.
+3. Install `ffmpeg`: `brew install ffmpeg`.
+4. Restart the API and verify `evaluation-availability` returns `{"available":true}`.
 
-Luồng Azure chưa từng được gọi thử bằng key thật (`notespeaking.md`), nên cần chấm thử một bài sau khi bật.
+The Azure integration has never been tested with a live key (`notespeaking.md`), so a test attempt should be graded after enabling it.
 
-## 3. Ghi nhận thêm
+## 3. Additional Notes
 
-- `/health/ready` vẫn trả `503` do SMTP: chứng chỉ TLS của `smtp.gmail.com` bị từ chối trên máy này. Đăng ký và quên mật khẩu không gửi được mail.
-- Log API có lỗi `Bucket "writing-images" is not found`. Volume MinIO local chỉ có `speaking-media` và `speaking-recordings`, nên ảnh của bài Writing lưu trong DB dùng chung không có trên máy này. Lỗi này có từ trước khi đổi image MinIO.
-- MinIO local đang chạy ở cổng 9100 bằng image `minio/minio:latest`, vì image Chainguard trong compose báo `exec format error` trên máy này.
+- `/health/ready` still returns `503` due to SMTP: the TLS certificate of `smtp.gmail.com` is rejected on this machine. Sign-up and forgot-password flows cannot send emails.
+- API logs show `Bucket "writing-images" is not found`. The local MinIO volume only has `speaking-media` and `speaking-recordings`, so Writing test images stored in the shared DB are missing on this machine. This error pre-dates the MinIO image change.
+- Local MinIO is running on port 9100 using the `minio/minio:latest` image, because the Chainguard image in compose failed with `exec format error` on this machine.

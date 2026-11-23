@@ -1,19 +1,19 @@
-# Kịch bản Vận hành & Báo cáo (Runbooks & Reports)
+# Runbooks & Reports
 
-Thư mục này chứa các kịch bản kiểm thử thực tế (UAT), tài liệu vận hành và các báo cáo đánh giá kỹ thuật.
+This directory contains practical test scenarios (UAT), operational documentation, and technical evaluation reports.
 
-- [Rà soát Sprint 3](./sprint3-review.md): task Speaking, UX bốn kỹ năng và kiểm tra chéo báo cáo AI Writing.
-- [Speaking UAT](./speaking-uat-runbook.md) và [báo cáo Speaking trước đây](./speaking-audit-report.md).
-
----
-
-## 1. Mục đích
-- Cung cấp kịch bản kiểm thử từng bước (step-by-step test runbook) để QA, developer hoặc AI verify tính năng sau khi code xong.
-- Lưu trữ các báo cáo kỹ thuật chuyên sâu (ví dụ: đánh giá chấm điểm AI Writing/Speaking, benchmark hiệu năng, migration guide).
+- [Sprint 3 Review](./sprint3-review.md): Speaking tasks, four-skill UX, and cross-checking the AI Writing report.
+- [Speaking UAT](./speaking-uat-runbook.md) and [previous Speaking report](./speaking-audit-report.md).
 
 ---
 
-## 2. Tài liệu thuộc tầng này
-- **UAT Runbooks:** Kịch bản kiểm thử đầu cuối (End-to-End verification), dữ liệu mẫu dùng cho test API và test thủ công.
-- **AI Evaluation Reports:** Tiêu chí đánh giá, kết quả thử nghiệm prompt, rubric chấm điểm Speaking/Writing.
-- **Operations & Deployment:** Quy trình chạy migration, cấu hình môi trường staging/production.
+## 1. Purpose
+- Provide step-by-step test runbooks for QA, developers, or AI to verify features after implementation.
+- Archive in-depth technical reports (for example: AI Writing/Speaking grading evaluations, performance benchmarks, migration guides).
+
+---
+
+## 2. Documents in This Layer
+- **UAT Runbooks:** End-to-End verification scenarios and sample data for API and manual testing.
+- **AI Evaluation Reports:** Evaluation criteria, prompt trial results, and Speaking/Writing grading rubrics.
+- **Operations & Deployment:** Migration execution procedures and staging/production environment configurations.

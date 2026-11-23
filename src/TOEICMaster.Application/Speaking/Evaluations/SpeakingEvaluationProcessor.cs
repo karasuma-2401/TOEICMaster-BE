@@ -35,7 +35,7 @@ public sealed class SpeakingEvaluationProcessor(ISpeakingEvaluationRepository re
             {
                 // Only lease takeovers reach this count, so the job keeps stopping before it can record a failure.
                 evaluation.Fail("LEASE_RETRIES_EXHAUSTED",
-                    "Không thể hoàn tất chấm AI cho bài này. Bài làm của bạn vẫn được lưu, hãy thử lại sau.",
+                    "Could not complete AI evaluation for this attempt. Your attempt is still saved; please try again later.",
                     timeProvider.GetUtcNow());
                 await repository.SaveChangesAsync(cancellationToken);
                 return true;
@@ -59,7 +59,7 @@ public sealed class SpeakingEvaluationProcessor(ISpeakingEvaluationRepository re
         catch (Exception)
         {
             await RecordFailureAsync(work.EvaluationId, new SpeakingEvaluatorException("UNEXPECTED_ERROR",
-                "Dịch vụ chấm AI đang gặp sự cố. Bài làm của bạn vẫn được lưu.", true), cancellationToken);
+                "The AI evaluation service is experiencing an issue. Your attempt is still saved.", true), cancellationToken);
         }
         return true;
     }
@@ -130,8 +130,8 @@ public sealed class SpeakingEvaluationProcessor(ISpeakingEvaluationRepository re
             {
                 item.ApplyLanguageScores(null, null, null, 0, item.RecognitionStatus switch
                 {
-                    SpeakingRecognitionStatus.NoRecording => "Câu này không có bản ghi nên được 0 điểm.",
-                    _ => "Không nhận diện được giọng nói trong bản ghi nên câu này được 0 điểm."
+                    SpeakingRecognitionStatus.NoRecording => "No recording was submitted for this question, so it received 0 points.",
+                    _ => "No speech was recognized in the recording, so this question received 0 points."
                 }, null);
                 continue;
             }
@@ -149,10 +149,10 @@ public sealed class SpeakingEvaluationProcessor(ISpeakingEvaluationRepository re
 
         evaluation.Complete(SpeakingEvaluationScoring.EstimatedScore(evaluation.Items),
             result?.Summary.Trim() ??
-            "Hệ thống không nhận diện được câu trả lời nào trong các bản ghi, nên chưa thể đánh giá bài nói.",
+            "No spoken responses were recognized in the recordings, so the speaking attempt could not be evaluated.",
             result?.Strengths.Select(text => text.Trim()).ToArray() ?? [],
             result?.Improvements.Select(text => text.Trim()).ToArray() ??
-            ["Kiểm tra micro và nói rõ, đủ lớn trong thời gian trả lời."], timeProvider.GetUtcNow());
+            ["Check your microphone and speak clearly and loudly enough during the response window."], timeProvider.GetUtcNow());
     }
 
     /// <summary>Part 2 relevance can only be judged against the picture itself, not its short description.</summary>
@@ -196,7 +196,7 @@ public sealed class SpeakingEvaluationProcessor(ISpeakingEvaluationRepository re
                                      item.RelevanceScore is < 0 or > 100 || string.IsNullOrWhiteSpace(item.Feedback) ||
                                      item.Feedback.Length > 1_500 || item.SuggestedResponse.Length > 1_500))
             throw new SpeakingEvaluatorException("INVALID_RESPONSE",
-                "Dịch vụ chấm AI trả về kết quả không hợp lệ. Hệ thống sẽ thử lại.", true);
+                "The AI evaluation service returned an invalid response. The system will retry.", true);
     }
 
     private async Task RecordFailureAsync(Guid evaluationId, SpeakingEvaluatorException exception,

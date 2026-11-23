@@ -156,7 +156,7 @@ public sealed class InMemoryKnowledgeMediaStore : IKnowledgeMediaStore
     public Task<byte[]> DownloadAsync(string objectKey, CancellationToken cancellationToken) =>
         Objects.TryGetValue(objectKey, out var entry)
             ? Task.FromResult(entry.Content)
-            : throw new KnowledgeNotFoundException("Không tìm thấy hình ảnh.");
+            : throw new KnowledgeNotFoundException("Image not found.");
 
     public Task DeleteAsync(string objectKey, CancellationToken cancellationToken)
     {

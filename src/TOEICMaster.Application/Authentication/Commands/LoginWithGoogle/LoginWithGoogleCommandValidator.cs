@@ -7,7 +7,7 @@ public sealed class LoginWithGoogleCommandValidator : AbstractValidator<LoginWit
     public LoginWithGoogleCommandValidator()
     {
         RuleFor(command => command.Credential).Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Google credential là bắt buộc.")
-            .MaximumLength(8192).WithMessage("Google credential không hợp lệ.");
+            .NotEmpty().WithMessage("Google credential is required.")
+            .MaximumLength(8192).WithMessage("Invalid Google credential.");
     }
 }

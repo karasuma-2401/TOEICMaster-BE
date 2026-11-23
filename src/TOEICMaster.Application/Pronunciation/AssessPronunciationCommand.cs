@@ -38,14 +38,14 @@ public sealed class AssessPronunciationCommandValidator : AbstractValidator<Asse
 {
     public AssessPronunciationCommandValidator()
     {
-        RuleFor(command => command.Audio).NotEmpty().WithMessage("Thiếu bản thu.")
+        RuleFor(command => command.Audio).NotEmpty().WithMessage("Recording is required.")
             .Must(audio => audio.Length <= PronunciationRules.MaxAudioBytes)
-            .WithMessage("Bản thu không được vượt quá 1 MiB.");
+            .WithMessage("Recording must not exceed 1 MiB.");
         RuleFor(command => command.ReferenceText).Must(PronunciationRules.IsReferenceText)
-            .WithMessage("Từ luyện tập chỉ gồm 1–40 chữ cái tiếng Anh, khoảng trắng, dấu ' hoặc -.");
+            .WithMessage("Practice text must consist of 1-40 English letters, spaces, ', or -.");
         RuleFor(command => command.Locale)
             .Must(locale => locale is null || PronunciationRules.Locales.Contains(locale))
-            .WithMessage("Giọng chấm chỉ hỗ trợ en-US hoặc en-GB.");
+            .WithMessage("Assessment accent only supports en-US or en-GB.");
     }
 }
 
@@ -57,7 +57,7 @@ public sealed class AssessPronunciationCommandHandler(IPronunciationAssessor ass
     {
         var contentType = PronunciationRules.DetectAudio(request.Audio) ??
                           throw PronunciationAssessmentException.InvalidAudio(
-                              "Định dạng bản thu không được hỗ trợ (WebM, Ogg, MP4 hoặc WAV).");
+                              "Unsupported recording format (WebM, Ogg, MP4, or WAV).");
         return assessor.AssessAsync(request.Audio, contentType, request.ReferenceText.Trim(),
             request.Locale ?? PronunciationRules.DefaultLocale, cancellationToken);
     }

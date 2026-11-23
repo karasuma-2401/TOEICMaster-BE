@@ -43,9 +43,9 @@ public sealed class UpdateProfileCommandValidator : AbstractValidator<UpdateProf
             .When(command => command.Phone is not null);
         RuleFor(command => command.DateOfBirth)
             .Must(date => date is null || date.Value >= new DateOnly(1900, 1, 1))
-            .WithMessage("Ngày sinh không hợp lệ.")
+            .WithMessage("Invalid date of birth.")
             .Must(date => date is null || date.Value <= DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime))
-            .WithMessage("Ngày sinh không được ở tương lai.");
+            .WithMessage("Date of birth cannot be in the future.");
         RuleFor(command => command.TargetScore)
             .Must(score => score is null || score is >= 10 and <= 990 && score % 5 == 0)
             .WithMessage("Target score must be between 10 and 990 and divisible by 5.");

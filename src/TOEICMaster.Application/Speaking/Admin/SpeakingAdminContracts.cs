@@ -128,58 +128,58 @@ public sealed partial class SpeakingExerciseInputValidator : AbstractValidator<S
 {
     public SpeakingExerciseInputValidator()
     {
-        RuleFor(input => input.Part).Must(SpeakingTiming.IsPart).WithMessage("Part phải từ 1 đến 5.");
+        RuleFor(input => input.Part).Must(SpeakingTiming.IsPart).WithMessage("Part must be from 1 to 5.");
         RuleFor(input => input.Code).Must(code => code is not null && CodePattern().IsMatch(code.Trim()))
-            .WithMessage("Mã bài gồm 1–32 ký tự chữ, số hoặc dấu gạch ngang.");
-        Text(input => input.Topic, 1, 100, "Chủ đề");
+            .WithMessage("Exercise code must be 1-32 alphanumeric or hyphen characters.");
+        Text(input => input.Topic, 1, 100, "Topic");
         RuleFor(input => input.Difficulty).Must(value => SpeakingCodes.TryParseDifficulty(value, out _))
-            .WithMessage("Độ khó không hợp lệ.");
+            .WithMessage("Invalid difficulty.");
         RuleFor(input => input.Status).Must(value => SpeakingCodes.TryParseExerciseStatus(value, out _))
-            .WithMessage("Trạng thái không hợp lệ.");
+            .WithMessage("Invalid status.");
         RuleFor(input => input.RubricNotes).Must(value => Length(value) <= 2_000)
-            .WithMessage("Tiêu chí chấm tối đa 2000 ký tự.");
-        Text(input => input.ModelAnswer, 1, 4_000, "Bài mẫu");
+            .WithMessage("Rubric notes must not exceed 2000 characters.");
+        Text(input => input.ModelAnswer, 1, 4_000, "Model answer");
 
-        When(input => input.Part == 1, () => Text(input => input.Passage, 1, 1_500, "Đoạn văn"));
+        When(input => input.Part == 1, () => Text(input => input.Passage, 1, 1_500, "Passage"));
         When(input => input.Part == 2, () =>
         {
-            RuleFor(input => input.ImageAssetId).NotNull().WithMessage("Part 2 cần ảnh đề bài.");
-            Text(input => input.ImageAlt, 1, 300, "Mô tả ảnh");
+            RuleFor(input => input.ImageAssetId).NotNull().WithMessage("Part 2 requires a prompt image.");
+            Text(input => input.ImageAlt, 1, 300, "Image description");
         });
         When(input => input.Part == 3, () =>
         {
-            Text(input => input.Context, 1, 600, "Bối cảnh");
+            Text(input => input.Context, 1, 600, "Context");
             ThreeQuestions();
         });
         When(input => input.Part == 4, () =>
         {
-            Text(input => input.DocumentTitle, 1, 200, "Tiêu đề tài liệu");
+            Text(input => input.DocumentTitle, 1, 200, "Document title");
             RuleFor(input => input.DocumentRows).Must(rows => rows is { Count: >= 1 and <= 20 })
-                .WithMessage("Tài liệu cần từ 1 đến 20 dòng.");
+                .WithMessage("Document must have 1 to 20 rows.");
             RuleForEach(input => input.DocumentRows).Must(row => row is not null &&
                     Length(row.Label) is >= 1 and <= 40 && Length(row.Value) is >= 1 and <= 200)
-                .WithMessage("Mỗi dòng cần nhãn 1–40 ký tự và nội dung 1–200 ký tự.");
+                .WithMessage("Each row requires a 1-40 character label and 1-200 character value.");
             RuleFor(input => input.CallerIntro).Must(value => Length(value) <= 400)
-                .WithMessage("Lời gọi đầu tối đa 400 ký tự.");
+                .WithMessage("Caller intro must not exceed 400 characters.");
             ThreeQuestions();
         });
-        When(input => input.Part == 5, () => Text(input => input.Prompt, 1, 600, "Đề bài"));
+        When(input => input.Part == 5, () => Text(input => input.Prompt, 1, 600, "Prompt"));
     }
 
     private void ThreeQuestions()
     {
         RuleFor(input => input.Questions).Must(questions => questions is { Count: 3 })
-            .WithMessage("Cần đúng 3 câu hỏi.");
+            .WithMessage("Exactly 3 questions are required.");
         RuleFor(input => input.Questions).Must(SpeakingTestContentRules.HasDistinctQuestions)
-            .WithMessage("Các câu hỏi trong một bài phải khác nhau về nội dung.");
+            .WithMessage("Questions in an exercise must have distinct content.");
         RuleForEach(input => input.Questions).Must(question => Length(question) is >= 1 and <= 300)
-            .WithMessage("Mỗi câu hỏi cần 1–300 ký tự.");
+            .WithMessage("Each question must be 1-300 characters.");
     }
 
     private void Text(Expression<Func<SpeakingExerciseInput, string?>> field, int min,
         int max, string label) =>
         RuleFor(field).Must(value => Length(value) >= min && Length(value) <= max)
-            .WithMessage($"{label} cần {min}–{max} ký tự.");
+            .WithMessage($"{label} must be {min}-{max} characters.");
 
     internal static int Length(string? value) => value?.Trim().Length ?? 0;
 
@@ -193,38 +193,38 @@ public sealed class SpeakingTestInputValidator : AbstractValidator<SpeakingTestI
     {
         RuleFor(input => input.Code).Must(code => code is not null &&
                 SpeakingExerciseInputValidator.CodePattern().IsMatch(code.Trim()))
-            .WithMessage("Mã đề gồm 1–32 ký tự chữ, số hoặc dấu gạch ngang.");
+            .WithMessage("Test code must be 1-32 alphanumeric or hyphen characters.");
         RuleFor(input => input.Title).Must(value => SpeakingExerciseInputValidator.Length(value) is >= 1 and <= 200)
-            .WithMessage("Tên đề cần 1–200 ký tự.");
+            .WithMessage("Test title must be 1-200 characters.");
         RuleFor(input => input.Description).Must(value => SpeakingExerciseInputValidator.Length(value) <= 2_000)
-            .WithMessage("Mô tả tối đa 2000 ký tự.");
+            .WithMessage("Description must not exceed 2000 characters.");
         RuleFor(input => input.ContentMode).Must(mode => string.IsNullOrWhiteSpace(mode) ||
                 SpeakingCodes.TryParseTestContentMode(mode, out _))
-            .WithMessage("Nguồn nội dung đề không hợp lệ.");
+            .WithMessage("Invalid test content mode.");
         RuleForEach(input => input.Exercises).Must(slot => slot is not null && slot.ExerciseId != Guid.Empty &&
                 SpeakingTiming.IsPart(slot.Part) && slot.SequenceNumber >= 1 &&
                 slot.SequenceNumber <= SpeakingTiming.SlotsPerPart(slot.Part))
             .When(input => !SpeakingTestInputs.IsDirect(input))
-            .WithMessage("Vị trí bài tập không hợp lệ.");
+            .WithMessage("Invalid exercise slot.");
         RuleFor(input => input.Exercises).Must(slots => slots is null || slots.Where(slot => slot is not null)
                 .Select(slot => slot!.ExerciseId).Distinct().Count() == slots.Count(slot => slot is not null))
             .When(input => !SpeakingTestInputs.IsDirect(input))
-            .WithMessage("Một bài tập không thể xuất hiện hai lần trong cùng một đề.");
+            .WithMessage("An exercise cannot appear twice in the same test.");
         RuleFor(input => input.Exercises).Must(slots => slots is null || slots.Where(slot => slot is not null)
                 .Select(slot => (slot!.Part, slot.SequenceNumber)).Distinct().Count() ==
                 slots.Count(slot => slot is not null))
             .When(input => !SpeakingTestInputs.IsDirect(input))
-            .WithMessage("Thứ tự bài tập trong mỗi Part không được trùng nhau.");
+            .WithMessage("Exercise sequence numbers within each Part must be unique.");
         RuleForEach(input => input.Questions).Must(question => question is not null &&
                 SpeakingTiming.IsPart(question.Part) && question.SequenceNumber >= 1 &&
                 question.SequenceNumber <= SpeakingTiming.SlotsPerPart(question.Part) && question.Content is not null)
             .When(SpeakingTestInputs.IsDirect)
-            .WithMessage("Câu hỏi trực tiếp không hợp lệ.");
+            .WithMessage("Invalid direct question.");
         RuleFor(input => input.Questions).Must(questions => questions is null || questions.Where(question => question is not null)
                 .Select(question => (question!.Part, question.SequenceNumber)).Distinct().Count() ==
                 questions.Count(question => question is not null))
             .When(SpeakingTestInputs.IsDirect)
-            .WithMessage("Thứ tự câu hỏi trong mỗi Part không được trùng nhau.");
+            .WithMessage("Question sequence numbers within each Part must be unique.");
     }
 }
 

@@ -98,7 +98,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check 
 if (runAdminSeed)
 {
     if (!app.Environment.IsDevelopment())
-        throw new InvalidOperationException("--seed-admin chỉ được phép trong môi trường Development.");
+        throw new InvalidOperationException("--seed-admin is only allowed in the Development environment.");
 
     await using var scope = app.Services.CreateAsyncScope();
     var result = await scope.ServiceProvider.GetRequiredService<IAdminBootstrapSeeder>()

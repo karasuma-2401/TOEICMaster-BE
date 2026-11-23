@@ -94,13 +94,13 @@ public sealed class AdminKnowledgeController(ISender sender) : ControllerBase
     {
         if (file is null || file.Length <= 0)
         {
-            ModelState.AddModelError(nameof(file), "Tệp hình ảnh không được để trống.");
+            ModelState.AddModelError(nameof(file), "Image file cannot be empty.");
             return ValidationProblem(ModelState);
         }
         if (file.Length > KnowledgeImageSignature.MaxBytes)
         {
             return StatusCode(StatusCodes.Status413PayloadTooLarge,
-                new ProblemDetails { Status = 413, Title = "Hình ảnh vượt quá giới hạn tối đa 5 MiB." });
+                new ProblemDetails { Status = 413, Title = "Image exceeds the maximum limit of 5 MiB." });
         }
 
         await using var stream = new MemoryStream();

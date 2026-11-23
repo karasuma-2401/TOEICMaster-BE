@@ -8,12 +8,12 @@ public sealed class VerifyEmailCommandValidator : AbstractValidator<VerifyEmailC
     public VerifyEmailCommandValidator()
     {
         RuleFor(command => command.Email).Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Email là bắt buộc.")
+            .NotEmpty().WithMessage("Email is required.")
             .Must(email => email.Trim().Length <= 254 && new EmailAddressAttribute().IsValid(email.Trim()))
-            .WithMessage("Email không hợp lệ.");
+            .WithMessage("Invalid email.");
         RuleFor(command => command.Code).Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Mã xác minh là bắt buộc.")
+            .NotEmpty().WithMessage("Verification code is required.")
             .Matches("^[0-9]{6}$")
-            .WithMessage("Mã xác minh phải gồm 6 chữ số.");
+            .WithMessage("Verification code must be 6 digits.");
     }
 }

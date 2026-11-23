@@ -196,7 +196,7 @@ public sealed class ExamRevision
     {
         var errors = new List<string>();
         if (!scoreProfileIsComplete)
-            errors.Add("Barem điểm chưa đủ 101 mốc cho Listening và Reading.");
+            errors.Add("The score conversion table does not have all 101 entries for Listening and Reading.");
 
         foreach (var block in _blocks)
         {

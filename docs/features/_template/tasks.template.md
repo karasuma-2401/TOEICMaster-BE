@@ -1,52 +1,52 @@
-# Execution Checklist: [Tên tính năng]
+# Execution Checklist: [Feature Name]
 
-> **Tài liệu đặc tả:** [spec.md](./spec.md)  
-> **Trạng thái:** [Chưa bắt đầu / Đang thực hiện / Hoàn thành]
+> **Specification:** [spec.md](./spec.md)  
+> **Status:** [Not Started / In Progress / Completed]
 
 ---
 
-## Nguyên tắc thực thi cho AI
-1. Hoàn thành từng task theo đúng thứ tự tầng kiến trúc: `Domain` -> `Application` -> `Infrastructure` -> `Api` -> `Tests`.
-2. Sau mỗi task hoặc phase, chạy kiểm tra tương ứng (`dotnet build`, `dotnet test`).
-3. Đánh dấu `[x]` vào từng mục đã hoàn thành.
+## Execution Principles for AI
+1. Complete each task in architectural layer order: `Domain` -> `Application` -> `Infrastructure` -> `Api` -> `Tests`.
+2. After each task or phase, run the corresponding checks (`dotnet build`, `dotnet test`).
+3. Mark `[x]` on each completed item.
 
 ---
 
 ## Phase 1: Domain & Entities
-- [ ] Định nghĩa hoặc cập nhật Entity / Value Objects trong `Domain/Entities/`.
-- [ ] Thiết lập business invariants, constructors và domain events (nếu có).
-- [ ] Chạy `dotnet build TOEICMaster.slnx` kiểm tra build.
+- [ ] Define or update Entities / Value Objects in `Domain/Entities/`.
+- [ ] Establish business invariants, constructors, and domain events (if any).
+- [ ] Run `dotnet build TOEICMaster.slnx` to verify build.
 
 ## Phase 2: Application (CQRS & Business Logic)
-- [ ] Tạo Command/Query record trong `Application/<Feature>/Commands/` hoặc `Queries/`.
-- [ ] Tạo DTOs và cấu hình AutoMapper profile.
-- [ ] Viết FluentValidation validator kế thừa `AbstractValidator<T>`.
-- [ ] Viết Handler xử lý Command/Query (`IRequestHandler<TRequest, TResponse>`).
-- [ ] Đảm bảo truyền `CancellationToken` qua tất cả lời gọi bất đồng bộ.
+- [ ] Create Command/Query record in `Application/<Feature>/Commands/` or `Queries/`.
+- [ ] Create DTOs and configure AutoMapper profile.
+- [ ] Write FluentValidation validator inheriting `AbstractValidator<T>`.
+- [ ] Write Command/Query Handler (`IRequestHandler<TRequest, TResponse>`).
+- [ ] Ensure `CancellationToken` is passed through all asynchronous calls.
 
 ## Phase 3: Infrastructure (Persistence & External Services)
-- [ ] Cấu hình EF Core EntityTypeConfiguration (nếu có entity mới).
-- [ ] Tạo migration bằng script nguồn (nếu có thay đổi schema).
-- [ ] Triển khai repository hoặc external service adapters trong `Infrastructure/`.
+- [ ] Configure EF Core EntityTypeConfiguration (if new entities are added).
+- [ ] Create migration using source scripts (if schema changes exist).
+- [ ] Implement repository or external service adapters in `Infrastructure/`.
 
 ## Phase 4: API Presentation
-- [ ] Tạo hoặc cập nhật Controller trong `Api/Controllers/v1/`.
-- [ ] Gọi MediatR qua `ISender.Send`.
-- [ ] Khai báo Swagger attributes (`[ProducesResponseType]`, `[Authorize]`).
-- [ ] Đảm bảo ánh xạ lỗi và trả về đúng format `ValidationProblemDetails`.
+- [ ] Create or update Controller in `Api/Controllers/v1/`.
+- [ ] Dispatch via MediatR through `ISender.Send`.
+- [ ] Declare Swagger attributes (`[ProducesResponseType]`, `[Authorize]`).
+- [ ] Ensure errors are mapped and returned in `ValidationProblemDetails` format.
 
 ## Phase 5: Verification & Testing
-- [ ] Viết Unit tests cho Handler và Validator trong `tests/TOEICMaster.Application.UnitTests/`.
-- [ ] Viết Integration tests cho API endpoint trong `tests/TOEICMaster.Api.IntegrationTests/`.
-- [ ] Chạy toàn bộ test suite:
+- [ ] Write Unit tests for Handler and Validator in `tests/TOEICMaster.Application.UnitTests/`.
+- [ ] Write Integration tests for the API endpoint in `tests/TOEICMaster.Api.IntegrationTests/`.
+- [ ] Run the full test suite:
   ```sh
   dotnet test TOEICMaster.slnx -c Release
   ```
-- [ ] Kiểm tra format code:
+- [ ] Verify code formatting:
   ```sh
   dotnet format TOEICMaster.slnx --verify-no-changes --no-restore
   ```
 
 ## Phase 6: Handoff & Review
-- [ ] Cập nhật [api-contract.md](../../contracts/api-contract.md) nếu có thay đổi hợp đồng API.
-- [ ] Báo cáo tóm tắt thay đổi và các điểm cần lưu ý khi kết nối với Frontend.
+- [ ] Update [api-contract.md](../../contracts/api-contract.md) if any API contract changes occurred.
+- [ ] Summarize changes and key integration notes for connecting with Frontend.

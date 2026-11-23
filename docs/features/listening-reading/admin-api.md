@@ -1,120 +1,145 @@
 # Listening & Reading Administration API
 
-> Phạm vi: các endpoint Admin hiện có trong backend và lớp BFF FE đang gọi chúng. Xem [đặc tả](./spec.md), [barem điểm](./scoring.md) và [API contract chung](../../contracts/api-contract.md#quản-trị-đề-toeic-listening--reading).
+> Scope: existing Admin endpoints in the backend and the FE BFF layer calling them.
+> See the [specification](./spec.md), [score profiles](./scoring.md), and [shared API contract](../../contracts/api-contract.md).
 
-Các nhóm `/api/v1/admin/exams`, `/api/v1/admin/exam-media`, `/api/v1/admin/score-profiles` và `/api/v1/admin/lr-exercise-bank` đều yêu cầu JWT thỏa policy `AccountAdministration` (role `Admin`). Dữ liệu câu hỏi và đáp án ở đây là dữ liệu quản trị; không dùng các response này làm API đề thi cho học viên.
+The `/api/v1/admin/exams`, `/api/v1/admin/exam-media`, `/api/v1/admin/score-profiles`, and `/api/v1/admin/lr-exercise-bank` groups all require a JWT satisfying the `AccountAdministration` policy (`Admin` role).
+Question and answer data here is administrative data; do not use these responses as the exam API for learners.
 
-## 1. Ngân hàng bài tập L&R
+## 1. L&R Exercise Bank
 
-Ngân hàng bài tập là `LrExerciseBankItem` độc lập với `Exam` và `ExamRevision`. Chưa có thao tác lấy câu từ ngân hàng để tự lắp đề thi. Prefix: `/api/v1/admin/lr-exercise-bank`.
+The exercise bank is `LrExerciseBankItem`, which is independent of `Exam` and `ExamRevision`.
+There is not yet an operation to pull items from the bank to assemble an exam.
+Prefix: `/api/v1/admin/lr-exercise-bank`.
 
-| Endpoint | Chức năng hiện có |
+| Endpoint | Current functionality |
 | --- | --- |
-| `GET /summary` | Tổng số câu, thời điểm cập nhật và thống kê theo Part 1–7. |
-| `GET /parts/{part}/items` | Danh sách phân trang; query: `query`, `difficulty`, `status`, `pageNumber`, `pageSize`. `pageSize` từ 1–100. Response gồm cả đáp án đúng. |
-| `POST /parts/{part}/items` | Tạo một item cùng các câu con; trả `201` và item vừa tạo. |
-| `GET /templates/{part}` | Tải mẫu `.xlsx` cho Part 1–7. |
-| `POST /parts/{part}/imports` | Nhận `multipart/form-data` field `file`, `.xlsx` tối đa 10 MiB; import các item hợp lệ và trả số item/câu đã tạo cùng summary. |
+| `GET /summary` | Total question count, last updated timestamp, and statistics for Parts 1-7. |
+| `GET /parts/{part}/items` | Paginated list; query: `query`, `difficulty`, `status`, `pageNumber`, `pageSize`. `pageSize` from 1-100. Response includes correct answers. |
+| `POST /parts/{part}/items` | Create an item along with its sub-questions; returns `201` and the created item. |
+| `GET /templates/{part}` | Download `.xlsx` template for Parts 1-7. |
+| `POST /parts/{part}/imports` | Accepts `multipart/form-data` field `file`, `.xlsx` max 10 MiB; imports valid items and returns the number of created items/questions along with a summary. |
 
-Một item có `code`, `topic`, `difficulty` (`EASY`, `MEDIUM`, `HARD`), `status` (`DRAFT`, `PUBLISHED`, `ARCHIVED`), `context`, `audioUrl`, `imageUrl` và `questions`. Mỗi câu có `code`, `prompt`, `optionA`–`optionD`, `correctKey`, `translation`, `explanation`. `context` là bắt buộc cho item nhóm. `audioUrl` và `imageUrl` là chuỗi URL trong ngân hàng bài tập, khác với asset UUID của đề thi.
+An item has `code`, `topic`, `difficulty` (`EASY`, `MEDIUM`, `HARD`), `status` (`DRAFT`, `PUBLISHED`, `ARCHIVED`), `context`, `audioUrl`, `imageUrl`, and `questions`.
+Each question has `code`, `prompt`, `optionA`-`optionD`, `correctKey`, `translation`, `explanation`.
+`context` is required for group items.
+`audioUrl` and `imageUrl` are URL strings in the exercise bank, different from exam asset UUIDs.
 
-| Part | Loại item | Số câu con trong một item | Lựa chọn |
+| Part | Item type | Sub-questions per item | Options |
 | --- | --- | ---: | --- |
-| 1, 5 | `SINGLE` | 1 | A–D |
-| 2 | `SINGLE` | 1 | A–C |
-| 3, 4 | `GROUP` | 3 | A–D |
-| 6 | `GROUP` | 4 | A–D |
-| 7 | `GROUP` | 2–5 | A–D |
+| 1, 5 | `SINGLE` | 1 | A-D |
+| 2 | `SINGLE` | 1 | A-C |
+| 3, 4 | `GROUP` | 3 | A-D |
+| 6 | `GROUP` | 4 | A-D |
+| 7 | `GROUP` | 2-5 | A-D |
 
-Mẫu import dùng một dòng cho mỗi item đơn, một dòng cho mỗi câu con của item nhóm. File nhóm dùng `GroupCode`, `Context`, `QuestionCode`; file đơn dùng `Code`. Import kiểm tra trùng mã trong file và với dữ liệu đã lưu trước khi thêm item. Hiện chưa có endpoint lấy chi tiết theo ID, sửa, archive/xóa, kiểm tra import riêng hoặc API luyện tập cho học viên.
+The import template uses one row per single item, and one row per sub-question of a group item.
+Group files use `GroupCode`, `Context`, `QuestionCode`; single files use `Code`.
+Import checks for duplicate codes within the file and against persisted data before adding items.
+Currently there are no endpoints to fetch details by ID, edit, archive/delete, run separate import validation, or provide learner practice APIs.
 
-## 2. Barem điểm
+## 2. Score Profiles
 
 Prefix: `/api/v1/admin/score-profiles`.
 
 | Endpoint | Request/response |
 | --- | --- |
-| `GET /` | Trả danh sách `{ id, name, isComplete, mappingCount }`. |
-| `POST /` | Body `{ "name": "...", "conversions": [{ "skill": "Listening", "rawCorrectCount": 0, "scaledScore": 5 }] }`; trả `201` với cùng các trường tóm tắt. |
+| `GET /` | Returns a list of `{ id, name, isComplete, mappingCount }`. |
+| `POST /` | Body `{ "name": "...", "conversions": [{ "skill": "Listening", "rawCorrectCount": 0, "scaledScore": 5 }] }`; returns `201` with the same summary fields. |
 
-Mỗi `skill` là `Listening` hoặc `Reading`; `rawCorrectCount` là 0–100, `scaledScore` là 5–495 và chia hết cho 5. Một cặp `(skill, rawCorrectCount)` chỉ được khai báo một lần. Profile chỉ `isComplete=true` khi đủ 101 mốc cho **mỗi** kỹ năng. Backend không seed bảng ETS và chưa có endpoint sửa/xóa profile. Quy tắc publish nằm trong [scoring.md](./scoring.md).
+Each `skill` is `Listening` or `Reading`; `rawCorrectCount` is 0-100, `scaledScore` is 5-495 and divisible by 5.
+Each `(skill, rawCorrectCount)` pair can only be declared once.
+A profile only has `isComplete=true` when it has all 101 entries for **each** skill.
+The backend does not seed an ETS table and does not yet have endpoints to edit/delete profiles.
+Publish rules are in [scoring.md](./scoring.md).
 
-## 3. Đề thi và revision
+## 3. Exams and Revisions
 
 Prefix: `/api/v1/admin/exams`.
 
-| Endpoint | Chức năng hiện có |
+| Endpoint | Current functionality |
 | --- | --- |
-| `GET /?status=Draft&pageNumber=1&pageSize=20` | Danh sách theo trạng thái revision mới nhất; `pageSize` 1–100. |
-| `POST /` | Body `{ "code": "LR-2026-001", "title": "Practice test", "scoreProfileId": "<uuid>" }`; trả `201` với Draft version 1 và 200 slot. `code` tối đa 64 ký tự, gồm chữ/số/`_`/`-` và bắt đầu bằng chữ hoặc số. |
-| `GET /{examId}/revisions/{revisionId}` | Preview Admin toàn bộ 103 block, 200 câu, context, đáp án, `audioAssetId`, `audioDurationMs`, `imageRequired`. |
-| `PUT /{examId}/revisions/{revisionId}/questions/{questionNumber}` | Ghi nội dung một câu trong Draft; trả `204`. |
-| `PUT /{examId}/revisions/{revisionId}/blocks/{blockKey}/contexts` | Thay toàn bộ context của block nhóm trong Draft; body `{ "contexts": [...] }`, `ordinal` liên tiếp từ 1; trả `204`. |
-| `PUT /{examId}/revisions/{revisionId}/score-profile` | Chọn profile khác cho Draft; body `{ "scoreProfileId": "<uuid>" }`; trả `204`. |
-| `POST /{examId}/revisions/{revisionId}/publish` | Kiểm tra điều kiện publish, trả `200` với trạng thái `Published`. Revision published trước đó chuyển thành `Superseded`. |
-| `POST /{examId}/revisions` | Body `{ "sourceRevisionId": "<published-revision-uuid>" }`; fork một published revision thành Draft version mới, trả `201`. |
+| `GET /?status=Draft&pageNumber=1&pageSize=20` | List by latest revision status; `pageSize` 1-100. |
+| `POST /` | Body `{ "code": "LR-2026-001", "title": "Practice test", "scoreProfileId": "<uuid>" }`; returns `201` with Draft version 1 and 200 slots. `code` is max 64 characters, consisting of letters/digits/`_`/`-` and starting with a letter or digit. |
+| `GET /{examId}/revisions/{revisionId}` | Admin preview of all 103 blocks, 200 questions, contexts, answers, `audioAssetId`, `audioDurationMs`, `imageRequired`. |
+| `PUT /{examId}/revisions/{revisionId}/questions/{questionNumber}` | Write the content of a question in Draft; returns `204`. |
+| `PUT /{examId}/revisions/{revisionId}/blocks/{blockKey}/contexts` | Replace all contexts of a group block in Draft; body `{ "contexts": [...] }`, `ordinal` consecutive starting from 1; returns `204`. |
+| `PUT /{examId}/revisions/{revisionId}/score-profile` | Select a different profile for Draft; body `{ "scoreProfileId": "<uuid>" }`; returns `204`. |
+| `POST /{examId}/revisions/{revisionId}/publish` | Validate publish conditions, return `200` with `Published` status. Any previously published revision transitions to `Superseded`. |
+| `POST /{examId}/revisions` | Body `{ "sourceRevisionId": "<published-revision-uuid>" }`; fork a published revision into a new Draft version, returns `201`. |
 
-`UpdateQuestion` nhận `code`, `stem`, `optionA`, `optionB`, `optionC`, `optionD`, `correctKey`, `translation`, `explanation`, `imageAssetId`, `imageRequired`. Part 2 chỉ có A-C; các Part khác cần A-D. `ReplaceContexts` nhận context kiểu `Text` hoặc `Image` với `ordinal`, `type`, `text`, `imageAssetId`, `altText`, `imageRequired`. `imageRequired=true` trì hoãn yêu cầu gắn ảnh tới lúc publish; asset UUID được gắn trực tiếp phải tồn tại.
+`UpdateQuestion` accepts `code`, `stem`, `optionA`, `optionB`, `optionC`, `optionD`, `correctKey`, `translation`, `explanation`, `imageAssetId`, `imageRequired`.
+Part 2 only has A-C; other Parts require A-D.
+`ReplaceContexts` accepts `Text` or `Image` contexts with `ordinal`, `type`, `text`, `imageAssetId`, `altText`, `imageRequired`.
+`imageRequired=true` defers the image attachment requirement until publish; directly attached asset UUIDs must exist.
 
-Revision `Published` không chỉnh nội dung tại chỗ. Revision fork sao chép nội dung, barem và trạng thái media của revision nguồn. Xem [đặc tả](./spec.md) để biết điều kiện publish.
+`Published` revisions cannot have their content edited in place.
+A forked revision copies the content, score profile, and media state from the source revision.
+See the [specification](./spec.md) for publish conditions.
 
-## 4. Import đề hoàn chỉnh
+## 4. Full Exam Import
 
-- `GET /import-template`: tải `.xlsx` mẫu với 4 sheet `Manifest`, `Blocks`, `ContextBlocks`, `Questions`.
-- `POST /import`: `multipart/form-data`; `workbook` bắt buộc, tối đa 10 MiB. Trả `201` với Draft nếu hợp lệ.
+- `GET /import-template`: download the `.xlsx` template with 4 sheets `Manifest`, `Blocks`, `ContextBlocks`, `Questions`.
+- `POST /import`: `multipart/form-data`; `workbook` required, max 10 MiB.
+  Returns `201` with a Draft if valid.
 
-`Manifest` cần `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, `ScoreProfileId`.
-Import kiểm tra đúng 103 block và 200 cặp `BlockKey`/`QuestionNumber`, không dựa vào thứ tự dòng.
-`ImageRequired` là cột tùy chọn trong `ContextBlocks` và `Questions`.
-File mẫu chứa placeholder, cần điền nội dung và barem thực trước khi import.
-Không có endpoint preview/validate import riêng.
+`Manifest` requires `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, `ScoreProfileId`.
+Import validates exactly 103 blocks and 200 `BlockKey`/`QuestionNumber` pairs without relying on row order.
+`ImageRequired` is an optional column in `ContextBlocks` and `Questions`.
+The template file contains placeholders, so real content and score profile must be filled in before importing.
+There is no separate import preview/validate endpoint.
 
-## 5. Media đề thi
+## 5. Exam Media
 
-`POST /api/v1/admin/exam-media/images` nhận `multipart/form-data` field `file`, ảnh PNG/JPEG/WebP tối đa 5 MiB, kiểm tra chữ ký file và trả `{ id, contentType, kind, byteSize, durationMs }`. UUID `id` có thể gắn vào câu/context theo các endpoint chỉnh Draft.
+`POST /api/v1/admin/exam-media/images` accepts `multipart/form-data` field `file`, PNG/JPEG/WebP image max 5 MiB, verifies file signature, and returns `{ id, contentType, kind, byteSize, durationMs }`.
+The UUID `id` can be attached to questions/contexts via the Draft editing endpoints.
 
-Upload media cho mọi Draft theo ba bước qua presigned URL:
+Media upload for any Draft follows three steps via presigned URLs:
 
-1. `POST /{examId}/revisions/{revisionId}/media-upload-intents` với `{ ownerKind, ownerKey, contentType, byteSize, durationMs? }`; trả `201` với `intentId`, `uploadUrl`, `expiresAtUtc`, `requiredHeaders`.
-2. Client `PUT` bytes tới `uploadUrl`, gửi đúng `requiredHeaders`.
-3. `POST /{examId}/revisions/{revisionId}/media-upload-intents/{intentId}/complete`; backend kiểm tra object, content type và kích thước rồi tạo `ExamMediaAsset` (kèm `durationMs` từ `expectedDurationMs`) và gắn vào owner; trả `201` với `{ id, contentType, kind, byteSize, durationMs }`.
+1. `POST /{examId}/revisions/{revisionId}/media-upload-intents` with `{ ownerKind, ownerKey, contentType, byteSize, durationMs? }`; returns `201` with `intentId`, `uploadUrl`, `expiresAtUtc`, `requiredHeaders`.
+2. Client `PUT`s bytes to `uploadUrl`, sending the exact `requiredHeaders`.
+3. `POST /{examId}/revisions/{revisionId}/media-upload-intents/{intentId}/complete`; the backend verifies the object, content type, and size, then creates `ExamMediaAsset` (with `durationMs` from `expectedDurationMs`) and attaches it to the owner; returns `201` with `{ id, contentType, kind, byteSize, durationMs }`.
 
-`ownerKind` nhận `AudioGroup`, `QuestionImage`, `ContextImage`.
-`ownerKey` tương ứng là `blockKey` của Listening Part 1-4, số câu Part 1-7 dưới dạng chuỗi, hoặc `<blockKey>:<ordinal>` của context ảnh Reading Part 5-7.
-MIME hỗ trợ `audio/mpeg` (alias `audio/mp3`), `audio/wav` (alias `audio/x-wav`) tối đa 100 MiB và `image/png`, `image/jpeg`, `image/webp` tối đa 5 MiB.
-`durationMs` là tùy chọn (`1..3_600_000` ms) cho `AudioGroup` và phải là `null` cho intent ảnh.
-Intent hết hạn sau 15 phút; intent hết hạn/đã hoàn tất hoặc revision không còn là Draft trả `409`.
+`ownerKind` accepts `AudioGroup`, `QuestionImage`, `ContextImage`.
+`ownerKey` is correspondingly the `blockKey` for Listening Parts 1-4, the question number for Parts 1-7 as a string, or `<blockKey>:<ordinal>` for image contexts in Reading Parts 5-7.
+Supported MIME types are `audio/mpeg` (alias `audio/mp3`), `audio/wav` (alias `audio/x-wav`) max 100 MiB and `image/png`, `image/jpeg`, `image/webp` max 5 MiB.
+`durationMs` is optional (`1..3_600_000` ms) for `AudioGroup` and must be `null` for image intents.
+Intents expire after 15 minutes; expired/completed intents or revisions no longer in Draft return `409`.
 
-Publish bắt buộc có audio cho mọi block Part 1-4 và mọi câu/context có `imageRequired=true`.
-Endpoint legacy `PUT /{examId}/revisions/{revisionId}/master-audio` đã được loại bỏ.
+Publish requires audio for all Part 1-4 blocks and all questions/contexts with `imageRequired=true`.
+The legacy endpoint `PUT /{examId}/revisions/{revisionId}/master-audio` has been removed.
 
-## 6. Lỗi và giới hạn
+## 6. Errors and Limits
 
-- Workbook sai: `400 ValidationProblemDetails`, key `workbook`; thiếu điều kiện publish: `400 ValidationProblemDetails`, key `exam`.
-- Media sai: `400 ProblemDetails`; mã đề trùng: `409`; không tìm thấy exam/revision/profile: `404`.
-- Ngân hàng bài tập trả `400 ProblemDetails` khi file/item không hợp lệ và `409 ProblemDetails` khi trùng mã.
-- Chưa có endpoint xóa đề/revision, lấy media để học viên phát, hoặc API đề thi công khai cho học viên.
+- Invalid workbook: `400 ValidationProblemDetails`, key `workbook`; missing publish conditions: `400 ValidationProblemDetails`, key `exam`.
+- Invalid media: `400 ProblemDetails`; duplicate exam code: `409`; exam/revision/profile not found: `404`.
+- The exercise bank returns `400 ProblemDetails` when the file/item is invalid and `409 ProblemDetails` on duplicate codes.
+- There are not yet endpoints to delete an exam/revision, fetch media for learner playback, or serve a public exam API for learners.
 
-## 7. Frontend BFF contract
+## 7. Frontend BFF Contract
 
-FE gọi cùng-origin `/api/admin/*`, sau đó BFF chuyển tiếp tới prefix BE `/api/v1/admin/*`. Bảng sau mô tả các route BFF thực sự tồn tại; `{...}` là path parameter giữ nguyên.
+FE calls same-origin `/api/admin/*`, and the BFF then forwards to the BE prefix `/api/v1/admin/*`.
+The table below describes the BFF routes that actually exist; `{...}` denotes path parameters preserved as-is.
 
-| BFF route | Method | Upstream BE | UI dùng |
+| BFF route | Method | Upstream BE | Used by UI |
 | --- | --- | --- | --- |
-| `/api/admin/exams` | `GET`, `POST` | `/api/v1/admin/exams` | Danh sách và tạo Draft. |
-| `/api/admin/exams/import`, `/import-template` | `POST`, `GET` | `/api/v1/admin/exams/import`, `/import-template` | Import/tải mẫu đề. |
-| `/api/admin/exams/{examId}/revisions/{revisionId}` | `GET` | Cùng path BE | Mở workspace. |
-| `.../questions/{questionNumber}`, `.../blocks/{blockKey}/contexts` | `PUT` | Cùng path BE | Lưu question và context Draft. |
-| `.../publish` | `POST` | Cùng path BE | Xuất bản revision. |
-| `.../media-upload-intents`, `.../media-upload-intents/{intentId}/complete` | `POST` | Cùng path BE | Bước 1 và 3 của upload media presigned URL. |
-| `/api/admin/exam-media/images` | `POST` | `/api/v1/admin/exam-media/images` | Upload ảnh legacy. |
-| `/api/admin/score-profiles` | `GET` | `/api/v1/admin/score-profiles` | Chỉ đọc barem để chọn khi tạo đề. |
-| `/api/admin/lr-exercise-bank/summary`, `parts/{part}/items`, `parts/{part}/imports`, `templates/{part}` | `GET`/`POST` | Cùng hậu tố trên `/api/v1/admin/lr-exercise-bank` | Summary, list/create, import và tải mẫu ngân hàng. |
+| `/api/admin/exams` | `GET`, `POST` | `/api/v1/admin/exams` | List exams and create Drafts. |
+| `/api/admin/exams/import`, `/import-template` | `POST`, `GET` | `/api/v1/admin/exams/import`, `/import-template` | Import exams / download template. |
+| `/api/admin/exams/{examId}/revisions/{revisionId}` | `GET` | Same BE path | Open workspace. |
+| `.../questions/{questionNumber}`, `.../blocks/{blockKey}/contexts` | `PUT` | Same BE path | Save Draft question and context. |
+| `.../publish` | `POST` | Same BE path | Publish revision. |
+| `.../media-upload-intents`, `.../media-upload-intents/{intentId}/complete` | `POST` | Same BE path | Steps 1 and 3 of presigned URL media upload. |
+| `/api/admin/exam-media/images` | `POST` | `/api/v1/admin/exam-media/images` | Legacy image upload. |
+| `/api/admin/score-profiles` | `GET` | `/api/v1/admin/score-profiles` | Read-only score profiles for selection when creating an exam. |
+| `/api/admin/lr-exercise-bank/summary`, `parts/{part}/items`, `parts/{part}/imports`, `templates/{part}` | `GET`/`POST` | Same suffix under `/api/v1/admin/lr-exercise-bank` | Exercise bank summary, list/create, import, and template download. |
 
-Mọi mutation BFF kiểm tra same-origin trước khi forward. BFF kiểm tra session còn hạn và role `ADMIN`, giữ body JSON/multipart, giới hạn kích thước multipart ở lớp FE, chuyển tiếp response/status/content type từ BE và thêm `Cache-Control: no-store`.
+All BFF mutations verify same-origin before forwarding.
+The BFF checks for a valid session and `ADMIN` role, preserves JSON/multipart bodies, enforces multipart size limits at the FE layer, forwards response/status/content type from BE, and adds `Cache-Control: no-store`.
 
-### Khoảng trống FE được xác nhận
+### Confirmed FE Gaps
 
-- BE có `POST /api/v1/admin/score-profiles`, nhưng FE chỉ có BFF `GET` và không có form tạo profile. Admin cần dùng client API được ủy quyền khác để tạo barem trước khi UI có profile để chọn.
-- BE có `POST /api/v1/admin/exams/{examId}/revisions` để fork revision, nhưng FE chưa có BFF route hay thao tác UI tương ứng.
-- Không có BFF/FE learner L&R. Không được dùng BFF Admin làm API learner vì response revision và item ngân hàng chứa `correctKey`.
+- BE has `POST /api/v1/admin/score-profiles`, but FE only has a `GET` BFF route and no profile creation form.
+  Admin must use another authorized API client to create a score profile before the UI has a profile to select.
+- BE has `POST /api/v1/admin/exams/{examId}/revisions` to fork a revision, but FE does not yet have a corresponding BFF route or UI action.
+- There is no learner L&R BFF/FE.
+  Do not use the Admin BFF as a learner API because revision and exercise bank item responses contain `correctKey`.

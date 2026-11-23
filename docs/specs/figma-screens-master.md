@@ -1,231 +1,231 @@
-# TÀI LIỆU ĐẶC TẢ & MÔ TẢ CHI TIẾT CÁC MÀN HÌNH THIẾT KẾ FIGMA
-## HỆ THỐNG LUYỆN THI TOEIC TRỰC TUYẾN 4 KỸ NĂNG (TOEICMASTER)
+# FIGMA DESIGN SCREENS SPECIFICATION & DETAILED DESCRIPTION
+## 4-SKILL ONLINE TOEIC PREPARATION SYSTEM (TOEICMASTER)
 
 ---
 
-| **Thông Tin Tài Liệu** | **Nội Dung Chi Tiết** |
+| **Document Information** | **Details** |
 | :--- | :--- |
-| **Dự án** | **TOEICMaster** — Nền tảng luyện thi và đánh giá năng lực TOEIC 4 kỹ năng |
-| **Vai trò người lập** | **Senior UX/UI Designer & Product Design Lead** |
-| **Nguồn thiết kế Figma** | [Figma File: TOEICMaster (node-id: 0-1)](https://www.figma.com/design/maKDgFmFHPvMoqeHBMW4US/TOEICMaster?node-id=0-1&p=f&t=O8G3nhSqmbtUH4KL-0) |
-| **Phiên bản thiết kế** | **2.1 (Full Ecosystem: 44 Màn hình + Design System Foundations)** |
-| **Trạng thái cập nhật** | Tháng 11/2026 (Cập nhật đồng bộ toàn diện thiết kế mới nhất trên Figma) |
-| **Đối tượng tiếp nhận** | Product Owner, Frontend Developer, Backend Developer, QA/QC Engineer |
-| **Mục đích tài liệu** | Mô tả chi tiết từng màn hình (layout, component, text, interaction, URL route, edge case) phục vụ thiết kế giao diện và phát triển frontend/backend |
+| **Project** | **TOEICMaster** - Online 4-Skill TOEIC Preparation and Proficiency Assessment Platform |
+| **Author Role** | **Senior UX/UI Designer & Product Design Lead** |
+| **Figma Design Source** | [Figma File: TOEICMaster (node-id: 0-1)](https://www.figma.com/design/maKDgFmFHPvMoqeHBMW4US/TOEICMaster?node-id=0-1&p=f&t=O8G3nhSqmbtUH4KL-0) |
+| **Design Version** | **2.1 (Full Ecosystem: 44 Screens + Design System Foundations)** |
+| **Update Status** | November 2026 (Comprehensive sync with the latest Figma designs) |
+| **Target Audience** | Product Owner, Frontend Developer, Backend Developer, QA/QC Engineer |
+| **Document Purpose** | Detailed specification of every screen (layout, components, copy, interactions, URL routes, edge cases) for UI design and frontend/backend development |
 
 ---
 
-## MỤC LỤC TỔNG QUAN
+## TABLE OF CONTENTS
 
-1. [TỔNG QUAN HỆ THỐNG THIẾT KẾ & DESIGN TOKENS (PAGE: DESIGN SYSTEM & FOUNDATIONS)](#1-tổng-quan-hệ-thống-thiết-kế--design-tokens)
-   - 1.1. Triết lý thiết kế & Bảng màu thương hiệu (01 · Color Tokens - ID: `11:82`)
-   - 1.2. Màu phân định bài thi độc lập (Category Theming: L&R, Speaking, Writing)
-   - 1.3. Trạng thái ma trận câu hỏi (Question Palette Exam Tokens)
-   - 1.4. Hệ thống kiểu chữ (02 · Typography - ID: `11:184`)
-   - 1.5. Thư viện Master Components & States (03 · Master Components - ID: `11:194`)
-   - 1.6. Nền tảng 3 Bài thi độc lập (04 · v2.1 Independent Exam Foundations - ID: `24:2`)
-2. [BẢNG TỔNG HỢP 44 MÀN HÌNH HIỆN CÓ TRÊN FIGMA (PAGE 1 - ID: `0:1`)](#2-bảng-tổng-hợp-44-màn-hình-hiện-có-trên-figma)
-3. [MÔ TẢ CHI TIẾT TỪNG PHÂN HỆ & MÀN HÌNH (DETAILED SCREEN SPECIFICATIONS)](#3-mô-tả-chi-tiết-từng-màn-hình)
-   - **PHÂN HỆ 1: XÁC THỰC NGƯỜI HỌC (LEARNER AUTH - 3 MÀN HÌNH)**
-     - [Màn hình 01: [Learner] Login_Page - /login (ID: 1:2)](#màn-hình-01-learner-login_page---login-frame-id-12)
-     - [Màn hình 02: [Learner] Register_Page - /register (ID: 1:144)](#màn-hình-02-learner-register_page---register-frame-id-1144)
-     - [Màn hình 03: [Learner] Forgot_Password_Page - /forgot-password (ID: 1:294)](#màn-hình-03-learner-forgot_password_page---forgot-password-frame-id-1294)
-   - **PHÂN HỆ 2: CỔNG NGƯỜI HỌC, HỒ SƠ & LỊCH SỬ TIẾN ĐỘ (LEARNER PORTAL & PROGRESSION - 3 MÀN HÌNH)**
-     - [Màn hình 04: [Learner] Home_Landing_Page - / (ID: 13:67084)](#màn-hình-04-learner-home_landing_page-----frame-id-1367084)
-     - [Màn hình 05: [Learner] Profile_Settings_Page - /profile (ID: 13:70116)](#màn-hình-05-learner-profile_settings_page---profile-frame-id-1370116)
-     - [Màn hình 06: [Learner] History_Progression_Page - /history (ID: 13:70205)](#màn-hình-06-learner-history_progression_page---history-frame-id-1370205)
-   - **PHÂN HỆ 3: TRUNG TÂM LUYỆN TẬP KỸ NĂNG NGƯỜI HỌC (LEARNER PRACTICE HUB - 4 MÀN HÌNH)**
-     - [Màn hình 07: [Learner] Practice_Hub_Overview - /practice (ID: 13:67225)](#màn-hình-07-learner-practice_hub_overview---practice-frame-id-1367225)
-     - [Màn hình 08: [Learner] Practice_LR_Interactive_Mode - /practice/lr/[partId] (ID: 13:67472)](#màn-hình-08-learner-practice_lr_interactive_mode---practicelrpartid-frame-id-1367472)
-     - [Màn hình 09: [Learner] Practice_Speaking_Mode - /practice/speaking/[partId] (ID: 13:67617)](#màn-hình-09-learner-practice_speaking_mode---practicespeakingpartid-frame-id-1367617)
-     - [Màn hình 10: [Learner] Practice_Writing_Mode - /practice/writing/[partId] (ID: 13:67739)](#màn-hình-10-learner-practice_writing_mode---practicewritingpartid-frame-id-1367739)
-   - **PHÂN HỆ 4: THƯ VIỆN ĐỀ THI THỬ ETS (LEARNER EXAMS LIBRARY HUB - 4 MÀN HÌNH)**
-     - [Màn hình 11: [Learner] Exams_Library_Hub - /exams (ID: 13:67810)](#màn-hình-11-learner-exams_library_hub---exams-frame-id-1367810)
-     - [Màn hình 12: [Learner] Exams_LR_List - /exams/lr (ID: 24:8730)](#màn-hình-12-learner-exams_lr_list---examslr-frame-id-248730)
-     - [Màn hình 13: [Learner] Exams_Speaking_List - /exams/speaking (ID: 24:8867)](#màn-hình-13-learner-exams_speaking_list---examsspeaking-frame-id-248867)
-     - [Màn hình 14: [Learner] Exams_Writing_List - /exams/writing (ID: 24:9318)](#màn-hình-14-learner-exams_writing_list---examswriting-frame-id-249318)
-   - **PHÂN HỆ 5: LUỒNG THI THỬ & ĐÁNH GIÁ LISTENING & READING (LEARNER L&R EXAM FLOW - 5 MÀN HÌNH)**
-     - [Màn hình 15: [Learner] Exam_LR_Instructions - /exams/lr/[id] (ID: 13:67968)](#màn-hình-15-learner-exam_lr_instructions---examslrid-frame-id-1367968)
-     - [Màn hình 16: [Learner] Exam_LR_Virtual_Room - /exams/lr/[id]/attempt (ID: 13:68036)](#màn-hình-16-learner-exam_lr_virtual_room---examslridattempt-frame-id-1368036)
-     - [Màn hình 17: [Learner] Modal_Exam_LR_Confirm_Submit - Overlay (ID: 13:68592)](#màn-hình-17-learner-modal_exam_lr_confirm_submit---overlay-frame-id-1368592)
-     - [Màn hình 18: [Learner] Exam_LR_Result_Report - /exams/lr/[id]/result/[attemptId] (ID: 13:69428)](#màn-hình-18-learner-exam_lr_result_report---examslridresultattemptid-frame-id-1369428)
-     - [Màn hình 19: [Learner] Exam_LR_Review_Mode - /exams/lr/[id]/review/[attemptId] (ID: 13:69536)](#màn-hình-19-learner-exam_lr_review_mode---examslridreviewattemptid-frame-id-1369536)
-   - **PHÂN HỆ 6: LUỒNG THI THỬ & ĐÁNH GIÁ SPEAKING (LEARNER SPEAKING EXAM FLOW - 4 MÀN HÌNH)**
-     - [Màn hình 20: [Learner] Exam_Speaking_Device_Check - /exams/speaking/[id]/device-check (ID: 13:69176)](#màn-hình-20-learner-exam_speaking_device_check---examsspeakingiddevice-check-frame-id-1369176)
-     - [Màn hình 21: [Learner] Exam_Speaking_Virtual_Room - /exams/speaking/[id]/attempt (ID: 13:69278)](#màn-hình-21-learner-exam_speaking_virtual_room---examsspeakingidattempt-frame-id-1369278)
-     - [Màn hình 22: [Learner] Exam_Speaking_Result_Report - /exams/speaking/[id]/result/[attemptId] (ID: 24:9004)](#màn-hình-22-learner-exam_speaking_result_report---examsspeakingidresultattemptid-frame-id-249004)
-     - [Màn hình 23: [Learner] Exam_Speaking_Review_Mode - /exams/speaking/[id]/review/[attemptId] (ID: 24:9106)](#màn-hình-23-learner-exam_speaking_review_mode---examsspeakingidreviewattemptid-frame-id-249106)
-   - **PHÂN HỆ 7: LUỒNG THI THỬ & ĐÁNH GIÁ WRITING (LEARNER WRITING EXAM FLOW - 4 MÀN HÌNH)**
-     - [Màn hình 24: [Learner] Exam_Writing_Instructions - /exams/writing/[id] (ID: 24:9455)](#màn-hình-24-learner-exam_writing_instructions---examswritingid-frame-id-249455)
-     - [Màn hình 25: [Learner] Exam_Writing_Virtual_Room - /exams/writing/[id]/attempt (ID: 13:69370)](#màn-hình-25-learner-exam_writing_virtual_room---examswritingidattempt-frame-id-1369370)
-     - [Màn hình 26: [Learner] Exam_Writing_Result_Report - /exams/writing/[id]/result/[attemptId] (ID: 24:9528)](#màn-hình-26-learner-exam_writing_result_report---examswritingidresultattemptid-frame-id-249528)
-     - [Màn hình 27: [Learner] Exam_Writing_Review_Mode - /exams/writing/[id]/review/[attemptId] (ID: 24:9605)](#màn-hình-27-learner-exam_writing_review_mode---examswritingidreviewattemptid-frame-id-249605)
-   - **PHÂN HỆ 8: QUẢN TRỊ ADMIN - TỔNG QUAN & NGƯỜI DÙNG (ADMIN CORE - 4 MÀN HÌNH)**
-     - [Màn hình 28: [Admin] Overview_Dashboard - /admin/overview (ID: 1:823)](#màn-hình-28-admin-overview_dashboard---adminoverview-frame-id-1823)
-     - [Màn hình 29: [Admin] Users_Management - /admin/users (ID: 1:393)](#màn-hình-29-admin-users_management---adminusers-frame-id-1393)
-     - [Màn hình 30: [Admin] Users_Loading_State - /admin/users?state=loading (ID: 13:70854)](#màn-hình-30-admin-users_loading_state---adminusersstateloading-frame-id-1370854)
-     - [Màn hình 31: [Admin] Users_Empty_State - /admin/users?state=empty (ID: 13:70775)](#màn-hình-31-admin-users_empty_state---adminusersstateempty-frame-id-1370775)
-   - **PHÂN HỆ 9: QUẢN TRỊ ADMIN - KHO BÀI TẬP 4 KỸ NĂNG (EXERCISE BANK CMS - 8 MÀN HÌNH)**
-     - [Màn hình 32: [Admin] Exercises_LR_Parts - /admin/exercises/lr (ID: 1:1116)](#màn-hình-32-admin-exercises_lr_parts---adminexerciseslr-frame-id-11116)
-     - [Màn hình 33: [Admin] Listening_Part1_Management - /admin/exercises/lr/p1 (ID: 1:1389)](#màn-hình-33-admin-listening_part1_management---adminexerciseslrp1-frame-id-11389)
-     - [Màn hình 34: [Admin] Reading_Part7_Management - /admin/exercises/lr/p7 (ID: 13:70307)](#màn-hình-34-admin-reading_part7_management---adminexerciseslrp7-frame-id-1370307)
-     - [Màn hình 35: [Admin] Modal_Add_Reading_Part7_Cluster - Overlay (ID: 13:70476)](#màn-hình-35-admin-modal_add_reading_part7_cluster---overlay-frame-id-1370476)
-     - [Màn hình 36: [Admin] Speaking_Part1_Management - /admin/exercises/speaking/p1 (ID: 1:1804)](#màn-hình-36-admin-speaking_part1_management---adminexercisesspeakingp1-frame-id-11804)
-     - [Màn hình 37: [Admin] Modal_Import_Exercises_Excel - Overlay (ID: 1:2218)](#màn-hình-37-admin-modal_import_exercises_excel---overlay-frame-id-12218)
-     - [Màn hình 38: [Admin] Writing_Parts - /admin/exercises/writing (ID: 1:2674)](#màn-hình-38-admin-writing_parts---adminexerciseswriting-frame-id-12674)
-     - [Màn hình 39: [Admin] Writing_Part1_Management - /admin/exercises/writing/p1 (ID: 1:2875)](#màn-hình-39-admin-writing_part1_management---adminexerciseswritingp1-frame-id-12875)
-   - **PHÂN HỆ 10: QUẢN TRỊ ADMIN - QUẢN LÝ ĐỀ THI & TRÌNH SOẠN THẢO (EXAM BUILDER CMS - 5 MÀN HÌNH)**
-     - [Màn hình 40: [Admin] Exams_Management - /admin/exams/lr (ID: 1:3237)](#màn-hình-40-admin-exams_management---adminexamslr-frame-id-13237)
-     - [Màn hình 41: [Admin] Exams_Speaking_Management - /admin/exams/speaking (ID: 24:9700)](#màn-hình-41-admin-exams_speaking_management---adminexamsspeaking-frame-id-249700)
-     - [Màn hình 42: [Admin] Exams_Writing_Management - /admin/exams/writing (ID: 24:9863)](#màn-hình-42-admin-exams_writing_management---adminexamswriting-frame-id-249863)
-     - [Màn hình 43: [Admin] ExamBuilder_LR_200Slots - /admin/exams/lr/[id]/edit (ID: 1:3475)](#màn-hình-43-admin-exambuilder_lr_200slots---adminexamslroidedit-frame-id-13475)
-     - [Màn hình 44: [Admin] Modal_Create_Exam_Metadata - Overlay (ID: 1:4227)](#màn-hình-44-admin-modal_create_exam_metadata---overlay-frame-id-14227)
-4. [ĐÁNH GIÁ CHUYÊN MÔN UX/UI & SO SÁNH TIẾN HÓA THIẾT KẾ (DESIGN AUDIT V1.0 → V2.1)](#4-đánh-giá-chuyên-môn-uxui--so-sánh-tiến-hóa-thiết-kế)
-5. [HƯỚNG DẪN TRIỂN KHAI FRONTEND & CONTRACT INTEGRATION](#5-hướng-dẫn-triển-khai-frontend--contract-integration)
+1. [DESIGN SYSTEM & DESIGN TOKENS OVERVIEW (PAGE: DESIGN SYSTEM & FOUNDATIONS)](#1-design-system--design-tokens-overview)
+   - 1.1. Design Philosophy & Brand Color Palette (01 · Color Tokens - ID: `11:82`)
+   - 1.2. Independent Exam Category Theming (L&R, Speaking, Writing)
+   - 1.3. Question Palette Exam Tokens
+   - 1.4. Typography System (02 · Typography - ID: `11:184`)
+   - 1.5. Master Components & States Library (03 · Master Components - ID: `11:194`)
+   - 1.6. 3 Independent Exam Foundations (04 · v2.1 Independent Exam Foundations - ID: `24:2`)
+2. [SUMMARY TABLE OF ALL 44 EXISTING FIGMA SCREENS (PAGE 1 - ID: `0:1`)](#2-summary-table-of-all-44-existing-figma-screens)
+3. [DETAILED SCREEN SPECIFICATIONS BY SUBSYSTEM](#3-detailed-screen-specifications-by-subsystem)
+   - **SUBSYSTEM 1: LEARNER AUTHENTICATION (LEARNER AUTH - 3 SCREENS)**
+     - [Screen 01: [Learner] Login_Page - /login (ID: 1:2)](#screen-01-learner-login_page---login-frame-id-12)
+     - [Screen 02: [Learner] Register_Page - /register (ID: 1:144)](#screen-02-learner-register_page---register-frame-id-1144)
+     - [Screen 03: [Learner] Forgot_Password_Page - /forgot-password (ID: 1:294)](#screen-03-learner-forgot_password_page---forgot-password-frame-id-1294)
+   - **SUBSYSTEM 2: LEARNER PORTAL, PROFILE & PROGRESSION HISTORY (LEARNER PORTAL & PROGRESSION - 3 SCREENS)**
+     - [Screen 04: [Learner] Home_Landing_Page - / (ID: 13:67084)](#screen-04-learner-home_landing_page----frame-id-1367084)
+     - [Screen 05: [Learner] Profile_Settings_Page - /profile (ID: 13:70116)](#screen-05-learner-profile_settings_page---profile-frame-id-1370116)
+     - [Screen 06: [Learner] History_Progression_Page - /history (ID: 13:70205)](#screen-06-learner-history_progression_page---history-frame-id-1370205)
+   - **SUBSYSTEM 3: LEARNER PRACTICE HUB (4 SCREENS)**
+     - [Screen 07: [Learner] Practice_Hub_Overview - /practice (ID: 13:67225)](#screen-07-learner-practice_hub_overview---practice-frame-id-1367225)
+     - [Screen 08: [Learner] Practice_LR_Interactive_Mode - /practice/lr/[partId] (ID: 13:67472)](#screen-08-learner-practice_lr_interactive_mode---practicelrpartid-frame-id-1367472)
+     - [Screen 09: [Learner] Practice_Speaking_Mode - /practice/speaking/[partId] (ID: 13:67617)](#screen-09-learner-practice_speaking_mode---practicespeakingpartid-frame-id-1367617)
+     - [Screen 10: [Learner] Practice_Writing_Mode - /practice/writing/[partId] (ID: 13:67739)](#screen-10-learner-practice_writing_mode---practicewritingpartid-frame-id-1367739)
+   - **SUBSYSTEM 4: ETS MOCK EXAMS LIBRARY HUB (LEARNER EXAMS LIBRARY HUB - 4 SCREENS)**
+     - [Screen 11: [Learner] Exams_Library_Hub - /exams (ID: 13:67810)](#screen-11-learner-exams_library_hub---exams-frame-id-1367810)
+     - [Screen 12: [Learner] Exams_LR_List - /exams/lr (ID: 24:8730)](#screen-12-learner-exams_lr_list---examslr-frame-id-248730)
+     - [Screen 13: [Learner] Exams_Speaking_List - /exams/speaking (ID: 24:8867)](#screen-13-learner-exams_speaking_list---examsspeaking-frame-id-248867)
+     - [Screen 14: [Learner] Exams_Writing_List - /exams/writing (ID: 24:9318)](#screen-14-learner-exams_writing_list---examswriting-frame-id-249318)
+   - **SUBSYSTEM 5: LISTENING & READING EXAM & EVALUATION FLOW (LEARNER L&R EXAM FLOW - 5 SCREENS)**
+     - [Screen 15: [Learner] Exam_LR_Instructions - /exams/lr/[id] (ID: 13:67968)](#screen-15-learner-exam_lr_instructions---examslrid-frame-id-1367968)
+     - [Screen 16: [Learner] Exam_LR_Virtual_Room - /exams/lr/[id]/attempt (ID: 13:68036)](#screen-16-learner-exam_lr_virtual_room---examslridattempt-frame-id-1368036)
+     - [Screen 17: [Learner] Modal_Exam_LR_Confirm_Submit - Overlay (ID: 13:68592)](#screen-17-learner-modal_exam_lr_confirm_submit---overlay-frame-id-1368592)
+     - [Screen 18: [Learner] Exam_LR_Result_Report - /exams/lr/[id]/result/[attemptId] (ID: 13:69428)](#screen-18-learner-exam_lr_result_report---examslridresultattemptid-frame-id-1369428)
+     - [Screen 19: [Learner] Exam_LR_Review_Mode - /exams/lr/[id]/review/[attemptId] (ID: 13:69536)](#screen-19-learner-exam_lr_review_mode---examslridreviewattemptid-frame-id-1369536)
+   - **SUBSYSTEM 6: SPEAKING EXAM & EVALUATION FLOW (LEARNER SPEAKING EXAM FLOW - 4 SCREENS)**
+     - [Screen 20: [Learner] Exam_Speaking_Device_Check - /exams/speaking/[id]/device-check (ID: 13:69176)](#screen-20-learner-exam_speaking_device_check---examsspeakingiddevice-check-frame-id-1369176)
+     - [Screen 21: [Learner] Exam_Speaking_Virtual_Room - /exams/speaking/[id]/attempt (ID: 13:69278)](#screen-21-learner-exam_speaking_virtual_room---examsspeakingidattempt-frame-id-1369278)
+     - [Screen 22: [Learner] Exam_Speaking_Result_Report - /exams/speaking/[id]/result/[attemptId] (ID: 24:9004)](#screen-22-learner-exam_speaking_result_report---examsspeakingidresultattemptid-frame-id-249004)
+     - [Screen 23: [Learner] Exam_Speaking_Review_Mode - /exams/speaking/[id]/review/[attemptId] (ID: 24:9106)](#screen-23-learner-exam_speaking_review_mode---examsspeakingidreviewattemptid-frame-id-249106)
+   - **SUBSYSTEM 7: WRITING EXAM & EVALUATION FLOW (LEARNER WRITING EXAM FLOW - 4 SCREENS)**
+     - [Screen 24: [Learner] Exam_Writing_Instructions - /exams/writing/[id] (ID: 24:9455)](#screen-24-learner-exam_writing_instructions---examswritingid-frame-id-249455)
+     - [Screen 25: [Learner] Exam_Writing_Virtual_Room - /exams/writing/[id]/attempt (ID: 13:69370)](#screen-25-learner-exam_writing_virtual_room---examswritingidattempt-frame-id-1369370)
+     - [Screen 26: [Learner] Exam_Writing_Result_Report - /exams/writing/[id]/result/[attemptId] (ID: 24:9528)](#screen-26-learner-exam_writing_result_report---examswritingidresultattemptid-frame-id-249528)
+     - [Screen 27: [Learner] Exam_Writing_Review_Mode - /exams/writing/[id]/review/[attemptId] (ID: 24:9605)](#screen-27-learner-exam_writing_review_mode---examswritingidreviewattemptid-frame-id-249605)
+   - **SUBSYSTEM 8: ADMIN MANAGEMENT - OVERVIEW & USERS (ADMIN CORE - 4 SCREENS)**
+     - [Screen 28: [Admin] Overview_Dashboard - /admin/overview (ID: 1:823)](#screen-28-admin-overview_dashboard---adminoverview-frame-id-1823)
+     - [Screen 29: [Admin] Users_Management - /admin/users (ID: 1:393)](#screen-29-admin-users_management---adminusers-frame-id-1393)
+     - [Screen 30: [Admin] Users_Loading_State - /admin/users?state=loading (ID: 13:70854)](#screen-30-admin-users_loading_state---adminusersstateloading-frame-id-1370854)
+     - [Screen 31: [Admin] Users_Empty_State - /admin/users?state=empty (ID: 13:70775)](#screen-31-admin-users_empty_state---adminusersstateempty-frame-id-1370775)
+   - **SUBSYSTEM 9: ADMIN MANAGEMENT - 4-SKILL EXERCISE BANK (EXERCISE BANK CMS - 8 SCREENS)**
+     - [Screen 32: [Admin] Exercises_LR_Parts - /admin/exercises/lr (ID: 1:1116)](#screen-32-admin-exercises_lr_parts---adminexerciseslr-frame-id-11116)
+     - [Screen 33: [Admin] Listening_Part1_Management - /admin/exercises/lr/p1 (ID: 1:1389)](#screen-33-admin-listening_part1_management---adminexerciseslrp1-frame-id-11389)
+     - [Screen 34: [Admin] Reading_Part7_Management - /admin/exercises/lr/p7 (ID: 13:70307)](#screen-34-admin-reading_part7_management---adminexerciseslrp7-frame-id-1370307)
+     - [Screen 35: [Admin] Modal_Add_Reading_Part7_Cluster - Overlay (ID: 13:70476)](#screen-35-admin-modal_add_reading_part7_cluster---overlay-frame-id-1370476)
+     - [Screen 36: [Admin] Speaking_Part1_Management - /admin/exercises/speaking/p1 (ID: 1:1804)](#screen-36-admin-speaking_part1_management---adminexercisesspeakingp1-frame-id-11804)
+     - [Screen 37: [Admin] Modal_Import_Exercises_Excel - Overlay (ID: 1:2218)](#screen-37-admin-modal_import_exercises_excel---overlay-frame-id-12218)
+     - [Screen 38: [Admin] Writing_Parts - /admin/exercises/writing (ID: 1:2674)](#screen-38-admin-writing_parts---adminexerciseswriting-frame-id-12674)
+     - [Screen 39: [Admin] Writing_Part1_Management - /admin/exercises/writing/p1 (ID: 1:2875)](#screen-39-admin-writing_part1_management---adminexerciseswritingp1-frame-id-12875)
+   - **SUBSYSTEM 10: ADMIN MANAGEMENT - EXAMS & EXAM BUILDER (EXAM BUILDER CMS - 5 SCREENS)**
+     - [Screen 40: [Admin] Exams_Management - /admin/exams/lr (ID: 1:3237)](#screen-40-admin-exams_management---adminexamslr-frame-id-13237)
+     - [Screen 41: [Admin] Exams_Speaking_Management - /admin/exams/speaking (ID: 24:9700)](#screen-41-admin-exams_speaking_management---adminexamsspeaking-frame-id-249700)
+     - [Screen 42: [Admin] Exams_Writing_Management - /admin/exams/writing (ID: 24:9863)](#screen-42-admin-exams_writing_management---adminexamswriting-frame-id-249863)
+     - [Screen 43: [Admin] ExamBuilder_LR_200Slots - /admin/exams/lr/[id]/edit (ID: 1:3475)](#screen-43-admin-exambuilder_lr_200slots---adminexamslridedit-frame-id-13475)
+     - [Screen 44: [Admin] Modal_Create_Exam_Metadata - Overlay (ID: 1:4227)](#screen-44-admin-modal_create_exam_metadata---overlay-frame-id-14227)
+4. [UX/UI PROFESSIONAL ASSESSMENT & DESIGN EVOLUTION COMPARISON (DESIGN AUDIT V1.0 -> V2.1)](#4-uxui-professional-assessment--design-evolution-comparison)
+5. [FRONTEND IMPLEMENTATION & CONTRACT INTEGRATION GUIDE](#5-frontend-implementation--contract-integration-guide)
 
 ---
 
-# 1. TỔNG QUAN HỆ THỐNG THIẾT KẾ & DESIGN TOKENS
+# 1. DESIGN SYSTEM & DESIGN TOKENS OVERVIEW
 
-Bản thiết kế trên Figma đã được nâng cấp lên phiên bản hoàn chỉnh với riêng một trang chuyên biệt: **`Design System & Foundations` (Node ID: `11:2`)**, chuẩn hóa toàn bộ Design Tokens và Components nền tảng.
+The Figma design has been upgraded to a complete version with a dedicated page: **`Design System & Foundations` (Node ID: `11:2`)**, standardizing all foundational Design Tokens and Components.
 
 ```
                     ┌─────────────────────────────────────────────────────────┐
                     │               TOEICMASTER DESIGN SYSTEM                 │
                     ├────────────────────┬────────────────────────────────────┤
-                    │ BRAND & SEMANTIC   │ EXAM CATEGORY THEMING (3 BÀI THI)  │
+                    │ BRAND & SEMANTIC   │ EXAM CATEGORY THEMING (3 EXAMS)    │
                     │ Primary: #FF5A1F   │ L&R: Blue (#1D4ED8 / #EFF6FF)      │
-                    │ Gradient: Đỏ-Cam   │ Speaking: Purple (#7E22CE / #FAF5FF│
+                    │ Gradient: Red-Orng │ Speaking: Purple (#7E22CE / #FAF5FF│
                     │ Dark: #302C2A      │ Writing: Green (#047857 / #ECFDF5) │
                     └────────────────────┴────────────────────────────────────┘
 ```
 
-### 1.1. Triết lý thiết kế & Bảng màu thương hiệu (01 · Color tokens - Frame ID: `11:82`)
+### 1.1. Design Philosophy & Brand Color Palette (01 · Color tokens - Frame ID: `11:82`)
 
-Hệ thống token màu sắc được tổ chức theo 4 nhóm rõ rệt:
+The color token system is organized into 4 distinct groups:
 
-| Nhóm Token | Tên Token Figma | Giá Trị HEX | Vai Trò & Vị Trí Áp Dụng |
+| Token Group | Figma Token Name | HEX Value | Role & Applied Locations |
 | :--- | :--- | :--- | :--- |
-| **Brand Primary** | `Primary` | `#FF5A1F` | Màu chủ đạo thương hiệu, CTA chính, viền focus |
-| | `Primary_Hover` | `#E04810` | Trạng thái hover của nút chính |
-| | `Primary_Light` | `#FFF7ED` | Nền sáng active, badge nhấn, highlight lựa chọn |
-| | `Primary_Dark` | `#C70E1A` | Màu chữ thương hiệu nhấn đậm, trạng thái đặc biệt |
-| | `Gradient_Start` | `#EC251B` | Điểm bắt đầu gradient đỏ thương hiệu |
-| | `Gradient_End` | `#FF6C0D` | Điểm kết thúc gradient cam thương hiệu |
-| **Neutral Surface**| `Dark_Title` | `#302C2A` | Tiêu đề chính, văn bản có trọng số cao |
-| | `Dark_Body` | `#4C4542` | Văn bản nội dung cơ bản (Body text) |
-| | `Muted_Text` | `#77716E` | Văn bản phụ, chú thích, thời gian, breadcrumb |
-| | `Placeholder` | `#AAA39F` | Chữ gợi ý trong ô input (placeholder text) |
-| | `Border_Light` | `#EEE9E6` | Viền mờ ngăn cách danh sách, divider |
-| | `Border_Medium`| `#D9D2CE` | Viền ô nhập liệu, viền thẻ card, viền bảng |
-| | `Bg_Warm` | `#FAF7F5` | Nền toàn trang, nền khu vực luyện tập |
-| | `Bg_Surface` | `#FFFFFF` | Nền thẻ Card nội dung, Modal, Panel |
-| | `Sidebar_Bg` | `#FAF8F7` | Nền cố định của Admin Sidebar |
-| **Semantic State** | `Success_Text` | `#398565` | Chữ trạng thái Hoạt động, câu trả lời đúng |
-| | `Success_Bg` | `#E5F4EC` | Nền badge Thành công, nền câu đúng |
-| | `Success_Border`| `#A3D9C0` | Viền thông báo thành công |
-| | `Warning_Text` | `#D97706` | Cảnh báo, trạng thái bản nháp, câu chưa xong |
-| | `Warning_Bg` | `#FEF3C7` | Nền badge Cảnh báo |
-| | `Danger_Text` | `#DC2626` | Lỗi xác thực, tài khoản bị khóa, câu trả lời sai |
-| | `Danger_Bg` | `#FEE2E2` | Nền badge Thất bại / Bị khóa / Cần sửa |
-| | `Info_Text` | `#2563EB` | Thông tin hướng dẫn, nhãn kỹ năng L&R |
-| | `Info_Bg` | `#EFF6FF` | Nền badge Thông tin / Banner nhắc nhở |
+| **Brand Primary** | `Primary` | `#FF5A1F` | Primary brand color, main CTAs, focus borders |
+| | `Primary_Hover` | `#E04810` | Hover state for primary buttons |
+| | `Primary_Light` | `#FFF7ED` | Active light background, emphasis badges, selection highlights |
+| | `Primary_Dark` | `#C70E1A` | Strong emphasis brand text, special states |
+| | `Gradient_Start` | `#EC251B` | Start color of the brand red-orange gradient |
+| | `Gradient_End` | `#FF6C0D` | End color of the brand red-orange gradient |
+| **Neutral Surface**| `Dark_Title` | `#302C2A` | Primary headings, high-weight text |
+| | `Dark_Body` | `#4C4542` | Standard body text |
+| | `Muted_Text` | `#77716E` | Secondary text, captions, timestamps, breadcrumbs |
+| | `Placeholder` | `#AAA39F` | Placeholder text inside input fields |
+| | `Border_Light` | `#EEE9E6` | Subtle borders separating list items, dividers |
+| | `Border_Medium`| `#D9D2CE` | Input field borders, card borders, table borders |
+| | `Bg_Warm` | `#FAF7F5` | Full-page background, practice area background |
+| | `Bg_Surface` | `#FFFFFF` | Content card background, modals, panels |
+| | `Sidebar_Bg` | `#FAF8F7` | Fixed background of the Admin Sidebar |
+| **Semantic State** | `Success_Text` | `#398565` | Active status text, correct answers |
+| | `Success_Bg` | `#E5F4EC` | Success badge background, correct answer background |
+| | `Success_Border`| `#A3D9C0` | Success notification border |
+| | `Warning_Text` | `#D97706` | Warnings, draft status, incomplete questions |
+| | `Warning_Bg` | `#FEF3C7` | Warning badge background |
+| | `Danger_Text` | `#DC2626` | Validation errors, locked accounts, incorrect answers |
+| | `Danger_Bg` | `#FEE2E2` | Failed / Locked / Needs Fixing badge background |
+| | `Info_Text` | `#2563EB` | Instructional info, L&R skill labels |
+| | `Info_Bg` | `#EFF6FF` | Info badge background / Reminder banners |
 
 ---
 
-### 1.2. Màu sắc nhận diện 3 Bài thi Độc lập (Category Theming)
+### 1.2. Independent Exam Category Theming
 
-Theo kiến trúc chuẩn hóa **v2.1 Independent Exam Foundations (`24:2`)**, hệ thống TOEICMaster phân định 3 bài thi độc lập thông qua bộ thẻ màu nhận diện trực quan:
+Following the standardized **v2.1 Independent Exam Foundations (`24:2`)** architecture, TOEICMaster distinguishes 3 independent exams through a visual category color set:
 
 ```
 ┌─────────────────────────────────┬─────────────────────────────────┬─────────────────────────────────┐
 │     LISTENING & READING (L&R)   │             SPEAKING            │             WRITING             │
 ├─────────────────────────────────┼─────────────────────────────────┼─────────────────────────────────┤
-│ Text: #1D4ED8 (Xanh dương đậm)  │ Text: #7E22CE (Tím thẫm)        │ Text: #047857 (Xanh lục bảo)    │
-│ Background: #EFF6FF (Xanh nhạt) │ Background: #FAF5FF (Tím nhạt)  │ Background: #ECFDF5 (Lục nhạt)  │
-│ 200 câu · 120 phút · Thang 990  │ 11 câu · ~20 phút · Thang 0-200 │ 8 câu · 60 phút · Thang 0-200   │
+│ Text: #1D4ED8 (Dark Blue)       │ Text: #7E22CE (Deep Purple)     │ Text: #047857 (Emerald Green)   │
+│ Background: #EFF6FF (Light Blue)│ Background: #FAF5FF (Light Purp)│ Background: #ECFDF5 (Light Grn) │
+│ 200 Qs · 120 mins · 990 Scale   │ 11 Qs · ~20 mins · 0-200 Scale  │ 8 Qs · 60 mins · 0-200 Scale    │
 └─────────────────────────────────┴─────────────────────────────────┴─────────────────────────────────┘
 ```
 
 ---
 
-### 1.3. Trạng thái Ma trận Câu hỏi (Question Palette Exam Tokens)
+### 1.3. Question Palette Exam Tokens
 
-Bản thiết kế chuẩn hóa màu sắc cho Question Palette (áp dụng trong phòng thi L&R và màn hình Review Mode):
+The design standardizes colors for the Question Palette (used in the L&R virtual exam room and Review Mode):
 
-| Mã Token Palette | Giá Trị HEX | Ý Nghĩa Trong Phòng Thi Thực Tế | Ý Nghĩa Trong Review Mode |
+| Palette Token | HEX Value | Meaning in Live Exam Room | Meaning in Review Mode |
 | :--- | :--- | :--- | :--- |
-| **Answered** | `#10B981` (Xanh lá) | Câu hỏi học viên đã chọn đáp án | - |
-| **Unanswered** | `#FFFFFF` (Trắng) | Câu hỏi còn trống, chưa có đáp án | - |
-| **Active** | `#FFF7ED` (Bg) / `#FF5A1F` (Viền) / `#EA580C` (Text) | Ô câu hỏi đang chọn làm bài / biên tập | Ô câu hỏi đang xem chi tiết |
-| **Flagged** | `#EAB308` (Biểu tượng cờ ⚑ vàng) | Học viên đánh dấu để kiểm tra lại | - |
-| **Locked_Listening**| Bg `#F3F4F6`, Text `#9CA3AF` | Câu hỏi phần Listening bị khóa khi audio qua | - |
-| **Review_Correct** | `#10B981` (Xanh lá) | - | Câu trả lời Chính xác |
-| **Review_Incorrect**| `#EF4444` (Đỏ tươi) | - | Câu trả lời Bị sai |
-| **Review_Skipped** | `#94A3B8` (Xám Slate) | - | Câu hỏi Bị bỏ qua (không trả lời)|
+| **Answered** | `#10B981` (Green) | Question has an answer selected by the learner | - |
+| **Unanswered** | `#FFFFFF` (White) | Question is blank, no answer selected yet | - |
+| **Active** | `#FFF7ED` (Bg) / `#FF5A1F` (Border) / `#EA580C` (Text) | Question slot currently being answered / edited | Question slot currently viewed in detail |
+| **Flagged** | `#EAB308` (Yellow flag ⚑ icon) | Marked by the learner for later review | - |
+| **Locked_Listening**| Bg `#F3F4F6`, Text `#9CA3AF` | Listening question locked once audio has passed | - |
+| **Review_Correct** | `#10B981` (Green) | - | Correct answer |
+| **Review_Incorrect**| `#EF4444` (Bright Red) | - | Incorrect answer |
+| **Review_Skipped** | `#94A3B8` (Slate Gray) | - | Skipped question (unanswered) |
 
 ---
 
-### 1.4. Hệ thống kiểu chữ (02 · Typography - Frame ID: `11:184`)
+### 1.4. Typography System (02 · Typography - Frame ID: `11:184`)
 
-Sử dụng đồng bộ họ phông chữ **`Poppins`** với các quy chuẩn tỉ lệ dòng (line-height) và cấp bậc rõ ràng:
+Uses the **`Poppins`** font family consistently with clearly defined line-height ratios and hierarchy:
 
-- **Display Hero / Score 990**: `48px Bold` (Dùng cho tổng điểm thi thử L&R, điểm số nổi bật).
-- **Display 1**: `32px Bold` (Dùng cho Headline trang chủ, tiêu đề lớn phòng thi).
-- **Heading 1 / Score 200**: `24px SemiBold / Bold` (Tiêu đề trang, điểm số Speaking & Writing 200).
-- **Heading 2**: `18px SemiBold` (Tiêu đề Part, tiêu đề thẻ Card lớn, tên đề thi).
-- **Heading 3**: `15px SemiBold` (Tiêu đề nhóm chức năng, trạng thái pha Speaking).
-- **Body Large**: `15px Regular` (Đoạn mô tả ngắn hero, hướng dẫn thi tổng thể).
-- **Body Base**: `13px Regular` (Nội dung câu hỏi, phương án trắc nghiệm, bài đọc, bảng dữ liệu).
-- **Body Small**: `11px Regular / SemiBold` (Số thứ tự ô ma trận, tag badge, breadcrumb, footnote).
-- **Code Timer**: `20px Bold` (Đồng hồ đếm ngược thời gian thi dạng Monospace `01:45:12`).
+- **Display Hero / Score 990**: `48px Bold` (Used for L&R mock exam total score, prominent score displays).
+- **Display 1**: `32px Bold` (Used for homepage hero headline, large exam room titles).
+- **Heading 1 / Score 200**: `24px SemiBold / Bold` (Page titles, Speaking & Writing 200-scale scores).
+- **Heading 2**: `18px SemiBold` (Part titles, large card titles, exam names).
+- **Heading 3**: `15px SemiBold` (Feature group titles, Speaking phase states).
+- **Body Large**: `15px Regular` (Short hero descriptions, overall exam instructions).
+- **Body Base**: `13px Regular` (Question text, multiple-choice options, reading passages, data tables).
+- **Body Small**: `11px Regular / SemiBold` (Palette cell numbers, tag badges, breadcrumbs, footnotes).
+- **Code Timer**: `20px Bold` (Monospace exam countdown timer `01:45:12`).
 
 ---
 
-### 1.5. Thư viện Master Components & States (03 · Frame ID: `11:194`)
+### 1.5. Master Components & States Library (03 · Frame ID: `11:194`)
 
-Đặc tả các thành phần UI dùng chung và trạng thái biến thể:
+Specification of shared UI components and variant states:
 1. **Button Master**: Primary Gradient, Primary Solid, Secondary Outlined, Ghost, Disabled.
-2. **Input Fields**: Normal, Hover, Focus (viền cam `#FF5A1F`), Error (viền đỏ `#DC2626` kèm thông báo lỗi *"Email không hợp lệ"* bên dưới), Disabled.
-3. **Timer Module (Đồng hồ phòng thi)**:
-   - Bình thường (Thời gian > 5 phút): Chữ xám đậm `01:45:12`.
-   - Cảnh báo (Thời gian `<= 5 phút`): Nền vàng cam nhạt, chữ cam `#D97706` `00:04:59`.
-   - Khẩn cấp (Thời gian `<= 1 phút`): Nền đỏ nhạt, nhấp nháy chữ đỏ `#DC2626` `00:00:59`.
+2. **Input Fields**: Normal, Hover, Focus (orange border `#FF5A1F`), Error (red border `#DC2626` with error message *"Invalid email"* underneath), Disabled.
+3. **Timer Module (Exam Room Timer)**:
+   - Normal (Time > 5 minutes): Dark gray text `01:45:12`.
+   - Warning (Time `<= 5 minutes`): Light amber-orange background, orange text `#D97706` `00:04:59`.
+   - Urgent (Time `<= 1 minute`): Light red background, blinking red text `#DC2626` `00:00:59`.
 4. **Speaking Two-Phase Recorder Component**:
-   - `PHA 1 · MICRO CHƯA THU ÂM`: 45s chuẩn bị, đếm ngược `00:32`, dải sóng micro xám tĩnh, text: *"Sau tiếng Bíp bắt đầu nói"*.
-   - `PHA 2 · ● REC`: 30s trả lời, đếm ngược `00:24`, chấm đỏ REC nhấp nháy, dải sóng âm dao động theo âm lượng thực tế của học viên.
+   - `PHASE 1 · MIC NOT RECORDING`: 45s preparation, countdown `00:32`, static gray mic waveform, text: *"Begin speaking after the Beep"*.
+   - `PHASE 2 · ● REC`: 30s response, countdown `00:24`, blinking red REC dot, live audio waveform oscillating with the learner's voice volume.
 5. **Writing Anti-Cheat Workspace Component**:
-   - Khung gõ bài vô hiệu hóa chuột phải, vô hiệu hóa phím tắt dán `Ctrl+V` / `Cmd+V`.
-   - Bộ đếm từ tự động theo thời gian thực (Real-time Word Counter) hiển thị dạng: *"320 từ / Khuyến nghị 300 từ"*.
+   - Text editor disables right-click and paste shortcuts `Ctrl+V` / `Cmd+V`.
+   - Automatic real-time word counter displayed as: *"320 words / Recommended 300 words"*.
 
 ---
 
-### 1.6. Nền tảng 3 Bài thi Độc lập (04 · Frame ID: `24:2`)
+### 1.6. 3 Independent Exam Foundations (04 · Frame ID: `24:2`)
 
-Hệ thống TOEICMaster định hình 3 bài thi độc lập:
-1. **Bài thi Listening & Reading (L&R)**:
-   - Cấu trúc: 200 câu hỏi trắc nghiệm (Part 1 - Part 7).
-   - Thời gian: 120 phút liên tục (45 phút Listening + 75 phút Reading).
-   - Cơ chế: Master Audio phát xuyên suốt phần Listening, Question Palette 200 câu.
-   - Thang điểm: 10–990 điểm ETS.
-2. **Bài thi Speaking**:
-   - Cấu trúc: 11 câu hỏi (Part 1 - Part 5).
-   - Thời gian: ~20 phút.
-   - Cơ chế: Thiết bị kiểm tra Microphone trước khi thi, quy trình 2 pha tự động (Pha 1 Chuẩn bị → Tiếng Bíp → Pha 2 Thu âm trả lời).
-   - Thang điểm: 0–200 điểm ETS.
-3. **Bài thi Writing**:
-   - Cấu trúc: 8 câu hỏi (Part 1 Viết câu: 5 câu; Part 2 Phản hồi email: 2 câu; Part 3 Viết luận: 1 bài).
-   - Thời gian: 60 phút.
-   - Cơ chế: Soạn thảo văn bản chống gian lận, chặn paste, đếm từ tự động.
-   - Thang điểm: 0–200 điểm ETS.
+TOEICMaster defines 3 independent exams:
+1. **Listening & Reading (L&R) Exam**:
+   - Structure: 200 multiple-choice questions (Part 1 - Part 7).
+   - Duration: 120 continuous minutes (45 minutes Listening + 75 minutes Reading).
+   - Mechanism: Master Audio plays continuously throughout the Listening section, 200-question Question Palette.
+   - Score scale: 10-990 ETS scale.
+2. **Speaking Exam**:
+   - Structure: 11 questions (Part 1 - Part 5).
+   - Duration: ~20 minutes.
+   - Mechanism: Pre-exam microphone device check, automated 2-phase workflow (Phase 1 Preparation → Beep → Phase 2 Response Recording).
+   - Score scale: 0-200 ETS scale.
+3. **Writing Exam**:
+   - Structure: 8 questions (Part 1 Sentence writing: 5 questions; Part 2 Email response: 2 questions; Part 3 Essay writing: 1 essay).
+   - Duration: 60 minutes.
+   - Mechanism: Anti-cheat text editor, paste blocked, automatic word count.
+   - Score scale: 0-200 ETS scale.
 
 ---
 
-# 2. BẢNG TỔNG HỢP 44 MÀN HÌNH HIỆN CÓ TRÊN FIGMA
+# 2. SUMMARY TABLE OF ALL 44 EXISTING FIGMA SCREENS
 
-Tất cả 44 màn hình đều được bố trí trực quan trên **Page 1 (Node ID: `0:1`)**, được định danh theo quy chuẩn `[Role] Name - /route`:
+All 44 screens are arranged visually on **Page 1 (Node ID: `0:1`)**, named according to the `[Role] Name - /route` convention:
 
-| STT | Tên Frame trên Figma | Node ID | Kích Thước (W x H) | Phân Hệ | Route Đường Dẫn Frontend |
+| No. | Figma Frame Name | Node ID | Dimensions (W x H) | Subsystem | Frontend Route Path |
 | :---: | :--- | :---: | :---: | :---: | :--- |
 | **01** | `[Learner] Login_Page - /login` | `1:2` | 1722 x 836 px | Auth | `/login` |
 | **02** | `[Learner] Register_Page - /register` | `1:144` | 1722 x 836 px | Auth | `/register` |
@@ -274,794 +274,795 @@ Tất cả 44 màn hình đều được bố trí trực quan trên **Page 1 (N
 
 ---
 
-# 3. MÔ TẢ CHI TIẾT TỪNG MÀN HÌNH
+# 3. DETAILED SCREEN SPECIFICATIONS BY SUBSYSTEM
 
 ---
 
-## PHÂN HỆ 1: XÁC THỰC NGƯỜI HỌC (LEARNER AUTH)
+## SUBSYSTEM 1: LEARNER AUTHENTICATION (LEARNER AUTH)
 
-### Màn hình 01: [Learner] Login_Page - /login (Frame ID: `1:2`)
+### Screen 01: [Learner] Login_Page - /login (Frame ID: `1:2`)
 
-- **Kích thước**: `1722 x 836 px`.
+- **Dimensions**: `1722 x 836 px`.
 - **Route**: `/login`.
-- **Bố cục (Layout)**: Split-screen tỉ lệ 45 : 55.
-- **Vùng trái (Showcase Brand)**:
-  - Nền ấm `#FAF7F5` kèm các gradient circle mờ.
-  - Logo thương hiệu `TOEICMaster` kèm slogan *"Học theo cách của bạn"*.
-  - Headline: *"Mỗi cuộc trò chuyện, một bước tiến bộ."* (chữ "tiến bộ" cách điệu nghiêng).
-  - Khối chat preview AI: Bong bóng thoại học ngoại ngữ song ngữ (Hello! - Xin chào; Great! - Rất tốt).
-  - Metric Card: `+24% Tiến bộ tuần này` kèm biểu tượng tăng trưởng.
-  - Testimonial Card: Đánh giá 5 sao `★★★★★`, avatar `MT`, trích dẫn: *“Mình đã tự tin giao tiếp chỉ sau 8 tuần!”*.
-- **Vùng phải (Form Đăng nhập)**:
-  - Tab chuyển đổi: **[Đăng nhập]** (Active - Nền trắng, chữ đậm) | **[Đăng ký]**.
-  - Header: *"Chào mừng đến TOEICMaster - Tiếp tục hành trình của bạn"*.
-  - Input Email: Placeholder `ban@example.com`, nhãn "Email".
-  - Input Mật khẩu: Kèm icon ẩn/hiện mắt (Show/Hide Password).
-  - Tùy chọn: Checkbox *"Ghi nhớ đăng nhập"*; Link *"Quên mật khẩu?"* (`/forgot-password`).
-  - Button chính: **[ĐĂNG NHẬP]** Gradient đỏ-cam (`#EC251B` → `#FF6C0D`).
-  - Phân cách: *"hoặc tiếp tục với"*; Button SSO: **[Tiếp tục với Google]**.
-  - Footer: *"Chưa có tài khoản? Đăng ký miễn phí"* (`/register`).
+- **Layout**: Split-screen at a 45 : 55 ratio.
+- **Left Panel (Brand Showcase)**:
+  - Warm background `#FAF7F5` with soft blurred gradient circles.
+  - Brand logo `TOEICMaster` with slogan *"Learn your way"*.
+  - Headline: *"Every conversation, one step forward."* (with "forward" styled in italics).
+  - AI chat preview block: Bilingual language learning speech bubbles (Hello! - Greeting; Great! - Very good).
+  - Metric Card: `+24% Progress this week` with a growth icon.
+  - Testimonial Card: 5-star rating `★★★★★`, avatar `MT`, quote: *"I became confident communicating after just 8 weeks!"*.
+- **Right Panel (Login Form)**:
+  - Tab switcher: **[Sign In]** (Active - White background, bold text) | **[Sign Up]**.
+  - Header: *"Welcome to TOEICMaster - Continue your journey"*.
+  - Email Input: Placeholder `you@example.com`, label "Email".
+  - Password Input: Includes Show/Hide Password eye icon.
+  - Options: Checkbox *"Remember me"*; Link *"Forgot password?"* (`/forgot-password`).
+  - Primary Button: **[SIGN IN]** Red-orange gradient (`#EC251B` → `#FF6C0D`).
+  - Divider: *"or continue with"*; SSO Button: **[Continue with Google]**.
+  - Footer: *"Don't have an account? Sign up for free"* (`/register`).
 
 ---
 
-### Màn hình 02: [Learner] Register_Page - /register (Frame ID: `1:144`)
+### Screen 02: [Learner] Register_Page - /register (Frame ID: `1:144`)
 
-- **Kích thước**: `1722 x 836 px`.
+- **Dimensions**: `1722 x 836 px`.
 - **Route**: `/register`.
-- **Bố cục**: Đồng bộ Split-screen với màn hình Đăng nhập.
-- **Form Đăng ký**:
-  - Tab chuyển đổi: **[Đăng ký]** (Active).
-  - Tiêu đề: *"Chào mừng đến TOEICMaster - Bắt đầu hành trình mới"*.
-  - Phụ đề: *"Tạo tài khoản miễn phí và bắt đầu luyện nói ngay hôm nay."*.
-  - Các trường:
-    1. Họ và tên (`Nguyễn Minh Anh`).
-    2. Email (`ban@example.com`).
-    3. Mật khẩu (`Tối thiểu 8 ký tự`).
-    4. Checkbox thỏa thuận: *"Tôi đồng ý với Điều khoản sử dụng"*.
-  - Button chính: **[Tạo tài khoản]** (Gradient đỏ-cam).
-  - Footer: *"Bạn đã có tài khoản? Đăng nhập"* (`/login`).
+- **Layout**: Consistent split-screen layout matching the Login screen.
+- **Registration Form**:
+  - Tab switcher: **[Sign Up]** (Active).
+  - Title: *"Welcome to TOEICMaster - Start a new journey"*.
+  - Subtitle: *"Create a free account and start practicing speaking today."*.
+  - Fields:
+    1. Full name (`Nguyen Minh Anh`).
+    2. Email (`you@example.com`).
+    3. Password (`Minimum 8 characters`).
+    4. Agreement checkbox: *"I agree to the Terms of Use"*.
+  - Primary Button: **[Create Account]** (Red-orange gradient).
+  - Footer: *"Already have an account? Sign in"* (`/login`).
 
 ---
 
-### Màn hình 03: [Learner] Forgot_Password_Page - /forgot-password (Frame ID: `1:294`)
+### Screen 03: [Learner] Forgot_Password_Page - /forgot-password (Frame ID: `1:294`)
 
-- **Kích thước**: `1722 x 836 px`.
+- **Dimensions**: `1722 x 836 px`.
 - **Route**: `/forgot-password`.
-- **Chi tiết form**:
-  - Tiêu đề: *"Khôi phục tài khoản - Quên mật khẩu?"*.
-  - Hướng dẫn: *"Nhập email đã đăng ký, chúng tôi sẽ gửi cho bạn liên kết để đặt lại mật khẩu."*.
-  - Trường nhập: Duy nhất 1 ô **Email** (`ban@example.com`).
-  - Button chính: **[Gửi mã xác minh]** (Gradient đỏ-cam).
-  - Footer: *"Bạn đã nhớ mật khẩu? Quay lại đăng nhập"* (`/login`).
+- **Form Details**:
+  - Title: *"Account Recovery - Forgot your password?"*.
+  - Instructions: *"Enter your registered email and we will send you a link to reset your password."*.
+  - Input field: Single **Email** input (`you@example.com`).
+  - Primary Button: **[Send Verification Code]** (Red-orange gradient).
+  - Footer: *"Remembered your password? Back to sign in"* (`/login`).
 
 ---
 
-## PHÂN HỆ 2: CỔNG NGƯỜI HỌC, HỒ SƠ & LỊCH SỬ TIẾN ĐỘ (LEARNER PORTAL & PROGRESSION)
+## SUBSYSTEM 2: LEARNER PORTAL, PROFILE & PROGRESSION HISTORY (LEARNER PORTAL & PROGRESSION)
 
-### Màn hình 04: [Learner] Home_Landing_Page - / (Frame ID: `13:67084`)
+### Screen 04: [Learner] Home_Landing_Page - / (Frame ID: `13:67084`)
 
-- **Kích thước**: `1722 x 1275 px`.
+- **Dimensions**: `1722 x 1275 px`.
 - **Route**: `/`.
-- **Kiểu bố cục**: Landing Page hiện đại gồm Global Learner Header + Hero Banner + Feature Cards + CTA.
-- **Thành phần giao diện**:
+- **Layout Type**: Modern landing page featuring Global Learner Header + Hero Banner + Feature Cards + CTA.
+- **UI Components**:
   1. **Global Learner Header**:
      - Logo: `TOEICMaster`.
-     - Navigation Menu: `Luyện tập 15 Parts`, `Đề thi thử ETS (3 Kỹ năng)`, `Bảng vàng thành tích`, `Hướng dẫn học`.
-     - User Action Group: Nếu chưa đăng nhập: Nút **[Đăng nhập]** và Nút **[Đăng ký miễn phí]**.
-  2. **Guest Alert Banner (Khách học thử)**:
-     - Dải màu vàng cam nhẹ: *"Bạn đang học với tư cách Khách. Kết quả bài làm sẽ không được lưu vào hồ sơ cá nhân sau khi đóng trình duyệt."* kèm nút **[Đăng ký tài khoản miễn phí]**.
+     - Navigation Menu: `Practice 15 Parts`, `ETS Mock Exams (3 Skills)`, `Achievement Leaderboard`, `Study Guide`.
+     - User Action Group: When logged out: **[Sign In]** button and **[Sign Up Free]** button.
+  2. **Guest Alert Banner (Trial Guest)**:
+     - Light amber-orange banner: *"You are studying as a Guest. Your test results will not be saved to a personal profile after closing the browser."* with a **[Create Free Account]** button.
   3. **Hero Section**:
-     - Badge nhận diện: `4 KỸ NĂNG · 3 BÀI THI ĐỘC LẬP`.
-     - Headline: *"Hệ Thống Luyện Thi TOEIC Chuẩn Format ETS Số 1 Việt Nam"*.
-     - Subtitle: *"Hệ thống phòng thi ảo chân thực 100%, ngân hàng đề 200 câu L&R, AI chấm điểm Speaking & Writing chi tiết."*.
-     - Cụm CTA kép: **[Thi thử L&R · 120 phút]** (Gradient đỏ-cam) và **[Luyện tập theo từng Part]** (Viền cam nền trong suốt).
-     - Trust Badges: `✓ Đề chuẩn ETS` · `✓ Giải thích song ngữ` · `✓ Bắt đầu miễn phí`.
-  4. **Khối 3 Bài Thi Độc Lập (3 Independent Exams Card Grid)**:
-     - Thẻ 1: **Listening & Reading** (200 câu, 120 phút, thang điểm 990, Master Audio liên tục).
-     - Thẻ 2: **Speaking** (11 câu, 20 phút, thang điểm 200, phòng thi 2 pha Chuẩn bị/Nói).
-     - Thẻ 3: **Writing** (8 câu, 60 phút, thang điểm 200, soạn thảo chống gian lận).
+     - Identity badge: `4 SKILLS · 3 INDEPENDENT EXAMS`.
+     - Headline: *"Vietnam's #1 ETS-Standard TOEIC Preparation Platform"*.
+     - Subtitle: *"100% realistic virtual exam rooms, 200-question L&R test bank, detailed AI scoring for Speaking & Writing."*.
+     - Dual CTA group: **[Take L&R Mock Test · 120 mins]** (Red-orange gradient) and **[Practice by Part]** (Orange border, transparent background).
+     - Trust Badges: `✓ ETS-Standard Tests` · `✓ Bilingual Explanations` · `✓ Start for Free`.
+  4. **3 Independent Exams Card Grid**:
+     - Card 1: **Listening & Reading** (200 questions, 120 minutes, 990 scale, continuous Master Audio).
+     - Card 2: **Speaking** (11 questions, 20 minutes, 200 scale, 2-phase Prep/Speak exam room).
+     - Card 3: **Writing** (8 questions, 60 minutes, 200 scale, anti-cheat editor).
 
 ---
 
-### Màn hình 05: [Learner] Profile_Settings_Page - /profile (Frame ID: `13:70116`)
+### Screen 05: [Learner] Profile_Settings_Page - /profile (Frame ID: `13:70116`)
 
-- **Kích thước**: `1722 x 875 px`.
+- **Dimensions**: `1722 x 875 px`.
 - **Route**: `/profile`.
-- **Chi tiết giao diện**:
-  - Breadcrumb: `Trang chủ / Hồ sơ cá nhân`.
-  - Header: *"Hồ sơ & mục tiêu học tập - Cá nhân hóa hành trình chinh phục TOEIC của bạn."*.
-  - Thẻ thông tin cá nhân:
-    - Avatar học viên: Ký tự viết tắt `MA` (Minh Anh).
-    - Meta info: Ngày tham gia `12/08/2026` · Tổng giờ luyện thi `48 giờ 30 phút`.
-    - Các trường nhập liệu: Họ và tên, Email, Số điện thoại.
-    - Nút **[Lưu thay đổi]**.
-  - Thẻ Thiết lập Mục tiêu Điểm số (Target Score):
-    - Mục tiêu Listening & Reading: Thang 10–990 (Điểm kỳ vọng ví dụ `850`).
-    - Mục tiêu Speaking: Thang 0–200 (Điểm kỳ vọng ví dụ `160`).
-    - Mục tiêu Writing: Thang 0–200 (Điểm kỳ vọng ví dụ `150`).
-  - Thẻ Bảo mật & Đổi mật khẩu:
-    - Mật khẩu hiện tại, Mật khẩu mới (*"Ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số"*), Xác nhận mật khẩu mới.
-    - Nút **[Cập nhật mật khẩu]**.
+- **UI Details**:
+  - Breadcrumb: `Home / Personal Profile`.
+  - Header: *"Profile & Study Goals - Personalize your journey to conquer TOEIC."*.
+  - Personal Information Card:
+    - Learner avatar: Initials `MA` (Minh Anh).
+    - Meta info: Joined date `12/08/2026` · Total practice hours `48 hours 30 minutes`.
+    - Input fields: Full name, Email, Phone number.
+    - Button **[Save Changes]**.
+  - Target Score Settings Card:
+    - Listening & Reading Target: 10-990 scale (Example target score `850`).
+    - Speaking Target: 0-200 scale (Example target score `160`).
+    - Writing Target: 0-200 scale (Example target score `150`).
+  - Security & Change Password Card:
+    - Current Password, New Password (*"At least 8 characters, including uppercase, lowercase, and numbers"*), Confirm New Password.
+    - Button **[Update Password]**.
 
 ---
 
-### Màn hình 06: [Learner] History_Progression_Page - /history (Frame ID: `13:70205`)
+### Screen 06: [Learner] History_Progression_Page - /history (Frame ID: `13:70205`)
 
-- **Kích thước**: `1722 x 1985 px` (Trang biểu đồ tiến trình dạng kéo dài).
+- **Dimensions**: `1722 x 1985 px` (Long-scroll progression chart page).
 - **Route**: `/history`.
-- **Mục đích**: Bảng điều khiển theo dõi lịch sử làm bài và đồ thị tăng trưởng điểm số qua các lần thi.
-- **Chi tiết giao diện**:
-  - Header: *"Mỗi lần luyện thi, một bước tiến bộ - Theo dõi kết quả và nhìn lại hành trình chinh phục mục tiêu của bạn."*.
-  - Thống kê tháng: `6 lần thi · +170 điểm trong tháng`.
-  - 3 Tab phân tách theo 3 bài thi độc lập:
-    - **[1. Lịch sử Đề Listening & Reading]** (Thang 990 - Active).
-    - **[2. Lịch sử Đề Speaking]** (Thang 200).
-    - **[3. Lịch sử Đề Writing]** (Thang 200).
-  - Biểu đồ Tiến bộ Điểm số (Progression Line Chart):
-    - Khung thời gian: `01/10/2026 — 31/10/2026 ⌄`.
-    - Trục tung điểm số: 0 - 990 (Đường mục tiêu 750 / 850).
-    - Các điểm mốc lần thi: Lần 1 (650) → Lần 3 (720) → Lần 6 (820).
-  - Bảng Lịch sử Lần thi chi tiết (Exam Attempts Table):
-    - Cột: `Lần thi`, `Tên đề thi`, `Ngày làm bài`, `Thời gian hoàn thành`, `Điểm Nghe / Đọc`, `Tổng điểm`, `Thao tác`.
-    - Cột Thao tác: Nút **[Xem kết quả]** (`/exams/lr/[id]/result/[attemptId]`) và **[Xem lại bài]** (`/exams/lr/[id]/review/[attemptId]`).
+- **Purpose**: Dashboard tracking test attempt history and score growth charts across attempts.
+- **UI Details**:
+  - Header: *"Every test attempt, one step forward - Track your results and look back on your journey toward your goal."*.
+  - Monthly summary: `6 attempts · +170 points this month`.
+  - 3 Tabs separated by the 3 independent exams:
+    - **[1. Listening & Reading Exam History]** (990 scale - Active).
+    - **[2. Speaking Exam History]** (200 scale).
+    - **[3. Writing Exam History]** (200 scale).
+  - Score Progression Line Chart:
+    - Date range: `01/10/2026 - 31/10/2026 ⌄`.
+    - Y-axis score range: 0 - 990 (Target line at 750 / 850).
+    - Attempt milestones: Attempt 1 (650) → Attempt 3 (720) → Attempt 6 (820).
+  - Detailed Exam Attempts Table:
+    - Columns: `Attempt`, `Exam Name`, `Attempt Date`, `Completion Time`, `Listening / Reading Score`, `Total Score`, `Actions`.
+    - Actions column: **[View Result]** (`/exams/lr/[id]/result/[attemptId]`) and **[Review Exam]** (`/exams/lr/[id]/review/[attemptId]`) buttons.
 
 ---
 
-## PHÂN HỆ 3: TRUNG TÂM LUYỆN TẬP KỸ NĂNG NGƯỜI HỌC (LEARNER PRACTICE HUB)
+## SUBSYSTEM 3: LEARNER PRACTICE HUB
 
-### Màn hình 07: [Learner] Practice_Hub_Overview - /practice (Frame ID: `13:67225`)
+### Screen 07: [Learner] Practice_Hub_Overview - /practice (Frame ID: `13:67225`)
 
-- **Kích thước**: `1722 x 965 px`.
+- **Dimensions**: `1722 x 965 px`.
 - **Route**: `/practice`.
-- **Mục đích**: Trung tâm lựa chọn luyện tập theo từng Part chuyên biệt có giải thích tức thì.
-- **Chi tiết giao diện**:
-  - Header: *"Ngân hàng Luyện tập theo từng Part - Chọn kỹ năng và dạng bài để rèn luyện chuyên sâu có đáp án và giải thích tức thì."*.
-  - 3 Tabs chuyển đổi kỹ năng:
-    - **[Listening & Reading (Part 1–7)]** (Active).
-    - **[Speaking (Part 1–5)]**.
-    - **[Writing (Part 1–3)]**.
-  - Lưới các thẻ Part (Part Cards Grid):
-    - *Part 1: Photographs* (Mô tả tranh - 240 câu hỏi · Dễ / TB / Khó).
-    - *Part 2: Question & Response* (Hỏi & Đáp - 300 câu).
-    - *Part 3: Short Conversations* (Hội thoại ngắn - 180 câu).
-    - *Part 4: Short Talks* (Bài nói ngắn - 160 câu).
-    - *Part 5: Incomplete Sentences* (Điền câu - 350 câu).
-    - *Part 6: Text Completion* (Điền đoạn văn - 140 câu).
-    - *Part 7: Reading Comprehension* (Đọc hiểu văn bản đơn & đa đoạn - 220 câu).
-  - Nút trên từng thẻ: **[Bắt đầu luyện tập →]**.
+- **Purpose**: Central hub for selecting dedicated practice by individual Part with instant explanations.
+- **UI Details**:
+  - Header: *"Part-by-Part Practice Bank - Choose a skill and question type for focused training with answers and instant explanations."*.
+  - 3 Skill Switcher Tabs:
+    - **[Listening & Reading (Part 1-7)]** (Active).
+    - **[Speaking (Part 1-5)]**.
+    - **[Writing (Part 1-3)]**.
+  - Part Cards Grid:
+    - *Part 1: Photographs* (Photo description - 240 questions · Easy / Medium / Hard).
+    - *Part 2: Question & Response* (Q&A - 300 questions).
+    - *Part 3: Short Conversations* (Short conversations - 180 questions).
+    - *Part 4: Short Talks* (Short talks - 160 questions).
+    - *Part 5: Incomplete Sentences* (Sentence completion - 350 questions).
+    - *Part 6: Text Completion* (Text completion - 140 questions).
+    - *Part 7: Reading Comprehension* (Single & multiple passage reading comprehension - 220 questions).
+  - Button on each card: **[Start Practicing →]**.
 
 ---
 
-### Màn hình 08: [Learner] Practice_LR_Interactive_Mode - /practice/lr/[partId] (Frame ID: `13:67472`)
+### Screen 08: [Learner] Practice_LR_Interactive_Mode - /practice/lr/[partId] (Frame ID: `13:67472`)
 
-- **Kích thước**: `1722 x 1000 px`.
+- **Dimensions**: `1722 x 1000 px`.
 - **Route**: `/practice/lr/[partId]`.
-- **Mục đích**: Giao diện làm bài luyện tập tương tác có phản hồi ngay sau khi chọn đáp án.
-- **Chi tiết giao diện**:
+- **Purpose**: Interactive practice interface with immediate feedback upon selecting an answer.
+- **UI Details**:
   - Top Control Bar:
-    - Nút **[← Quay lại Hub]**.
-    - Định danh: `Part 3 · Conversations` | Vị trí: `Câu 4 / 20 câu`.
-    - Bộ công cụ học tập: Phím đổi cỡ chữ `A−` / `A+`, Dropdown `Chuyển nhanh câu 04 ⌄`.
-  - Bộ điều khiển phát Audio chuyên sâu:
-    - Thanh tua phát `00:24 / 00:58`.
-    - Nút lùi 5s `↶ 5s`, Phát/Tạm dừng `▶`, Tiến 5s `5s ↷`.
-    - Lựa chọn tốc độ phát âm thanh: `0.8×` · `1.0×` · `1.2×`.
-  - Khung nội dung hội thoại & Ngữ cảnh:
-    - Tiêu đề chủ đề: `CONVERSATION · OFFICE RELOCATION` - *"A new home for our team"*.
-    - Hướng dẫn: *"Nghe cuộc hội thoại giữa hai đồng nghiệp và trả lời câu hỏi. Bạn có thể nghe lại, giảm tốc độ hoặc lặp đoạn A–B."*.
-  - Khung câu hỏi & Phản hồi tức thì:
-    - Các phương án trắc nghiệm A, B, C, D.
-    - Banner phản hồi ngay khi chọn: `Phản hồi tức thì · Đã chọn B` (Màu xanh nếu đúng, Đỏ nếu sai).
-    - Box Giải thích & Dịch nghĩa song ngữ mở rộng bên dưới.
+    - Button **[← Back to Hub]**.
+    - Identifier: `Part 3 · Conversations` | Position: `Question 4 / 20`.
+    - Study toolkit: Font size controls `A−` / `A+`, Dropdown `Jump to Q04 ⌄`.
+  - Advanced Audio Playback Controls:
+    - Scrub bar `00:24 / 00:58`.
+    - Rewind 5s `↶ 5s`, Play/Pause `▶`, Forward 5s `5s ↷`.
+    - Playback speed selector: `0.8×` · `1.0×` · `1.2×`.
+  - Conversation & Context Panel:
+    - Topic title: `CONVERSATION · OFFICE RELOCATION` - *"A new home for our team"*.
+    - Instructions: *"Listen to the conversation between two colleagues and answer the questions. You can replay, slow down speed, or loop section A-B."*.
+  - Question & Instant Feedback Panel:
+    - Multiple-choice options A, B, C, D.
+    - Immediate feedback banner upon selection: `Instant Feedback · Selected B` (Green if correct, Red if incorrect).
+    - Expandable Bilingual Explanation & Translation box below.
 
 ---
 
-### Màn hình 09: [Learner] Practice_Speaking_Mode - /practice/speaking/[partId] (Frame ID: `13:67617`)
+### Screen 09: [Learner] Practice_Speaking_Mode - /practice/speaking/[partId] (Frame ID: `13:67617`)
 
-- **Kích thước**: `1722 x 850 px`.
+- **Dimensions**: `1722 x 850 px`.
 - **Route**: `/practice/speaking/[partId]`.
-- **Mục đích**: Luyện nói tự do theo từng Part (ví dụ Part 1: Read a text aloud).
-- **Chi tiết giao diện**:
-  - Breadcrumb: `Trang chủ / Luyện tập / Speaking / Part 1`.
-  - Header: *"Read a text aloud - Luyện phát âm, trọng âm và ngữ điệu. Nói thử, nghe lại và tự tin tiến bộ."*.
-  - Đoạn văn bản mẫu cần đọc to.
-  - Bộ công cụ ghi âm thử và nghe lại giọng đọc của bản thân.
-  - Nút điều hướng: **[← Quay lại Hub]** và **[Bài tiếp theo →]**.
+- **Purpose**: Free-form speaking practice by Part (e.g., Part 1: Read a text aloud).
+- **UI Details**:
+  - Breadcrumb: `Home / Practice / Speaking / Part 1`.
+  - Header: *"Read a text aloud - Practice pronunciation, stress, and intonation. Speak, play back, and improve with confidence."*.
+  - Sample text passage to read aloud.
+  - Tools to record a practice attempt and play back one's own voice.
+  - Navigation buttons: **[← Back to Hub]** and **[Next Exercise →]**.
 
 ---
 
-### Màn hình 10: [Learner] Practice_Writing_Mode - /practice/writing/[partId] (Frame ID: `13:67739`)
+### Screen 10: [Learner] Practice_Writing_Mode - /practice/writing/[partId] (Frame ID: `13:67739`)
 
-- **Kích thước**: `1722 x 982 px`.
+- **Dimensions**: `1722 x 982 px`.
 - **Route**: `/practice/writing/[partId]`.
-- **Mục đích**: Luyện viết câu theo tranh (Part 1), email (Part 2), hoặc bài luận (Part 3).
-- **Chi tiết giao diện**:
-  - Breadcrumb: `Trang chủ / Luyện tập / Writing / Part 1`.
-  - Header: *"Write a sentence based on a picture - Viết một câu mô tả bức ảnh, sử dụng cả hai từ khóa. Có thể thay đổi dạng từ nếu cần."*.
-  - Khung ảnh bài tập kèm 2 từ gợi ý bắt buộc.
-  - Ô soạn thảo câu trả lời và nút gửi kiểm tra ngữ pháp tự động.
+- **Purpose**: Practice writing sentences from pictures (Part 1), emails (Part 2), or essays (Part 3).
+- **UI Details**:
+  - Breadcrumb: `Home / Practice / Writing / Part 1`.
+  - Header: *"Write a sentence based on a picture - Write one sentence describing the picture using both keywords. You may change the word forms if needed."*.
+  - Exercise photo frame accompanied by 2 mandatory keyword prompts.
+  - Answer text input box and submit button for automated grammar checking.
 
 ---
 
-## PHÂN HỆ 4: THƯ VIỆN ĐỀ THI THỬ ETS (LEARNER EXAMS LIBRARY HUB)
+## SUBSYSTEM 4: ETS MOCK EXAMS LIBRARY HUB (LEARNER EXAMS LIBRARY HUB)
 
-### Màn hình 11: [Learner] Exams_Library_Hub - /exams (Frame ID: `13:67810`)
+### Screen 11: [Learner] Exams_Library_Hub - /exams (Frame ID: `13:67810`)
 
-- **Kích thước**: `1722 x 950 px`.
+- **Dimensions**: `1722 x 950 px`.
 - **Route**: `/exams`.
-- **Mục đích**: Thư viện tổng quan dẫn vào 3 danh mục đề thi thử của 3 bài thi độc lập.
-- **Chi tiết giao diện**:
-  - Header: *"Thư viện Đề thi thử Chuẩn ETS - Khám phá kho đề thi thực chiến 4 kỹ năng được phân chia thành 3 bài thi độc lập."*.
-  - 3 Thẻ Banner định hướng bài thi lớn:
-    1. **Listening & Reading**: 200 câu · 120 phút · Thang 990 · Nút **[Vào danh sách đề L&R →]**.
-    2. **Speaking**: 11 câu · ~20 phút · Thang 200 · Nút **[Vào danh sách đề Speaking →]**.
-    3. **Writing**: 8 câu · 60 phút · Thang 200 · Nút **[Vào danh sách đề Writing →]**.
+- **Purpose**: Overview library routing into the 3 mock exam catalogs for the 3 independent exams.
+- **UI Details**:
+  - Header: *"ETS-Standard Mock Exam Library - Explore the 4-skill realistic exam bank organized into 3 independent exams."*.
+  - 3 Large Exam Routing Banner Cards:
+    1. **Listening & Reading**: 200 questions · 120 minutes · 990 scale · Button **[Enter L&R Exam List →]**.
+    2. **Speaking**: 11 questions · ~20 minutes · 200 scale · Button **[Enter Speaking Exam List →]**.
+    3. **Writing**: 8 questions · 60 minutes · 200 scale · Button **[Enter Writing Exam List →]**.
 
 ---
 
-### Màn hình 12: [Learner] Exams_LR_List - /exams/lr (Frame ID: `24:8730`)
+### Screen 12: [Learner] Exams_LR_List - /exams/lr (Frame ID: `24:8730`)
 
-- **Kích thước**: `1722 x 918 px`.
+- **Dimensions**: `1722 x 918 px`.
 - **Route**: `/exams/lr`.
-- **Chi tiết giao diện**:
-  - Breadcrumb: `Trang chủ / Đề thi thử / Listening & Reading`.
-  - Badge: `L&R · BÀI THI ĐỘC LẬP` (Xanh `#EFF6FF` / `#1D4ED8`).
-  - Tiêu đề: *"Đề thi Listening & Reading - Phòng thi mô phỏng 120 phút liên tục với Master Audio chuẩn ETS."*.
-  - Metric học viên: `THÀNH TÍCH CAO NHẤT: 855 / 990`.
-  - Toolbar lọc & Tìm kiếm:
-    - Input: *"Tìm kiếm tên đề L&R…"*.
-    - Dropdown: `Trạng thái: Tất cả` (Đã làm / Chưa làm), `Độ khó: Tất cả`, `Sắp xếp: Mới nhất`.
-  - Danh sách đề thi (Exam Cards Grid):
-    - Đề mẫu: `ETS 2024 · Full Test 01` (200 câu · 120 phút · Thang 990 · Tag `✓ Đã làm` · Tốt nhất: 855/990 · Nút **[Làm lại]**).
-    - Đề mẫu: `ETS 2024 · Full Test 02` (Tag `Chưa làm` · Nút **[Bắt đầu thi]**).
-  - Phân trang: `Hiển thị 1–6 trong 24 đề thi`.
+- **UI Details**:
+  - Breadcrumb: `Home / Mock Exams / Listening & Reading`.
+  - Badge: `L&R · INDEPENDENT EXAM` (Blue `#EFF6FF` / `#1D4ED8`).
+  - Title: *"Listening & Reading Exams - 120-minute continuous simulated exam room with ETS-standard Master Audio."*.
+  - Learner metric: `HIGHEST SCORE: 855 / 990`.
+  - Filter & Search Toolbar:
+    - Input: *"Search L&R exam name..."*.
+    - Dropdowns: `Status: All` (Completed / Not Attempted), `Difficulty: All`, `Sort: Newest`.
+  - Exam Cards Grid:
+    - Sample exam: `ETS 2024 · Full Test 01` (200 questions · 120 mins · 990 scale · Tag `✓ Completed` · Best: 855/990 · Button **[Retake]**).
+    - Sample exam: `ETS 2024 · Full Test 02` (Tag `Not Attempted` · Button **[Start Exam]**).
+  - Pagination: `Showing 1-6 of 24 exams`.
 
 ---
 
-### Màn hình 13: [Learner] Exams_Speaking_List - /exams/speaking (Frame ID: `24:8867`)
+### Screen 13: [Learner] Exams_Speaking_List - /exams/speaking (Frame ID: `24:8867`)
 
-- **Kích thước**: `1722 x 918 px`.
+- **Dimensions**: `1722 x 918 px`.
 - **Route**: `/exams/speaking`.
-- **Chi tiết giao diện**:
-  - Breadcrumb: `Trang chủ / Đề thi thử / Speaking`.
-  - Badge: `SPEAKING · BÀI THI ĐỘC LẬP` (Tím `#FAF5FF` / `#7E22CE`).
-  - Tiêu đề: *"Đề thi Speaking - Luyện phản xạ nói trong phòng thi hai pha và nhận đánh giá theo 5 tiêu chí."*.
-  - Metric học viên: `THÀNH TÍCH CAO NHẤT: 160 / 200`.
-  - Danh sách đề mẫu: `ETS Speaking · Test 01`, `Test 02`, `Test 03`... (Mỗi đề 11 câu · ~20 phút · 0–200 điểm · 5 Parts).
+- **UI Details**:
+  - Breadcrumb: `Home / Mock Exams / Speaking`.
+  - Badge: `SPEAKING · INDEPENDENT EXAM` (Purple `#FAF5FF` / `#7E22CE`).
+  - Title: *"Speaking Exams - Practice speaking reflexes in a two-phase exam room and receive evaluation across 5 criteria."*.
+  - Learner metric: `HIGHEST SCORE: 160 / 200`.
+  - Sample exam list: `ETS Speaking · Test 01`, `Test 02`, `Test 03`... (Each exam: 11 questions · ~20 mins · 0-200 score · 5 Parts).
 
 ---
 
-### Màn hình 14: [Learner] Exams_Writing_List - /exams/writing (Frame ID: `24:9318`)
+### Screen 14: [Learner] Exams_Writing_List - /exams/writing (Frame ID: `24:9318`)
 
-- **Kích thước**: `1722 x 918 px`.
+- **Dimensions**: `1722 x 918 px`.
 - **Route**: `/exams/writing`.
-- **Chi tiết giao diện**:
-  - Breadcrumb: `Trang chủ / Đề thi thử / Writing`.
-  - Badge: `WRITING · BÀI THI ĐỘC LẬP` (Xanh lục `#ECFDF5` / `#047857`).
-  - Tiêu đề: *"Đề thi Writing - Luyện viết câu theo tranh, phản hồi email và bài luận quan điểm trong 60 phút."*.
-  - Danh sách đề thi: Mỗi đề 8 câu · 60 phút · Thang 0–200 · 3 Parts.
+- **UI Details**:
+  - Breadcrumb: `Home / Mock Exams / Writing`.
+  - Badge: `WRITING · INDEPENDENT EXAM` (Green `#ECFDF5` / `#047857`).
+  - Title: *"Writing Exams - Practice picture-based sentences, email responses, and opinion essays in 60 minutes."*.
+  - Exam list: Each exam has 8 questions · 60 mins · 0-200 scale · 3 Parts.
 
 ---
 
-## PHÂN HỆ 5: LUỒNG THI THỬ & ĐÁNH GIÁ LISTENING & READING (LEARNER L&R EXAM FLOW)
+## SUBSYSTEM 5: LISTENING & READING EXAM & EVALUATION FLOW (LEARNER L&R EXAM FLOW)
 
-### Màn hình 15: [Learner] Exam_LR_Instructions - /exams/lr/[id] (Frame ID: `13:67968`)
+### Screen 15: [Learner] Exam_LR_Instructions - /exams/lr/[id] (Frame ID: `13:67968`)
 
-- **Kích thước**: `1722 x 895 px`.
+- **Dimensions**: `1722 x 895 px`.
 - **Route**: `/exams/lr/[id]`.
-- **Mục đích**: Trang hướng dẫn quy chế và kiểm tra tai nghe trước khi chính thức bấm giờ thi.
-- **Chi tiết giao diện**:
-  - Tiêu đề: `ETS 2024 · Full Test 01 - Hướng dẫn làm bài thi Listening & Reading`.
-  - Bảng tóm tắt cấu trúc: `200 câu hỏi` | `120 phút` | `Phần 1: Listening (100 câu - 45 phút)` | `Phần 2: Reading (100 câu - 75 phút)`.
-  - Khu vực kiểm tra âm thanh (Sound Check): Nút phát thử audio mẫu để kiểm tra tai nghe.
-  - Quy chế thi nghiêm ngặt: Master Audio không thể tua ngược; Đồng hồ đếm ngược chạy tự động khi vào phòng thi.
-  - Nút CTA chính: **[Bắt đầu làm bài thi ngay →]** (Chuyển sang Màn hình 16).
+- **Purpose**: Exam rules and headphone sound-check page before starting the official exam timer.
+- **UI Details**:
+  - Title: `ETS 2024 · Full Test 01 - Listening & Reading Exam Instructions`.
+  - Structure summary table: `200 questions` | `120 minutes` | `Section 1: Listening (100 questions - 45 minutes)` | `Section 2: Reading (100 questions - 75 minutes)`.
+  - Sound Check Area: Play button for sample audio to test headphones.
+  - Strict Exam Rules: Master Audio cannot be rewound; the countdown timer starts automatically upon entering the exam room.
+  - Primary CTA Button: **[Start Exam Now →]** (Navigates to Screen 16).
 
 ---
 
-### Màn hình 16: [Learner] Exam_LR_Virtual_Room - /exams/lr/[id]/attempt (Frame ID: `13:68036`)
+### Screen 16: [Learner] Exam_LR_Virtual_Room - /exams/lr/[id]/attempt (Frame ID: `13:68036`)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ HEADER: [ETS 2024 · Test 01] | Đang thi Listening (Part 3) | ⏰ Thời gian còn lại: 01:14:28     │
-│ NÚT: [⚑ Đánh dấu câu] [Tạm dừng (Nếu cho phép)]                            [NỘP BÀI THI]        │
+│ HEADER: [ETS 2024 · Test 01] | Listening in Progress (Part 3) | ⏰ Time Remaining: 01:14:28     │
+│ BUTTONS: [⚑ Flag Question] [Pause (If allowed)]                            [SUBMIT EXAM]        │
 ├─────────────────────────────────────────────────────────────┬───────────────────────────────────┤
-│ CỘT TRÁI (68%): NỘI DUNG CÂU HỎI & NGỮ CẢNH                │ CỘT PHẢI (32%): MA TRẬN 200 CÂU   │
-│                                                             │ (QUESTION PALETTE - CỐ ĐỊNH)      │
-│ [PART 3: SHORT CONVERSATIONS] (Câu 32–34)                   │ Đã làm: 34/200 · Đánh dấu: 2      │
-│ 🔊 Master Audio Đang Phát: [━━━━━━●━━━━━] 18:24 / 45:00     ├───────────────────────────────────┤
-│ (Khóa tua ngược - Locked Listening Mode)                    │ Chú thích:                        │
-│                                                             │ ■ Xanh: Đã chọn  □ Trắng: Chưa làm│
-│ CÂU 32: What are the speakers mainly discussing?            │ ■ Cam: Đang làm  ⚑ Vàng: Đánh dấu │
+│ LEFT COLUMN (68%): QUESTION CONTENT & CONTEXT               │ RIGHT COLUMN (32%): 200-Q PALETTE │
+│                                                             │ (QUESTION PALETTE - STICKY)       │
+│ [PART 3: SHORT CONVERSATIONS] (Questions 32-34)             │ Answered: 34/200 · Flagged: 2     │
+│ 🔊 Master Audio Playing: [━━━━━━●━━━━━] 18:24 / 45:00       ├───────────────────────────────────┤
+│ (Rewind Disabled - Locked Listening Mode)                   │ Legend:                           │
+│                                                             │ ■ Green: Answered □ White: Empty  │
+│ QUESTION 32: What are the speakers mainly discussing?       │ ■ Orange: Active  ⚑ Yellow: Flag  │
 │ ( ) A. A client presentation schedule                       ├───────────────────────────────────┤
-│ (•) B. An upcoming office relocation                        │ LISTENING (1–100):                │
+│ (•) B. An upcoming office relocation                        │ LISTENING (1-100):                │
 │ ( ) C. New software installation                            │ [1] [2] [3] [4] [5] [6] (Part 1)  │
 │ ( ) D. Budget approval for marketing                        │ [7]...[31] (Part 2)               │
 │                                                             │ [32][33][34]...[70] (Part 3)      │
-│ CÂU 33: What problem does the woman mention?                │ READING (101–200):                │
+│ QUESTION 33: What problem does the woman mention?           │ READING (101-200):                │
 │ ( ) A...  ( ) B...                                          │ [101]...[130] (Part 5)            │
-│ CÂU 34: What will the man do next?                          │ [131]...[146] (Part 6)            │
+│ QUESTION 34: What will the man do next?                     │ [131]...[146] (Part 6)            │
 │ ( ) A...  ( ) B...                                          │ [147]...[200] (Part 7)            │
 └─────────────────────────────────────────────────────────────┴───────────────────────────────────┘
 ```
 
-- **Kích thước**: `1722 x 902 px`.
+- **Dimensions**: `1722 x 902 px`.
 - **Route**: `/exams/lr/[id]/attempt`.
-- **Đặc điểm tương tác then chốt**:
-  1. **Header phòng thi**:
-     - Đồng hồ đếm ngược Monospace `01:14:28` có cảnh báo đổi màu theo thời gian thực.
-     - Nút **[Nộp bài thi]** màu đỏ cam góc phải.
-  2. **Cơ chế Master Audio (Listening Section)**:
-     - Player chạy liên tục 45 phút không có nút Pause/Seek (chống tua).
-     - Khi audio chuyển sang đoạn thoại câu 32–34, màn hình tự động focus vào cụm câu tương ứng.
-  3. **Ma trận 200 câu hỏi (Question Palette)**:
-     - 200 ô vuông phân chia 7 Part.
-     - Ô đổi sang màu xanh lục `#10B981` ngay khi học viên click chọn đáp án.
-     - Ô có biểu tượng cờ vàng `⚑` khi học viên bật cờ đánh dấu.
-     - Click vào bất kỳ ô nào thuộc Reading (101–200) sẽ cuộn ngay đến câu đó.
+- **Key Interactive Features**:
+  1. **Exam Room Header**:
+     - Monospace countdown timer `01:14:28` with real-time color warning thresholds.
+     - Red-orange **[Submit Exam]** button at the top right.
+  2. **Master Audio Mechanism (Listening Section)**:
+     - Continuous 45-minute player without Pause/Seek controls (anti-scrubbing).
+     - When the audio reaches the dialogue for questions 32-34, the viewport automatically focuses on that question cluster.
+  3. **200-Question Palette**:
+     - 200 square cells grouped across 7 Parts.
+     - Cell turns green `#10B981` immediately when the learner selects an answer.
+     - Cell shows a yellow flag icon `⚑` when flagged by the learner.
+     - Clicking any Reading cell (101-200) scrolls directly to that question.
 
 ---
 
-### Màn hình 17: [Learner] Modal_Exam_LR_Confirm_Submit - Overlay (Frame ID: `13:68592`)
+### Screen 17: [Learner] Modal_Exam_LR_Confirm_Submit - Overlay (Frame ID: `13:68592`)
 
-- **Kích thước**: `1722 x 900 px` (Hộp thoại xác nhận hiển thị dạng Overlay làm mờ nền phòng thi).
-- **Mục đích**: Cảnh báo số lượng câu hỏi chưa hoàn thành trước khi chốt nộp bài.
-- **Chi tiết giao diện**:
-  - Tiêu đề: *"Xác nhận nộp bài thi Listening & Reading"*.
-  - Bảng thống kê trạng thái làm bài:
-    - `Đã hoàn thành`: **182 / 200 câu** (Màu xanh).
-    - `Chưa trả lời`: **18 câu** (Màu đỏ cam cảnh báo).
-    - `Đang gắn cờ kiểm tra lại`: **4 câu** (Màu vàng).
-  - Cảnh báo: *"Bạn vẫn còn 12 phút làm bài. Khi đã nộp bài, bạn không thể thay đổi đáp án đã chọn."*.
-  - 2 Nút hành động:
-    - **[Tiếp tục làm bài]** (Đóng modal quay lại phòng thi).
-    - **[Xác nhận nộp bài ngay]** (Gửi bài lên server và chuyển hướng sang Màn hình 18).
+- **Dimensions**: `1722 x 900 px` (Confirmation dialog displayed as an overlay dimming the exam room).
+- **Purpose**: Warns about the count of unanswered questions before finalizing exam submission.
+- **UI Details**:
+  - Title: *"Confirm Listening & Reading Exam Submission"*.
+  - Completion status summary:
+    - `Completed`: **182 / 200 questions** (Green).
+    - `Unanswered`: **18 questions** (Warning red-orange).
+    - `Flagged for review`: **4 questions** (Yellow).
+  - Warning: *"You still have 12 minutes remaining. Once submitted, you cannot change your selected answers."*.
+  - 2 Action Buttons:
+    - **[Continue Exam]** (Closes the modal and returns to the exam room).
+    - **[Confirm & Submit Now]** (Submits to the server and redirects to Screen 18).
 
 ---
 
-### Màn hình 18: [Learner] Exam_LR_Result_Report - /exams/lr/[id]/result/[attemptId] (Frame ID: `13:69428`)
+### Screen 18: [Learner] Exam_LR_Result_Report - /exams/lr/[id]/result/[attemptId] (Frame ID: `13:69428`)
 
-- **Kích thước**: `1722 x 950 px`.
+- **Dimensions**: `1722 x 950 px`.
 - **Route**: `/exams/lr/[id]/result/[attemptId]`.
-- **Mục đích**: Báo cáo điểm số chính thức chuẩn thang điểm 990 ETS sau khi nộp bài.
-- **Chi tiết giao diện**:
-  - Breadcrumb: `Trang chủ / Đề thi thử / Listening & Reading / Kết quả lần thi #01`.
+- **Purpose**: Official score report on the ETS 990 scale after exam submission.
+- **UI Details**:
+  - Breadcrumb: `Home / Mock Exams / Listening & Reading / Attempt #01 Result`.
   - Hero Score Card:
-    - Tổng điểm ETS: Con số lớn `855 / 990` (`48px Bold`).
-    - Điểm thành phần:
-      - **Listening**: `445 / 495` (89/100 câu đúng).
-      - **Reading**: `410 / 495` (83/100 câu đúng).
-    - Thời gian làm bài: `112 phút 45 giây`.
-  - Phân tích hiệu suất theo từng Part (Part Breakdown Bars):
-    - Hiển thị tỷ lệ phần trăm đúng của từng Part từ Part 1 đến Part 7.
-  - Cụm nút hành động:
-    - **[Xem lại chi tiết bài làm]** (Chuyển sang Màn hình 19 - Review Mode).
-    - **[Làm lại đề này]**.
-    - **[Về danh sách đề thi]**.
+    - Total ETS Score: Large figure `855 / 990` (`48px Bold`).
+    - Section Scores:
+      - **Listening**: `445 / 495` (89/100 correct).
+      - **Reading**: `410 / 495` (83/100 correct).
+    - Time Spent: `112 minutes 45 seconds`.
+  - Part Breakdown Bars:
+    - Displays accuracy percentages for each Part from Part 1 through Part 7.
+  - Action Button Group:
+    - **[Review Exam Details]** (Navigates to Screen 19 - Review Mode).
+    - **[Retake This Exam]**.
+    - **[Back to Exam List]**.
 
 ---
 
-### Màn hình 19: [Learner] Exam_LR_Review_Mode - /exams/lr/[id]/review/[attemptId] (Frame ID: `13:69536`)
+### Screen 19: [Learner] Exam_LR_Review_Mode - /exams/lr/[id]/review/[attemptId] (Frame ID: `13:69536`)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ HEADER: [← Về báo cáo kết quả] | ETS 2024 · Test 01 · Xem lại bài làm (Lần thi #01) · CHỈ ĐỌC   │
-│ BỘ LỌC CÂU: [Tất cả (200)] [✓ Đúng (172)] [✗ Sai (18)] [⊘ Bỏ qua (10)]                         │
+│ HEADER: [← Back to Score Report] | ETS 2024 · Test 01 · Exam Review (Attempt #01) · READ-ONLY   │
+│ QUESTION FILTERS: [All (200)] [✓ Correct (172)] [✗ Incorrect (18)] [⊘ Skipped (10)]             │
 ├─────────────────────────────────────────────────────────────┬───────────────────────────────────┤
-│ CỘT TRÁI (68%): NỘI DUNG, TRANSCRIPT & LỜI GIẢI             │ CỘT PHẢI (32%): MA TRẬN REVIEW    │
+│ LEFT COLUMN (68%): CONTENT, TRANSCRIPT & EXPLANATION        │ RIGHT COLUMN (32%): REVIEW PALETTE│
 │                                                             │                                   │
-│ [PART 3: SHORT CONVERSATIONS] · Câu 32                      │ Ma trận xem lại (200 câu)         │
-│ Audio: [▶ 00:38] kèm Interactive Transcript có Highlight:   ├───────────────────────────────────┤
-│ Man: Did you finish the quarterly report?                   │ Chú thích:                        │
-│ Woman: [Not yet. There is a software error...] (Manh mối)   │ ■ Xanh: Đúng (172)                │
-│                                                             │ ■ Đỏ: Sai (18)                    │
-│ CÂU 32: What are the speakers mainly discussing?            │ ■ Xám: Bỏ qua (10)                │
+│ [PART 3: SHORT CONVERSATIONS] · Question 32                 │ Review Palette (200 questions)    │
+│ Audio: [▶ 00:38] with Interactive Highlighted Transcript:   ├───────────────────────────────────┤
+│ Man: Did you finish the quarterly report?                   │ Legend:                           │
+│ Woman: [Not yet. There is a software error...] (Clue)       │ ■ Green: Correct (172)            │
+│                                                             │ ■ Red: Incorrect (18)             │
+│ QUESTION 32: What are the speakers mainly discussing?       │ ■ Gray: Skipped (10)              │
 │ ( ) A. A new office computer                                ├───────────────────────────────────┤
-│ [✓] B. The quarterly financial report [ĐÁP ÁN ĐÚNG]         │ [1][2][3][4][5][6]...             │
-│ [✗] C. A customer meeting [BẠN ĐÃ CHỌN - SAI]               │ [32][33][34]...                   │
-│                                                             │ (Ô 32 đỏ viền cam đang xem)       │
-│ BOX GIẢI THÍCH CHI TIẾT (SONG NGỮ):                         │                                   │
-│ - Đáp án đúng là B vì người phụ nữ đề cập đến báo cáo quý. │                                   │
-│ - Manh mối nằm ở câu thoại: "Did you finish the quarterly..."│                                   │
+│ [✓] B. The quarterly financial report [CORRECT ANSWER]      │ [1][2][3][4][5][6]...             │
+│ [✗] C. A customer meeting [YOUR CHOICE - INCORRECT]         │ [32][33][34]...                   │
+│                                                             │ (Cell 32 red w/ orange active bdr)│
+│ DETAILED EXPLANATION BOX (BILINGUAL):                       │                                   │
+│ - B is correct because the woman mentions the quarterly     │                                   │
+│   report.                                                   │                                   │
+│ - Clue is in the line: "Did you finish the quarterly..."    │                                   │
 └─────────────────────────────────────────────────────────────┴───────────────────────────────────┘
 ```
 
-- **Kích thước**: `1722 x 1050 px`.
+- **Dimensions**: `1722 x 1050 px`.
 - **Route**: `/exams/lr/[id]/review/[attemptId]`.
-- **Đặc tính UX Chuyên biệt**:
-  - Chế độ chỉ đọc (Read-only review mode).
-  - Thanh lọc phân loại: Cho phép chỉ lọc ra các câu làm Sai (`18 câu`) hoặc Bỏ qua (`10 câu`) để học viên rút kinh nghiệm nhanh.
-  - Interactive Transcript: Transcript hội thoại có bôi màu vàng các câu thoại là "manh mối" (Clue highlighting) dẫn đến đáp án đúng.
-  - Ma trận mã hóa màu: Xanh lá (Đúng), Đỏ (Sai), Xám (Bỏ qua).
+- **Dedicated UX Features**:
+  - Read-only review mode.
+  - Category filter bar: Allows filtering to only Incorrect (`18 questions`) or Skipped (`10 questions`) for quick learning from mistakes.
+  - Interactive Transcript: Dialogue transcript highlights in yellow the exact lines serving as clues leading to the correct answer (Clue highlighting).
+  - Color-coded Palette: Green (Correct), Red (Incorrect), Gray (Skipped).
 
 ---
 
-## PHÂN HỆ 6: LUỒNG THI THỬ & ĐÁNH GIÁ SPEAKING (LEARNER SPEAKING EXAM FLOW)
+## SUBSYSTEM 6: SPEAKING EXAM & EVALUATION FLOW (LEARNER SPEAKING EXAM FLOW)
 
-### Màn hình 20: [Learner] Exam_Speaking_Device_Check - /exams/speaking/[id]/device-check (Frame ID: `13:69176`)
+### Screen 20: [Learner] Exam_Speaking_Device_Check - /exams/speaking/[id]/device-check (Frame ID: `13:69176`)
 
-- **Kích thước**: `1722 x 843 px`.
+- **Dimensions**: `1722 x 843 px`.
 - **Route**: `/exams/speaking/[id]/device-check`.
-- **Mục đích**: Bước bắt buộc kiểm tra phần cứng Micro và Tai nghe trước khi mở phòng thi Speaking.
-- **Chi tiết giao diện**:
-  - Tiêu đề: *"Kiểm tra thiết bị thu âm & Tai nghe - ETS Speaking Test 01"*.
-  - Khối kiểm tra Microphone:
-    - Dropdown chọn nguồn micro máy tính.
-    - Nút **[Nói thử để kiểm tra]**: Học viên đọc câu mẫu *"Hello, I am ready for the TOEIC Speaking test."*.
-    - Dải sóng đo cường độ âm thanh (Volume VU Meter) dao động thời gian thực.
-    - Badge thông báo: `✓ Microphone hoạt động tốt, âm lượng đạt chuẩn`.
-  - Khối kiểm tra Loa/Tai nghe: Nút phát âm thanh mẫu *"Click to test audio playback"*.
-  - Nút CTA: **[Thiết bị sẵn sàng · Vào phòng thi Speaking →]** (Chuyển sang Màn hình 21).
+- **Purpose**: Mandatory Microphone and Headphone hardware check before opening the Speaking exam room.
+- **UI Details**:
+  - Title: *"Microphone & Headphone Device Check - ETS Speaking Test 01"*.
+  - Microphone Check Panel:
+    - Dropdown to select the computer's microphone input source.
+    - Button **[Speak to Test]**: Learner reads the sample sentence *"Hello, I am ready for the TOEIC Speaking test."*.
+    - Real-time Volume VU Meter waveform oscillating with audio input.
+    - Status badge: `✓ Microphone is working properly, volume level is optimal`.
+  - Speaker/Headphone Check Panel: Button to play sample audio *"Click to test audio playback"*.
+  - CTA Button: **[Devices Ready · Enter Speaking Exam Room →]** (Navigates to Screen 21).
 
 ---
 
-### Màn hình 21: [Learner] Exam_Speaking_Virtual_Room - /exams/speaking/[id]/attempt (Frame ID: `13:69278`)
+### Screen 21: [Learner] Exam_Speaking_Virtual_Room - /exams/speaking/[id]/attempt (Frame ID: `13:69278`)
 
-- **Kích thước**: `1722 x 932 px`.
+- **Dimensions**: `1722 x 932 px`.
 - **Route**: `/exams/speaking/[id]/attempt`.
-- **Cơ chế vận hành 2 pha tự động**:
+- **Automated 2-Phase Execution**:
   1. **Header**:
-     - Định danh: `ETS Speaking · Test 01 | Question 1 of 11 (Part 1: Read a text aloud)`.
-     - Bộ đếm tổng thể bài thi.
-  2. **Vùng hiển thị đề bài**:
-     - Đoạn văn bản đọc to hiển thị rõ ràng trên nền sáng ấm.
-  3. **Khối điều khiển 2 Pha (Two-phase Execution)**:
-     - **PHA 1 (Chuẩn bị)**:
-       - Banner: `PHA 1 · MICRO CHƯA THU ÂM`.
-       - Đồng hồ đếm ngược chuẩn bị: `00:45` → `00:00`.
-       - Dải micro xám tĩnh, text nhắc: *"Sau tiếng Bíp bắt đầu nói"*.
-     - **CHUYỂN PHA**: Hệ thống tự động phát âm thanh thông báo tiếng "BÍP" chuẩn format thi ETS.
-     - **PHA 2 (Thu âm trả lời)**:
-       - Banner: `PHA 2 · ● REC (ĐANG THU ÂM)`.
-       - Đồng hồ đếm ngược thời gian nói: `00:45` → `00:00`.
-       - Biểu tượng chấm tròn đỏ REC nhấp nháy, dải sóng âm thanh dao động theo giọng đọc.
-       - Không cho phép thu âm lại; hết giờ hệ thống tự động lưu file audio và chuyển sang câu tiếp theo.
+     - Identifier: `ETS Speaking · Test 01 | Question 1 of 11 (Part 1: Read a text aloud)`.
+     - Overall exam progress counter.
+  2. **Prompt Display Area**:
+     - Read-aloud text passage clearly displayed on a warm light background.
+  3. **Two-Phase Control Block**:
+     - **PHASE 1 (Preparation)**:
+       - Banner: `PHASE 1 · MIC NOT RECORDING`.
+       - Preparation countdown timer: `00:45` → `00:00`.
+       - Static gray mic waveform, reminder text: *"Begin speaking after the Beep"*.
+     - **PHASE TRANSITION**: The system automatically plays an ETS-standard "BEEP" notification sound.
+     - **PHASE 2 (Response Recording)**:
+       - Banner: `PHASE 2 · ● REC (RECORDING)`.
+       - Speaking countdown timer: `00:45` → `00:00`.
+       - Blinking red REC dot icon, live waveform oscillating with the learner's voice.
+       - No re-recording allowed; when time expires, the system automatically saves the audio file and advances to the next question.
 
 ---
 
-### Màn hình 22: [Learner] Exam_Speaking_Result_Report - /exams/speaking/[id]/result/[attemptId] (Frame ID: `24:9004`)
+### Screen 22: [Learner] Exam_Speaking_Result_Report - /exams/speaking/[id]/result/[attemptId] (Frame ID: `24:9004`)
 
-- **Kích thước**: `1722 x 998 px`.
+- **Dimensions**: `1722 x 998 px`.
 - **Route**: `/exams/speaking/[id]/result/[attemptId]`.
-- **Mục đích**: Báo cáo điểm số Speaking chuẩn thang điểm 0–200 ETS kèm nhận xét 5 tiêu chí.
-- **Chi tiết giao diện**:
-  - Tiêu đề: *"SPEAKING · PERSONAL SCORE REPORT - Kết quả bài thi Speaking"*.
-  - Điểm tổng: `160 / 200` (Thang điểm ETS bước nhảy 10 điểm).
-  - Đánh giá theo 5 Tiêu chí chấm thi chuẩn ETS:
-    1. **Pronunciation (Phát âm)**: `High / Tốt` (Nguyên âm, phụ âm rõ ràng).
-    2. **Intonation & Stress (Ngữ điệu & Trọng âm)**: `High / Tốt` (Ngắt nghỉ đúng cụm nghĩa).
-    3. **Grammar (Ngữ pháp)**: `Medium / Trung bình` (Một số lỗi chia thì quá khứ).
-    4. **Vocabulary (Từ vựng)**: `High / Tốt` (Sử dụng từ vựng phù hợp ngữ cảnh).
-    5. **Cohesion & Relevance (Tính liên kết & Đúng chủ đề)**: `High / Tốt`.
-  - Cụm nút: **[Nghe lại bài nói & Xem phản hồi]** (`/exams/speaking/[id]/review/[attemptId]`).
+- **Purpose**: Speaking score report on the ETS 0-200 scale with feedback across 5 criteria.
+- **UI Details**:
+  - Title: *"SPEAKING · PERSONAL SCORE REPORT - Speaking Exam Result"*.
+  - Total Score: `160 / 200` (ETS scale in 10-point increments).
+  - Evaluation across 5 ETS-standard Speaking criteria:
+    1. **Pronunciation**: `High / Good` (Clear vowels and consonants).
+    2. **Intonation & Stress**: `High / Good` (Natural phrasing and pauses).
+    3. **Grammar**: `Medium / Fair` (Some past-tense conjugation errors).
+    4. **Vocabulary**: `High / Good` (Contextually appropriate word choice).
+    5. **Cohesion & Relevance**: `High / Good`.
+  - Action button: **[Replay Recordings & View Feedback]** (`/exams/speaking/[id]/review/[attemptId]`).
 
 ---
 
-### Màn hình 23: [Learner] Exam_Speaking_Review_Mode - /exams/speaking/[id]/review/[attemptId] (Frame ID: `24:9106`)
+### Screen 23: [Learner] Exam_Speaking_Review_Mode - /exams/speaking/[id]/review/[attemptId] (Frame ID: `24:9106`)
 
-- **Kích thước**: `1722 x 1000 px`.
+- **Dimensions**: `1722 x 1000 px`.
 - **Route**: `/exams/speaking/[id]/review/[attemptId]`.
-- **Chi tiết giao diện**:
-  - Header: *"Speaking · Test 01 · Xem lại bài làm · Lần thi #02 · CHỈ ĐỌC"*.
-  - Palette 11 câu hỏi Speaking: Cho phép chọn từng câu hỏi từ Question 1 đến Question 11.
-  - Khung chi tiết câu hỏi đang chọn:
-    - Đề bài gốc của câu hỏi.
-    - Player phát lại đoạn ghi âm thực tế của học viên: `00:36 / 00:45`.
-    - Player phát audio bài mẫu chuẩn bản xứ để đối sánh.
-    - Nhận xét chi tiết của AI/Chuyên gia về điểm mạnh và các từ phát âm chưa chuẩn cần cải thiện.
+- **UI Details**:
+  - Header: *"Speaking · Test 01 · Exam Review · Attempt #02 · READ-ONLY"*.
+  - 11-Question Speaking Palette: Allows selecting each question from Question 1 to Question 11.
+  - Selected Question Detail Panel:
+    - Original question prompt.
+    - Audio player for the learner's actual recording: `00:36 / 00:45`.
+    - Audio player for a native-level sample response for comparison.
+    - Detailed AI/Expert feedback on strengths and mispronounced words needing improvement.
 
 ---
 
-## PHÂN HỆ 7: LUỒNG THI THỬ & ĐÁNH GIÁ WRITING (LEARNER WRITING EXAM FLOW)
+## SUBSYSTEM 7: WRITING EXAM & EVALUATION FLOW (LEARNER WRITING EXAM FLOW)
 
-### Màn hình 24: [Learner] Exam_Writing_Instructions - /exams/writing/[id] (Frame ID: `24:9455`)
+### Screen 24: [Learner] Exam_Writing_Instructions - /exams/writing/[id] (Frame ID: `24:9455`)
 
-- **Kích thước**: `1722 x 864 px`.
+- **Dimensions**: `1722 x 864 px`.
 - **Route**: `/exams/writing/[id]`.
-- **Mục đích**: Hướng dẫn quy chế phòng thi Writing 60 phút và giải thích quy chuẩn chống gian lận.
-- **Chi tiết giao diện**:
-  - Tiêu đề: `ETS Writing · Test 01 - Hướng dẫn làm bài thi Writing`.
-  - Cấu trúc: 8 câu hỏi trong 60 phút gồm:
-    - *Part 1 (Questions 1–5)*: Viết câu theo tranh (Target words).
-    - *Part 2 (Questions 6–7)*: Viết email phản hồi yêu cầu.
-    - *Part 3 (Question 8)*: Viết bài luận quan điểm (Opinion essay - tối thiểu 300 từ).
-  - Cảnh báo quy chế thi: Hệ thống sẽ khóa chức năng copy-paste từ ngoài vào khung soạn thảo.
-  - Nút CTA: **[Bắt đầu làm bài thi Writing →]**.
+- **Purpose**: Explains the 60-minute Writing exam room rules and anti-cheat policies.
+- **UI Details**:
+  - Title: `ETS Writing · Test 01 - Writing Exam Instructions`.
+  - Structure: 8 questions in 60 minutes comprising:
+    - *Part 1 (Questions 1-5)*: Write a sentence based on a picture (Target words).
+    - *Part 2 (Questions 6-7)*: Respond to a written request (email).
+    - *Part 3 (Question 8)*: Write an opinion essay (minimum 300 words).
+  - Exam rule warning: The system locks copy-paste functionality from external sources into the text editor.
+  - CTA Button: **[Start Writing Exam →]**.
 
 ---
 
-### Màn hình 25: [Learner] Exam_Writing_Virtual_Room - /exams/writing/[id]/attempt (Frame ID: `13:69370`)
+### Screen 25: [Learner] Exam_Writing_Virtual_Room - /exams/writing/[id]/attempt (Frame ID: `13:69370`)
 
-- **Kích thước**: `1722 x 882 px`.
+- **Dimensions**: `1722 x 882 px`.
 - **Route**: `/exams/writing/[id]/attempt`.
-- **Đặc điểm giao diện & Chống gian lận**:
-  - Header: Đồng hồ đếm ngược 60 phút `00:54:12` | Nút **[Nộp bài thi]**.
-  - Thanh điều hướng 8 câu hỏi dạng tabs: `Q1` | `Q2` | `Q3` | `Q4` | `Q5` | `Q6` | `Q7` | `Q8`.
-  - Khung hiển thị đề bài bên trái (Tranh ảnh / Email yêu cầu / Đề bài luận).
-  - **Khung soạn thảo văn bản an toàn bên phải**:
-    - Chặn hoàn toàn sự kiện `paste` và menu chuột phải.
-    - Bộ đếm từ tự động hiển thị góc dưới: *"320 từ (Khuyến nghị 300-350 từ)"*.
-    - Nút chuyển câu: **[← Câu trước]** và **[Lưu & Câu tiếp theo →]**.
+- **UI & Anti-Cheat Features**:
+  - Header: 60-minute countdown timer `00:54:12` | Button **[Submit Exam]**.
+  - 8-question tab navigation bar: `Q1` | `Q2` | `Q3` | `Q4` | `Q5` | `Q6` | `Q7` | `Q8`.
+  - Left Prompt Panel (Picture / Email request / Essay prompt).
+  - **Secure Text Editor on the Right**:
+    - Completely blocks `paste` events and the right-click context menu.
+    - Automatic word counter at bottom corner: *"320 words (Recommended 300-350 words)"*.
+    - Navigation buttons: **[← Previous Question]** and **[Save & Next Question →]**.
 
 ---
 
-### Màn hình 26: [Learner] Exam_Writing_Result_Report - /exams/writing/[id]/result/[attemptId] (Frame ID: `24:9528`)
+### Screen 26: [Learner] Exam_Writing_Result_Report - /exams/writing/[id]/result/[attemptId] (Frame ID: `24:9528`)
 
-- **Kích thước**: `1722 x 900 px`.
+- **Dimensions**: `1722 x 900 px`.
 - **Route**: `/exams/writing/[id]/result/[attemptId]`.
-- **Chi tiết giao diện**:
-  - Tiêu đề: *"WRITING · PERSONAL SCORE REPORT - Kết quả bài thi Writing"*.
-  - Điểm tổng ước tính: `150 / 200` (Thang điểm ETS bước nhảy 10 điểm).
-  - Tóm tắt bài nộp: `8 / 8 câu đã nộp` · `320 từ bài luận (Đạt độ dài khuyến nghị)` · `5/5 câu Part 1 dùng đúng từ khóa`.
-  - Phân tích chi tiết:
-    - Điểm Ngữ pháp & Cấu trúc câu.
-    - Điểm Từ vựng & Độ phong phú diễn đạt.
-    - Điểm Tính logic & Bố cục bài luận.
-  - Cụm nút: **[Xem lại bài viết & Bài mẫu]** (`/exams/writing/[id]/review/[attemptId]`).
+- **UI Details**:
+  - Title: *"WRITING · PERSONAL SCORE REPORT - Writing Exam Result"*.
+  - Estimated Total Score: `150 / 200` (ETS scale in 10-point increments).
+  - Submission Summary: `8 / 8 questions submitted` · `320-word essay (Meets recommended length)` · `5/5 Part 1 responses used keywords properly`.
+  - Detailed Breakdown:
+    - Grammar & Sentence Structure score.
+    - Vocabulary & Expression Variety score.
+    - Logic & Essay Organization score.
+  - Action button: **[Review Responses & Sample Answers]** (`/exams/writing/[id]/review/[attemptId]`).
 
 ---
 
-### Màn hình 27: [Learner] Exam_Writing_Review_Mode - /exams/writing/[id]/review/[attemptId] (Frame ID: `24:9605`)
+### Screen 27: [Learner] Exam_Writing_Review_Mode - /exams/writing/[id]/review/[attemptId] (Frame ID: `24:9605`)
 
-- **Kích thước**: `1722 x 1478 px` (Khung xem lại bài viết và đối sánh bài văn mẫu).
+- **Dimensions**: `1722 x 1478 px` (Response review and sample essay comparison view).
 - **Route**: `/exams/writing/[id]/review/[attemptId]`.
-- **Chi tiết giao diện**:
-  - Header: *"ETS Writing · Test 01 · Lần thi #02 · BẢN NỘP CUỐI · CHỈ ĐỌC"*.
-  - Điều hướng danh sách 8 câu hỏi (Part 1, Part 2, Part 3).
-  - Split-view đối sánh song song:
-    - Cột 1: Đề bài và yêu cầu đề thi.
-    - Cột 2: Toàn bộ bài làm nguyên văn mà học viên đã nộp.
-    - Cột 3: Bài viết mẫu đạt điểm tối đa (Band Score cao) kèm phân tích ngữ pháp, các cấu trúc câu nâng cao và gợi ý từ đồng nghĩa.
+- **UI Details**:
+  - Header: *"ETS Writing · Test 01 · Attempt #02 · FINAL SUBMISSION · READ-ONLY"*.
+  - Navigation across all 8 questions (Part 1, Part 2, Part 3).
+  - Side-by-side comparison Split-view:
+    - Column 1: Question prompt and exam requirements.
+    - Column 2: Full verbatim response submitted by the learner.
+    - Column 3: Top-scoring sample response (high Band Score) with grammar analysis, advanced sentence structures, and synonym suggestions.
 
 ---
 
-## PHÂN HỆ 8: QUẢN TRỊ ADMIN - TỔNG QUAN & NGƯỜI DÙNG (ADMIN CORE)
+## SUBSYSTEM 8: ADMIN MANAGEMENT - OVERVIEW & USERS (ADMIN CORE)
 
-### Màn hình 28: [Admin] Overview_Dashboard - /admin/overview (Frame ID: `1:823`)
+### Screen 28: [Admin] Overview_Dashboard - /admin/overview (Frame ID: `1:823`)
 
-- **Kích thước**: `1722 x 1200 px`.
+- **Dimensions**: `1722 x 1200 px`.
 - **Route**: `/admin/overview`.
-- **Mục đích**: Trung tâm điều hành giám sát vận hành toàn hệ thống cho Quản trị viên.
-- **Cấu trúc dữ liệu**:
-  1. Header & Meta: Breadcrumb `Quản trị / Tổng quan` · Dấu thời gian `Cập nhật: 19/10/2026, 10:30`.
-  2. 4 Thẻ KPI vận hành:
-     - *Tổng người dùng*: `3,250` (`+120 đăng ký mới tuần này`).
-     - *Tài khoản bị khóa*: `14` (`Đang tạm dừng truy cập`).
-     - *Kho bài tập*: `1,940 câu` (Phủ khắp 15 Parts của 4 kỹ năng).
-     - *Đề thi thử*: `28 đề` (`20 Chính thức / 8 Bản nháp`).
-  3. Khối Biểu đồ cơ cấu:
-     - Stacked Bar Chart phân bổ câu hỏi: Listening 800 câu, Reading 680 câu, Speaking 270 câu, Writing 190 câu.
-     - Donut Chart trạng thái đề thi: 20 đề Chính thức (71%) / 8 đề Bản nháp (29%).
-  4. Hoạt động gần đây (Activity Timeline):
-     - Ghi nhận hành động của Admin và Operator thời gian thực.
-     - System Health Badge: *"Hệ thống đang hoạt động ổn định"*.
+- **Purpose**: Executive operations monitoring dashboard for Administrators.
+- **Data Structure**:
+  1. Header & Meta: Breadcrumb `Admin / Overview` · Timestamp `Updated: 19/10/2026, 10:30`.
+  2. 4 Operational KPI Cards:
+     - *Total Users*: `3,250` (`+120 new registrations this week`).
+     - *Locked Accounts*: `14` (`Access temporarily suspended`).
+     - *Exercise Bank*: `1,940 items` (Covering all 15 Parts across 4 skills).
+     - *Mock Exams*: `28 exams` (`20 Published / 8 Draft`).
+  3. Breakdown Charts Section:
+     - Stacked Bar Chart of question distribution: Listening 800, Reading 680, Speaking 270, Writing 190.
+     - Donut Chart of exam status: 20 Published (71%) / 8 Draft (29%).
+  4. Recent Activity Timeline:
+     - Real-time log of Admin and Operator actions.
+     - System Health Badge: *"System operating normally"*.
 
 ---
 
-### Màn hình 29: [Admin] Users_Management - /admin/users (Frame ID: `1:393`)
+### Screen 29: [Admin] Users_Management - /admin/users (Frame ID: `1:393`)
 
-- **Kích thước**: `1722 x 871 px`.
+- **Dimensions**: `1722 x 871 px`.
 - **Route**: `/admin/users`.
-- **Chi tiết giao diện**:
-  - Tiêu đề: `Quản lý người dùng (64 tài khoản)` kèm nút **[+ Thêm người dùng]**.
-  - Tabs lọc trạng thái: **[Tất cả (64)]** | **[Hoạt động (45)]** | **[Chờ xác minh (11)]** | **[Bị khóa (8)]**.
-  - Toolbar lọc: Ô tìm kiếm tên/email, Dropdown lọc Vai trò, Dropdown lọc Trạng thái, Nút **[Xuất CSV]**.
-  - Bảng dữ liệu người dùng (User Data Table):
-    - Cột: `Người dùng ↕`, `Vai trò ↕`, `Trạng thái ↕`, `Đăng nhập gần nhất ↕`, `THAO TÁC`.
-    - Hành động: Xem chi tiết (Con mắt), Khóa/Mở khóa tài khoản (Ổ khóa).
-  - Phân trang: `Hiển thị 1 - 7 của 64 người dùng`.
+- **UI Details**:
+  - Title: `User Management (64 accounts)` with button **[+ Add User]**.
+  - Status filter tabs: **[All (64)]** | **[Active (45)]** | **[Pending Verification (11)]** | **[Locked (8)]**.
+  - Filter Toolbar: Name/email search input, Role filter dropdown, Status filter dropdown, **[Export CSV]** button.
+  - User Data Table:
+    - Columns: `User ↕`, `Role ↕`, `Status ↕`, `Last Login ↕`, `ACTIONS`.
+    - Actions: View Details (Eye icon), Lock/Unlock Account (Padlock icon).
+  - Pagination: `Showing 1 - 7 of 64 users`.
 
 ---
 
-### Màn hình 30: [Admin] Users_Loading_State - /admin/users?state=loading (Frame ID: `13:70854`)
+### Screen 30: [Admin] Users_Loading_State - /admin/users?state=loading (Frame ID: `13:70854`)
 
-- **Kích thước**: `1722 x 948 px`.
+- **Dimensions**: `1722 x 948 px`.
 - **Route**: `/admin/users?state=loading`.
-- **Mục đích**: Đặc tả trạng thái tải dữ liệu bảng (Skeleton Loading State) chuẩn UX, ngăn giật layout khi fetch API.
-- **Chi tiết giao diện**:
-  - Giữ nguyên bố cục Sidebar và Header.
-  - Toàn bộ các dòng trong Data Table và Badge số lượng được thay thế bằng các thanh Skeleton xám nhạt bo góc hiệu ứng Shimmer nhấp nháy.
+- **Purpose**: Specifies the table loading state (Skeleton Loading State) following UX standards to prevent layout shift during API fetches.
+- **UI Details**:
+  - Preserves the Sidebar and Header layout.
+  - All Data Table rows and count badges are replaced with rounded light-gray Skeleton bars with a pulsing Shimmer effect.
 
 ---
 
-### Màn hình 31: [Admin] Users_Empty_State - /admin/users?state=empty (Frame ID: `13:70775`)
+### Screen 31: [Admin] Users_Empty_State - /admin/users?state=empty (Frame ID: `13:70775`)
 
-- **Kích thước**: `1722 x 908 px`.
+- **Dimensions**: `1722 x 908 px`.
 - **Route**: `/admin/users?state=empty`.
-- **Mục đích**: Đặc tả trạng thái không tìm thấy dữ liệu khi áp dụng bộ lọc hoặc tìm kiếm.
-- **Chi tiết giao diện**:
-  - Vùng bảng dữ liệu hiển thị hình minh họa (Empty Illustration) thân thiện.
-  - Thông báo: *"Không tìm thấy người dùng nào phù hợp với bộ lọc hiện tại."*.
-  - Nút CTA phụ: **[Đặt lại bộ lọc]** để đưa bảng về trạng thái hiển thị toàn bộ 64 tài khoản.
+- **Purpose**: Specifies the empty-results state when applying filters or search queries.
+- **UI Details**:
+  - The data table area displays a friendly Empty Illustration.
+  - Message: *"No users match the current filters."*.
+  - Secondary CTA Button: **[Reset Filters]** to restore the table to showing all 64 accounts.
 
 ---
 
-## PHÂN HỆ 9: QUẢN TRỊ ADMIN - KHO BÀI TẬP 4 KỸ NĂNG (EXERCISE BANK CMS)
+## SUBSYSTEM 9: ADMIN MANAGEMENT - 4-SKILL EXERCISE BANK (EXERCISE BANK CMS)
 
-### Màn hình 32: [Admin] Exercises_LR_Parts - /admin/exercises/lr (Frame ID: `1:1116`)
+### Screen 32: [Admin] Exercises_LR_Parts - /admin/exercises/lr (Frame ID: `1:1116`)
 
-- **Kích thước**: `1722 x 915 px`.
+- **Dimensions**: `1722 x 915 px`.
 - **Route**: `/admin/exercises/lr`.
-- **Chi tiết giao diện**:
-  - Tabs cấp 1: **[Bài tập]** (Active) | **[Đề thi]**.
-  - Tabs cấp 2: **[Listening & Reading (7 Parts)]** (Active) | **[Speaking (5 Parts)]** | **[Writing (3 Parts)]**.
-  - Thống kê: `Tổng số bài tập: 1,248 | Cập nhật: 17/10/2026`.
-  - Lưới quản trị 7 Parts: Part 1 Photographs (186 bài), Part 2 Question-Response (240 bài), Part 3 Short Conversations (174 bài), Part 4 Short Talks (158 bài), Part 5 Incomplete Sentences (226 bài), Part 6 Text Completion (132 bài), Part 7 Reading Comprehension (132 cụm bài).
+- **UI Details**:
+  - Level-1 Tabs: **[Exercises]** (Active) | **[Exams]**.
+  - Level-2 Tabs: **[Listening & Reading (7 Parts)]** (Active) | **[Speaking (5 Parts)]** | **[Writing (3 Parts)]**.
+  - Summary stats: `Total exercises: 1,248 | Updated: 17/10/2026`.
+  - 7-Part Management Grid: Part 1 Photographs (186 items), Part 2 Question-Response (240 items), Part 3 Short Conversations (174 items), Part 4 Short Talks (158 items), Part 5 Incomplete Sentences (226 items), Part 6 Text Completion (132 items), Part 7 Reading Comprehension (132 passage clusters).
 
 ---
 
-### Màn hình 33: [Admin] Listening_Part1_Management - /admin/exercises/lr/p1 (Frame ID: `1:1389`)
+### Screen 33: [Admin] Listening_Part1_Management - /admin/exercises/lr/p1 (Frame ID: `1:1389`)
 
-- **Kích thước**: `1722 x 836 px`.
+- **Dimensions**: `1722 x 836 px`.
 - **Route**: `/admin/exercises/lr/p1`.
-- **Chi tiết giao diện**:
-  - Quản lý danh sách câu hỏi Part 1 (Photographs).
-  - Bảng câu hỏi: Mã ID, Ảnh preview thu nhỏ, Audio player, Transcript 4 đáp án A-B-C-D kèm nhãn `KEY` tại đáp án đúng, Độ khó, Trạng thái.
-  - Dialog Thêm câu hỏi mới: Ô tải ảnh (JPG/PNG tối đa 5MB), ô tải file MP3 (tối đa 10MB), 4 radio button chọn đáp án đúng, ô nhập giải thích tiếng Việt.
+- **UI Details**:
+  - Manages the list of Part 1 (Photographs) questions.
+  - Question table: ID, Thumbnail image preview, Audio player, Transcript for options A-B-C-D with a `KEY` badge on the correct answer, Difficulty, Status.
+  - Add New Question Dialog: Image upload field (JPG/PNG max 5MB), MP3 upload field (max 10MB), 4 radio buttons to select the correct answer, Vietnamese explanation input field.
 
 ---
 
-### Màn hình 34: [Admin] Reading_Part7_Management - /admin/exercises/lr/p7 (Frame ID: `13:70307`)
+### Screen 34: [Admin] Reading_Part7_Management - /admin/exercises/lr/p7 (Frame ID: `13:70307`)
 
-- **Kích thước**: `1722 x 836 px`.
+- **Dimensions**: `1722 x 836 px`.
 - **Route**: `/admin/exercises/lr/p7`.
-- **Mục đích**: Màn hình quản lý chuyên sâu cho Part khó và dài nhất TOEIC Reading: Reading Comprehension.
-- **Chi tiết giao diện**:
-  - Tiêu đề: *"Part 7: Reading Comprehension - Quản lý 128 cụm bài đọc · 452 câu hỏi con · Single, Double & Triple Passages"*.
-  - Nút hành động: **[+ Thêm cụm bài đọc]** và **[Import từ Excel]**.
-  - Bảng quản lý cụm bài:
-    - Cột: `Mã Cụm bài`, `Loại đoạn văn (Single / Double / Triple)`, `Đoạn văn trích dẫn`, `Số câu hỏi con`, `Chủ đề`, `Độ khó`, `Thao tác`.
+- **Purpose**: Dedicated management screen for the hardest and longest TOEIC Reading part: Reading Comprehension.
+- **UI Details**:
+  - Title: *"Part 7: Reading Comprehension - Manage 128 passage clusters · 452 sub-questions · Single, Double & Triple Passages"*.
+  - Action buttons: **[+ Add Passage Cluster]** and **[Import from Excel]**.
+  - Passage Cluster Management Table:
+    - Columns: `Cluster ID`, `Passage Type (Single / Double / Triple)`, `Passage Excerpt`, `Sub-Question Count`, `Topic`, `Difficulty`, `Actions`.
 
 ---
 
-### Màn hình 35: [Admin] Modal_Add_Reading_Part7_Cluster - Overlay (Frame ID: `13:70476`)
+### Screen 35: [Admin] Modal_Add_Reading_Part7_Cluster - Overlay (Frame ID: `13:70476`)
 
-- **Kích thước**: `1722 x 1100 px` (Overlay Modal).
-- **Mục đích**: Hộp thoại phức tạp cấu hình cụm bài đọc Part 7 gồm nhiều đoạn văn và các câu hỏi con đi kèm.
-- **Chi tiết form**:
-  - Chọn cấu trúc đoạn: `Đoạn đơn (Single - 2 đến 4 câu)`, `Đoạn đôi (Double - 5 câu)`, `Đoạn ba (Triple - 5 câu)`.
-  - Trình soạn thảo văn bản Rich-text nhập nội dung 1, 2 hoặc 3 bài đọc (email, bài báo, hóa đơn...).
-  - Vùng thêm danh sách câu hỏi con: Mỗi câu hỏi gồm tiêu đề câu hỏi, 4 phương án trắc nghiệm A-B-C-D, chọn radio đáp án đúng và lời giải thích.
+- **Dimensions**: `1722 x 1100 px` (Overlay Modal).
+- **Purpose**: Complex dialog for configuring a Part 7 reading cluster with multiple passages and associated sub-questions.
+- **Form Details**:
+  - Passage structure selector: `Single Passage (2 to 4 questions)`, `Double Passage (5 questions)`, `Triple Passage (5 questions)`.
+  - Rich-text editor for entering 1, 2, or 3 reading passages (emails, articles, invoices, etc.).
+  - Sub-question list builder: Each question includes prompt text, 4 multiple-choice options A-B-C-D, correct answer radio button, and explanation.
 
 ---
 
-### Màn hình 36: [Admin] Speaking_Part1_Management - /admin/exercises/speaking/p1 (Frame ID: `1:1804`)
+### Screen 36: [Admin] Speaking_Part1_Management - /admin/exercises/speaking/p1 (Frame ID: `1:1804`)
 
-- **Kích thước**: `1722 x 836 px`.
+- **Dimensions**: `1722 x 836 px`.
 - **Route**: `/admin/exercises/speaking/p1`.
-- **Chi tiết giao diện**:
-  - Tiêu đề: *"Speaking Part 1: Read a text aloud - Quản lý 85 bài tập luyện phát âm, trọng âm và ngữ điệu (Đoạn văn 50-70 từ)"*.
-  - Bảng quản lý: Trích dẫn đoạn văn, Thời gian chuẩn bị (45s), Thời gian nói (45s), File audio bài mẫu nghe thử, Trạng thái.
-  - Modal chỉnh sửa: Cung cấp bộ đếm từ tự động, tải file audio mẫu `sp1_sample_01.mp3`, ghi chú hướng dẫn phát âm các từ khó.
+- **UI Details**:
+  - Title: *"Speaking Part 1: Read a text aloud - Manage 85 pronunciation, stress, and intonation exercises (50-70 word passages)"*.
+  - Management table: Passage excerpt, Prep time (45s), Speaking time (45s), Sample audio file preview, Status.
+  - Edit modal: Provides automatic word counter, sample audio upload `sp1_sample_01.mp3`, and pronunciation guide notes for difficult words.
 
 ---
 
-### Màn hình 37: [Admin] Modal_Import_Exercises_Excel - Overlay (Frame ID: `1:2218`)
+### Screen 37: [Admin] Modal_Import_Exercises_Excel - Overlay (Frame ID: `1:2218`)
 
-- **Kích thước**: `1722 x 836 px` (Overlay Modal).
-- **Mục đích**: Hộp thoại tải lên tệp Excel (.xlsx) để import bài tập hàng loạt.
-- **Chi tiết giao diện**:
-  - Banner tải file Excel mẫu chuẩn hóa.
-  - Dropzone kéo thả tệp hỗ trợ định dạng `.xlsx`, `.xls` dung lượng tối đa 10MB.
-  - Tùy chọn xử lý: Checkbox *"Tự động kích hoạt câu hỏi sau khi nhập"* và *"Bỏ qua câu trùng ID"*.
-  - Nút **[Hủy bỏ]** và **[Bắt đầu tải lên]**.
+- **Dimensions**: `1722 x 836 px` (Overlay Modal).
+- **Purpose**: Dialog for uploading Excel (.xlsx) files to batch-import exercises.
+- **UI Details**:
+  - Banner to download the standardized Excel template file.
+  - Drag-and-drop Dropzone supporting `.xlsx` and `.xls` formats up to 10MB.
+  - Processing options: Checkboxes *"Auto-activate questions after import"* and *"Skip duplicate IDs"*.
+  - Buttons **[Cancel]** and **[Start Upload]**.
 
 ---
 
-### Màn hình 38: [Admin] Writing_Parts - /admin/exercises/writing (Frame ID: `1:2674`)
+### Screen 38: [Admin] Writing_Parts - /admin/exercises/writing (Frame ID: `1:2674`)
 
-- **Kích thước**: `1722 x 836 px`.
+- **Dimensions**: `1722 x 836 px`.
 - **Route**: `/admin/exercises/writing`.
-- **Chi tiết giao diện**:
-  - Tab kỹ năng: **[Writing (3 Parts)]**.
-  - Lưới 3 Part:
-    - *Part 1: Write a Sentence* (108 bài tập - Viết câu theo tranh).
-    - *Part 2: Respond to a Request* (76 bài tập - Phản hồi email).
-    - *Part 3: Write an Opinion Essay* (54 bài tập - Viết luận quan điểm).
+- **UI Details**:
+  - Skill tab: **[Writing (3 Parts)]**.
+  - 3-Part Grid:
+    - *Part 1: Write a Sentence* (108 exercises - Picture-based sentence writing).
+    - *Part 2: Respond to a Request* (76 exercises - Email response).
+    - *Part 3: Write an Opinion Essay* (54 exercises - Opinion essay writing).
 
 ---
 
-### Màn hình 39: [Admin] Writing_Part1_Management - /admin/exercises/writing/p1 (Frame ID: `1:2875`)
+### Screen 39: [Admin] Writing_Part1_Management - /admin/exercises/writing/p1 (Frame ID: `1:2875`)
 
-- **Kích thước**: `1722 x 836 px`.
+- **Dimensions**: `1722 x 836 px`.
 - **Route**: `/admin/exercises/writing/p1`.
-- **Chi tiết giao diện**:
-  - Quản lý bài tập viết câu dựa trên hình ảnh và 2 từ khóa bắt buộc.
-  - Modal thêm mới: Tải ảnh đề bài, nhập Từ gợi ý 1, nhập Từ gợi ý 2, danh sách các câu viết mẫu đạt điểm tối đa tương đương, tiêu chí chấm ngữ pháp.
+- **UI Details**:
+  - Manages sentence-writing exercises based on an image and 2 mandatory keywords.
+  - Add-new modal: Upload prompt image, enter Keyword 1, enter Keyword 2, list equivalent full-score sample sentences, grammar grading criteria.
 
 ---
 
-## PHÂN HỆ 10: QUẢN TRỊ ADMIN - QUẢN LÝ ĐỀ THI & TRÌNH SOẠN THẢO (EXAM BUILDER CMS)
+## SUBSYSTEM 10: ADMIN MANAGEMENT - EXAMS & EXAM BUILDER (EXAM BUILDER CMS)
 
-### Màn hình 40: [Admin] Exams_Management - /admin/exams/lr (Frame ID: `1:3237`)
+### Screen 40: [Admin] Exams_Management - /admin/exams/lr (Frame ID: `1:3237`)
 
-- **Kích thước**: `1722 x 836 px`.
+- **Dimensions**: `1722 x 836 px`.
 - **Route**: `/admin/exams/lr`.
-- **Chi tiết giao diện**:
-  - Quản lý danh mục đề thi thử Listening & Reading.
-  - Bảng đề thi: `Mã đề`, `Tên đề thi`, `Thời lượng (120 phút)`, `Số câu (200 câu)`, `Trạng thái (Chính thức / Bản nháp)`.
-  - Nút hành động: **[+ Tạo đề thi mới]** (Mở Modal 44) và **[Import đề từ Excel]**.
+- **UI Details**:
+  - Manages the Listening & Reading mock exam catalog.
+  - Exams table: `Exam Code`, `Exam Name`, `Duration (120 mins)`, `Question Count (200 questions)`, `Status (Published / Draft)`.
+  - Action buttons: **[+ Create New Exam]** (Opens Modal 44) and **[Import Exam from Excel]**.
 
 ---
 
-### Màn hình 41: [Admin] Exams_Speaking_Management - /admin/exams/speaking (Frame ID: `24:9700`)
+### Screen 41: [Admin] Exams_Speaking_Management - /admin/exams/speaking (Frame ID: `24:9700`)
 
-- **Kích thước**: `1722 x 931 px`.
+- **Dimensions**: `1722 x 931 px`.
 - **Route**: `/admin/exams/speaking`.
-- **Mục đích**: Màn hình mới được bổ sung chuyên trách quản lý đề thi thử Speaking độc lập.
-- **Chi tiết giao diện**:
-  - Sub-tab: **[Speaking]** kích hoạt trong menu Đề thi.
-  - Header: *"Danh sách đề Speaking | 11 câu · ~20 phút · Thang 200"*.
-  - Nút CTA: **[+ Tạo đề Speaking mới]**.
-  - Bảng quản lý đề: Mã đề (`SP-2024-01`), Tên đề, Số slot (`11/11 · Đủ`), Barem (`0–200`), Trạng thái (`Chính thức / Bản nháp`).
+- **Purpose**: Newly added screen dedicated to managing independent Speaking mock exams.
+- **UI Details**:
+  - Sub-tab: **[Speaking]** active under the Exams menu.
+  - Header: *"Speaking Exam List | 11 questions · ~20 mins · 200 Scale"*.
+  - CTA Button: **[+ Create New Speaking Exam]**.
+  - Exam management table: Exam Code (`SP-2024-01`), Exam Name, Slot Count (`11/11 · Complete`), Scale (`0-200`), Status (`Published / Draft`).
 
 ---
 
-### Màn hình 42: [Admin] Exams_Writing_Management - /admin/exams/writing (Frame ID: `24:9863`)
+### Screen 42: [Admin] Exams_Writing_Management - /admin/exams/writing (Frame ID: `24:9863`)
 
-- **Kích thước**: `1722 x 931 px`.
+- **Dimensions**: `1722 x 931 px`.
 - **Route**: `/admin/exams/writing`.
-- **Mục đích**: Màn hình mới được bổ sung chuyên trách quản lý đề thi thử Writing độc lập.
-- **Chi tiết giao diện**:
-  - Sub-tab: **[Writing]** kích hoạt trong menu Đề thi.
-  - Header: *"Danh sách đề Writing | 8 câu · 60 phút · Thang 200"*.
-  - Nút CTA: **[+ Tạo đề Writing mới]**.
-  - Bảng quản lý đề: Mã đề (`WR-2024-01`), Tên đề, Số slot (`8/8 · Đủ` hoặc `5/8 · Chưa đủ`), Barem (`0–200`), Trạng thái (`Chính thức / Bản nháp`).
+- **Purpose**: Newly added screen dedicated to managing independent Writing mock exams.
+- **UI Details**:
+  - Sub-tab: **[Writing]** active under the Exams menu.
+  - Header: *"Writing Exam List | 8 questions · 60 mins · 200 Scale"*.
+  - CTA Button: **[+ Create New Writing Exam]**.
+  - Exam management table: Exam Code (`WR-2024-01`), Exam Name, Slot Count (`8/8 · Complete` or `5/8 · Incomplete`), Scale (`0-200`), Status (`Published / Draft`).
 
 ---
 
-### Màn hình 43: [Admin] ExamBuilder_LR_200Slots - /admin/exams/lr/[id]/edit (Frame ID: `1:3475`)
+### Screen 43: [Admin] ExamBuilder_LR_200Slots - /admin/exams/lr/[id]/edit (Frame ID: `1:3475`)
 
-- **Kích thước**: `1722 x 1952 px`.
+- **Dimensions**: `1722 x 1952 px`.
 - **Route**: `/admin/exams/lr/[id]/edit`.
-- **Bố cục Master-Detail**:
-  - **Top Bar**: Mã đề `ETS-2024-TEST-01`, Badge `Bản nháp`, Tiến độ `145/200 câu hoàn thiện (72.5%)`, Nút **[Xuất bản đề thi]** (Disabled khi chưa đủ 200 câu).
-  - **Validation Banner**: Cảnh báo chi tiết vị trí lỗi: *"Part 3 thiếu audio câu 36; Part 7 chưa chọn đáp án câu 180. Hoàn thiện 45 ô trống và sửa 10 ô lỗi."*. Click vào lỗi tự cuộn chuột đến câu đó.
-  - **Cột trái (68% - Editor)**: Soạn thảo câu hỏi đơn hoặc cụm câu hỏi dùng chung audio/đoạn văn.
-  - **Cột phải (32% - Sticky Palette)**: Ma trận 200 ô vuông phân chia 7 Part, phản hồi đồng bộ thời gian thực theo trạng thái điền dữ liệu của Admin.
+- **Master-Detail Layout**:
+  - **Top Bar**: Exam Code `ETS-2024-TEST-01`, `Draft` badge, Progress `145/200 questions completed (72.5%)`, Button **[Publish Exam]** (Disabled until all 200 questions are complete).
+  - **Validation Banner**: Detailed error location alerts: *"Part 3 missing audio for question 36; Part 7 missing answer key for question 180. Complete 45 empty slots and fix 10 error slots."*. Clicking an error automatically scrolls to that question.
+  - **Left Column (68% - Editor)**: Author single questions or question clusters sharing audio/passages.
+  - **Right Column (32% - Sticky Palette)**: 200-cell grid divided across 7 Parts, updating in real time based on the Admin's input status.
 
 ---
 
-### Màn hình 44: [Admin] Modal_Create_Exam_Metadata - Overlay (Frame ID: `1:4227`)
+### Screen 44: [Admin] Modal_Create_Exam_Metadata - Overlay (Frame ID: `1:4227`)
 
-- **Kích thước**: `1722 x 836 px` (Overlay Modal).
-- **Mục đích**: Bước 1 khởi tạo vỏ đề thi trước khi chuyển hướng vào trình lắp ráp 200 slots.
-- **Chi tiết form**:
-  - Tiêu đề: *"Khởi tạo đề thi mới"*.
-  - Loại đề thi: Chọn tab giữa **[Listening & Reading]** hoặc **[Speaking]** hoặc **[Writing]**.
-  - Các trường: Mã đề thi (`ETS-2025-TEST-01`), Tên đề thi, Thời gian thi (phút), Barem quy đổi điểm (Mặc định ETS), Mô tả nguồn đề.
-  - Nút: **[Tiếp tục lắp ráp câu hỏi]** (Chuyển tiếp vào Exam Builder).
+- **Dimensions**: `1722 x 836 px` (Overlay Modal).
+- **Purpose**: Step 1 to initialize exam shell metadata before redirecting to the 200-slot exam builder.
+- **Form Details**:
+  - Title: *"Create New Exam"*.
+  - Exam Type: Tab selection among **[Listening & Reading]**, **[Speaking]**, or **[Writing]**.
+  - Fields: Exam Code (`ETS-2025-TEST-01`), Exam Name, Exam Duration (minutes), Score Conversion Scale (Default ETS), Source Description.
+  - Button: **[Continue to Question Assembly]** (Navigates to Exam Builder).
 
 ---
 
-# 4. ĐÁNH GIÁ CHUYÊN MÔN UX/UI & SO SÁNH TIẾN HÓA THIẾT KẾ
+# 4. UX/UI PROFESSIONAL ASSESSMENT & DESIGN EVOLUTION COMPARISON
 
-### 4.1. Bảng so sánh bước nhảy vọt giữa Bản V1.0 và Bản Hiện Tại (V2.1)
+### 4.1. Comparison of the Major Leap Between V1.0 and Current Version (V2.1)
 
-| Tiêu Chí So Sánh | Phiên Bản Cũ (V1.0 - Tháng 10/2026) | Phiên Bản Hiện Tại (V2.1 - Tháng 11/2026) | Đánh Giá Tác Động UX/UI |
+| Comparison Criterion | Legacy Version (V1.0 - October 2026) | Current Version (V2.1 - November 2026) | UX/UI Impact Assessment |
 | :--- | :--- | :--- | :--- |
-| **Quy mô số lượng màn hình** | Chỉ có 14 màn hình sơ khai | **44 màn hình đầy đủ** + **Trang Design System** | Bao phủ 100% User Journey từ Học viên đến Quản trị |
-| **Quy chuẩn đặt tên (Naming)** | Tên tự do, chứa nhiều lỗi chính tả (*"người dừng"*, *"Writinig"*) | Chuẩn hóa toàn bộ: `[Role] Name - /route` | Lập trình viên FE nhìn tên frame là biết chính xác route path |
-| **Kiến trúc bài thi (Exam Architecture)**| Lẫn lộn giữa 4 kỹ năng trong một bài | Chuẩn hóa **3 Bài thi độc lập**: L&R, Speaking, Writing | Phù hợp 100% với format tổ chức thi quốc tế của IIG/ETS |
-| **Phân hệ Học viên (Learner App)** | Hoàn toàn chưa có thiết kế | Hoàn chỉnh từ Landing, Profile, History, Practice đến Phòng thi ảo | Học viên có trải nghiệm học tập và làm bài mượt mà |
-| **Phòng thi ảo L&R** | Chỉ có trang soạn thảo Admin | Phòng thi 120p, Locked audio, Question Palette, Confirm Modal | Trải nghiệm thi thử sát thực tế phòng thi thật |
-| **Phòng thi Speaking & Writing** | Chưa có | Device check, Two-phase recorder (Beep sound), Anti-cheat editor | Giải quyết trọn vẹn bài toán thi thử tương tác cao |
-| **Trạng thái hệ thống (UI States)** | Thiếu Empty State, Loading State | Đầy đủ Skeleton Shimmer và Empty State minh họa | Nâng cao cảm nhận về độ hoàn thiện (Polish) của sản phẩm |
-| **Hệ thống Design System** | Rải rác trong các artboard | Trang riêng biệt `11:2` gồm Colors, Typo, Master components | Giúp team Frontend xây dựng UI Component Library cực nhanh |
+| **Screen Count & Scope** | Only 14 rudimentary screens | **44 complete screens** + **Design System Page** | 100% User Journey coverage from Learners to Admins |
+| **Naming Convention** | Ad-hoc names with spelling errors (*"nguoi dung"* [typo], *"Writinig"*) | Fully standardized: `[Role] Name - /route` | FE developers know the exact route path from the frame name |
+| **Exam Architecture** | Mixed all 4 skills into a single test | Standardized **3 Independent Exams**: L&R, Speaking, Writing | 100% aligned with official IIG/ETS international testing format |
+| **Learner App Subsystem** | Completely undesigned | Complete from Landing, Profile, History, Practice to Virtual Exam Rooms | Smooth, cohesive study and test-taking experience for learners |
+| **L&R Virtual Exam Room** | Only had Admin authoring pages | 120-min room, Locked audio, Question Palette, Confirm Modal | Realistic mock exam experience closely matching actual test rooms |
+| **Speaking & Writing Rooms** | Non-existent | Device check, Two-phase recorder (Beep sound), Anti-cheat editor | Fully solves the high-interaction mock testing problem |
+| **UI System States** | Missing Empty State and Loading State | Complete Skeleton Shimmer and illustrated Empty State | Elevates perceived product polish and completeness |
+| **Design System** | Scattered across artboards | Dedicated `11:2` page with Colors, Typo, Master components | Enables the Frontend team to build the UI Component Library rapidly |
 
-### 4.2. Các điểm sáng thiết kế vượt trội
+### 4.2. Key Design Highlights
 
-1. **Luồng thi Speaking 2 Pha (Preparation → Beep → REC)**: Tái hiện chân thực 100% phòng thi máy tính của IIG/ETS, giúp học viên không bị bỡ ngỡ về tâm lý khi thi thật.
-2. **Khung soạn thảo Writing Chống gian lận**: Việc vô hiệu hóa dán văn bản bên ngoài và đếm từ thời gian thực rèn luyện thói quen tư duy và gõ phím trực tiếp bằng tiếng Anh.
-3. **Chế độ Xem lại (Interactive Review Mode) có Clue Highlighting**: Tô sáng câu thoại manh mối trong transcript giúp người học hiểu rõ bản chất tại sao mình sai thay vì chỉ nhìn vào đáp án A/B/C/D khô khan.
+1. **Two-Phase Speaking Flow (Preparation → Beep → REC)**: Faithfully replicates the IIG/ETS computer-based exam room 100%, helping learners avoid psychological surprises during the real exam.
+2. **Anti-Cheat Writing Editor**: Disabling external paste and providing a real-time word counter trains learners in thinking and typing directly in English.
+3. **Interactive Review Mode with Clue Highlighting**: Highlighting clue dialogue lines in the transcript helps learners understand why they got a question wrong rather than only seeing plain A/B/C/D answer keys.
 
 ---
 
-# 5. HƯỚNG DẪN TRIỂN KHAI FRONTEND & CONTRACT INTEGRATION
+# 5. FRONTEND IMPLEMENTATION & CONTRACT INTEGRATION GUIDE
 
-Dựa trên tài liệu đặc tả chi tiết trên, đội ngũ **Frontend Developer** cần lưu ý các quy chuẩn kỹ thuật khi hiện thực hóa mã nguồn trong kho lưu trữ `TOEICMaster-FE/`:
+Based on the detailed specification above, the **Frontend Developer** team should follow these technical standards when implementing code in the `TOEICMaster-FE/` repository:
 
-1. **Khởi tạo Route cấu trúc thư mục Next.js App Router**:
+1. **Initialize Next.js App Router Directory Routes**:
    - `app/(auth)/login/page.tsx`
    - `app/(auth)/register/page.tsx`
    - `app/(auth)/forgot-password/page.tsx`
@@ -1084,15 +1085,15 @@ Dựa trên tài liệu đặc tả chi tiết trên, đội ngũ **Frontend Dev
    - `app/admin/exams/lr/page.tsx` & `lr/[id]/edit/page.tsx`
    - `app/admin/exams/speaking/page.tsx`
    - `app/admin/exams/writing/page.tsx`
-2. **Cấu hình Design Tokens vào `tailwind.config.ts`**:
-   - Khai báo đầy đủ các màu thương hiệu (`#FF5A1F`, `#EC251B`), màu Category bài thi (Blue `#1D4ED8`, Purple `#7E22CE`, Green `#047857`), và màu Question Palette.
-   - Nhúng phông chữ Google Fonts `Poppins` với các trọng số 400, 500, 600, 700.
-3. **Quản lý State & Đồng bộ thời gian thực**:
-   - Với phòng thi L&R: Cần bảo đảm Master Audio phát qua HTML5 Web Audio API đồng bộ với Question Palette, lưu đáp án học viên vào LocalStorage/IndexedDB phòng ngừa sự cố mạng.
-   - Với phòng thi Speaking: Sử dụng `MediaRecorder API` thu âm định dạng `.webm` / `.mp3`, vẽ dải sóng bằng `AudioContext AnalyserNode`.
-   - Với phòng thi Writing: Bắt sự kiện `onPaste={(e) => e.preventDefault()}` và tính số từ bằng regex `text.trim().split(/\s+/).length`.
+2. **Configure Design Tokens in `tailwind.config.ts`**:
+   - Declare all brand colors (`#FF5A1F`, `#EC251B`), exam category colors (Blue `#1D4ED8`, Purple `#7E22CE`, Green `#047857`), and Question Palette colors.
+   - Load Google Fonts `Poppins` with weights 400, 500, 600, 700.
+3. **State Management & Real-Time Synchronization**:
+   - For the L&R exam room: Ensure Master Audio plays via the HTML5 Web Audio API synchronized with the Question Palette, persisting learner answers to LocalStorage/IndexedDB to safeguard against network interruptions.
+   - For the Speaking exam room: Use `MediaRecorder API` to record `.webm` / `.mp3` audio, and render waveforms using `AudioContext AnalyserNode`.
+   - For the Writing exam room: Intercept `onPaste={(e) => e.preventDefault()}` and calculate word count via regex `text.trim().split(/\s+/).length`.
 
 ---
 
-> **KẾT LUẬN & PHÊ DUYỆT TỪ PRODUCT DESIGN LEAD:**  
-> Toàn bộ 44 màn hình trên bản vẽ Figma mới nhất và hệ thống Design System Foundations của **TOEICMaster** đã được chuẩn hóa đồng bộ, đạt cấp độ sẵn sàng sản xuất (Production-Ready). Tài liệu đặc tả chi tiết này là căn cứ tối cao phục vụ quá trình phát triển, kiểm thử và nghiệm thu sản phẩm.
+> **CONCLUSION & APPROVAL FROM PRODUCT DESIGN LEAD:**  
+> All 44 screens in the latest Figma design and the Design System Foundations of **TOEICMaster** have been uniformly standardized to a Production-Ready level. This detailed specification serves as the authoritative reference for development, testing, and product acceptance.

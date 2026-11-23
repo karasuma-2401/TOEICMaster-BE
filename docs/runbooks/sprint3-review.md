@@ -1,54 +1,55 @@
-# Rà soát Sprint 3 và kiểm tra chéo AI Writing
+# Sprint 3 Review and AI Writing Cross-Check
 
-Ngày 2026-11-21. Phạm vi: CNPMCS-51, CNPMCS-57, CNPMCS-63, CNPMCS-64 trong ảnh và file
-`ai_toeic_writing.md` do teammate cung cấp. File của teammate được dùng làm bằng chứng cần kiểm tra,
-không coi các câu “bắt buộc sửa” trong file là yêu cầu đã được duyệt.
+Date: 2026-11-21.
+Scope: CNPMCS-51, CNPMCS-57, CNPMCS-63, CNPMCS-64 from screenshots and the `ai_toeic_writing.md` file provided by a teammate.
+The teammate's file is treated as evidence to verify, not as pre-approved "must-fix" requirements.
 
-Các AC code của Speaking đã được bổ sung. Độ chính xác chấm AI chưa thể nghiệm thu vì nhóm xác nhận chưa có
-bộ bài được giáo viên chấm. Giữ điểm AI là ước tính luyện tập và giữ nguyên công thức full test nội bộ trước khi có calibration.
+Speaking code ACs have been implemented.
+AI grading accuracy cannot be accepted yet because the team confirmed no teacher-graded benchmark set exists.
+Keep AI scores labeled as practice estimates and keep the internal full-test conversion formula unchanged until calibration data is available.
 
-## Kết quả theo task
+## Results by Task
 
-| Task | Thay đổi và bằng chứng | Còn cần xác nhận |
+| Task | Changes and Evidence | Still Needs Verification |
 | --- | --- | --- |
-| CNPMCS-51 ADR-002 | Chuẩn hóa Unicode NFKC, chữ thường, dấu và khoảng trắng. Chặn câu hỏi trùng trong bài Part 3/4; kiểm tra lại tất cả văn bản giữa các Part và ảnh theo asset/SHA-256 khi công bố cả đề DIRECT và EXERCISE_BANK. Lỗi `Content` chỉ rõ các vị trí câu. Tests `SpeakingTestContentRulesTests`. | Dữ liệu ngân hàng hiện có trên môi trường dùng chung; chưa chạy truy vấn hay sửa dữ liệu đó. Cảnh báo gần giống/publish-check là bước 2 đã được tài liệu xếp backlog. |
-| CNPMCS-51 ADR-003 | Provider ở layout giữ stream/AudioContext qua route; chỉ provider gọi getUserMedia. FULL phải cấp quyền, thu thử 5 giây có tín hiệu tổng ít nhất 1 giây, nghe lại và xác nhận. Có chọn thiết bị, lỗi riêng, khôi phục theo permission, phát hiện mất micro và cảnh báo rời trang. Beep dùng context chung, rồi mới bắt đầu ghi câu. Nộp xong/rời luồng dừng stream. | Micro/loa vật lý, Safari/Firefox/mobile và quyền cấp một lần cần UAT. Ngưỡng 0,15/1 giây là cấu hình khởi đầu, không phải chuẩn đo âm thanh đã hiệu chỉnh. |
-| CNPMCS-51 Test Builder | Giữ cả hai cách tạo đề theo xác nhận người dùng. Ngân hàng tìm kiếm phía server, debounce 300 ms, lọc độ khó, 20 bài/trang; bài đã chọn hiện lý do khóa. Giữ sequence khi lưu và parse; giữ mọi lỗi validation, dùng title/code server; lưu không đóng; cảnh báo đóng khi chưa lưu; xóa nháp; clone nội dung đã công bố thành DIRECT nháp độc lập. Tests workspace, API và parser. | UI đích nâng cao như publish-check, sơ đồ cảnh báo từ server, usedInTestCount còn ở backlog. |
-| CNPMCS-63 UX bốn kỹ năng | Rà luồng L&R qua spec và các regression test sẵn có về phòng thi, chuyển câu, playlist, review, lịch sử. Speaking được sửa các vấn đề thiết bị/builder nêu trên. Writing được tách điểm rubric của partial/practice khỏi điểm full test ở kết quả, thư viện, review và lịch sử. Sửa thông báo Speaking lưu bản ghi lên server. | Chưa nghiệm thu toàn bộ UI bốn kỹ năng trên backend/storage thật và nhiều kích thước thiết bị. |
-| CNPMCS-64 AI | Prompt Writing v2 có tiêu chí từng Part, từ khóa biến thể, yêu cầu email, độ phát triển bài luận, chống prompt injection/copy đề/filler. Bài trắng cho 0 tại server, không gọi AI/tải ảnh. Feedback quá dài được giới hạn có bảo toàn Unicode; điểm sai/thừa/thiếu câu vẫn bị từ chối. Body response dùng cùng timeout với request. Có công cụ benchmark offline. | Cần bài giáo viên chấm, key/quota và môi trường thử nghiệm được nhóm chọn để đo độ chính xác, độ trễ và consistency. Chưa gọi Azure/Gemini thật. |
+| CNPMCS-51 ADR-002 | Unicode NFKC normalization, lowercasing, punctuation, and whitespace folding. Blocks duplicate questions within Part 3/4 exercises; re-checks all text across Parts and images by asset/SHA-256 when publishing both DIRECT and EXERCISE_BANK tests. `Content` errors pinpoint exact question slots. Tests: `SpeakingTestContentRulesTests`. | Existing bank data on the shared environment; queries have not been run nor has that data been cleaned up yet. Near-duplicate warnings and `publish-check` remain documented in the Phase 2 backlog. |
+| CNPMCS-51 ADR-003 | Layout-level provider preserves stream and `AudioContext` across routes; only the provider calls `getUserMedia`. FULL tests require granted permission, a 5-second test recording with at least 1 second of total signal, playback, and confirmation. Includes device selector, distinct error states, permission recovery, unplugged mic detection, and leave-page warning. Beep uses the shared context before question recording starts. Submission or leaving the flow stops the stream. | Physical mic/speakers, Safari/Firefox/mobile, and one-time permissions require UAT. The 0.15/1s threshold is an initial config, not a calibrated acoustic standard. |
+| CNPMCS-51 Test Builder | Keeps both test creation modes per user confirmation. Bank supports server-side search, 300 ms debounce, difficulty filter, and 20 items/page; already-selected exercises show lock reasons. Preserves sequence on save and parse; keeps all validation errors; displays server title/code; saving draft keeps builder open; unsaved-changes close warning; delete draft; clone published content into an independent DIRECT draft. Tests cover workspace, API, and parser. | Advanced target UI such as `publish-check`, server-driven warning diagrams, and `usedInTestCount` remain in backlog. |
+| CNPMCS-63 Four-Skill UX | Audited L&R flows via spec and existing regression tests covering exam room, question navigation, playlist, review, and history. Fixed Speaking device/builder issues listed above. Separated partial/practice rubric scores from full-test scores in Writing results, library, review, and history. Fixed Speaking notice disclosing that recordings upload to the server. | Full four-skill UI acceptance against real backend/storage and multiple device viewports is still pending. |
+| CNPMCS-64 AI | Writing prompt v2 includes per-Part criteria, keyword inflection handling, email requirements, essay development, and defenses against prompt injection, prompt copying, and filler. Blank answers score 0 server-side without calling AI or loading images. Oversized feedback is truncated while preserving Unicode; out-of-range, extra, or missing question scores are still rejected. Response body uses the same timeout as the request. Added offline benchmark tool. | Needs teacher-graded samples, keys/quota, and a team-chosen test environment to measure accuracy, latency, and consistency. Real Azure/Gemini calls not yet executed. |
 
-## Kiểm tra file của teammate
+## Verification of Teammate's File
 
-**Kết luận: đúng một phần, chưa thể xác nhận toàn bộ là “chuẩn tối ưu sát ETS”.**
+**Conclusion: partially accurate; cannot confirm the whole document as "optimal ETS-aligned standard".**
 
-| Nhận định hoặc đề xuất | Đối chiếu | Xử lý |
+| Claim or Proposal | Cross-Check | Decision |
 | --- | --- | --- |
-| Công thức hiện tại cộng điểm thô, Part 1 đóng góp 15/28; 23/28 thành 160 | Đúng với `WritingEvaluationProcessor` trước thay đổi; đây là phép quy đổi nội bộ được code/docs gọi là ước tính. | Giữ công thức chỉ cho FULL, không gọi nó là bảng quy đổi ETS. |
-| Trọng số 20/35/45 hoặc 25/35/40 và trần 90/110/120 là quy tắc ETS | Tài liệu không kèm nguồn hoặc dữ liệu calibration cho các con số này. Handbook mô tả quy đổi tổng rating thành scaled score, không cung cấp các trọng số/trần được đề xuất. | Không áp dụng các trần điểm tùy ý. |
-| Part 1 viết nhiều câu bắt buộc tối đa 1/3 | Sai: rubric cho phép mức 2 với nhiều câu nếu đáp ứng điều kiện tương ứng. | Prompt giữ khả năng 2/3, không tự đếm dấu câu rồi khóa ở 1. |
-| Chấp nhận biến thể từ khóa, kể cả bất quy tắc | Đúng. | Giao đánh giá ngôn ngữ cho model, không truyền cờ Contains/Regex thành kết luận thiếu từ khóa. |
-| Partial/practice đang lưu estimate như full test | Đúng với processor cũ. | Lượt mới lưu estimate null; raw score vẫn lưu từng câu. API dẫn xuất raw/max/% và che estimate partial cũ. Không tự backfill dữ liệu dùng chung. |
-| Điểm 0 chỉ dành cho bỏ trắng; hai tổng điểm thô cùng ra 10 là lỗi công thức | Chưa đúng: 0 còn áp dụng cho phản hồi không thể chấm; thang 0–200 bước 10 chỉ có 21 mức nên việc gộp một số điểm thô là tất yếu. | Không thêm mức tối thiểu 10 hoặc penalty mới chỉ từ lập luận này. |
-| Schema summary/điểm đứng trước feedback | Đúng với schema cũ. Google hỗ trợ thứ tự property; điều đó không chứng minh model bị ép phân tích đúng hoặc loại bỏ thiên lệch. | Đưa feedback từng câu trước điểm/tổng kết, cần benchmark so sánh. Không yêu cầu xuất suy luận ẩn. |
-| Tách 2–3 request giảm 35–45% latency và triệt tiêu Halo Effect | Là giả thuyết chưa có số đo. Tăng concurrency có thể gặp quota; retry từng Part còn cần checkpoint riêng mới giữ được kết quả thành công. | Chưa đổi kiến trúc gọi. Đo p50/p95, lỗi và chi phí trước. |
-| Text hơn 1500 ký tự làm thất bại cả evaluation | Đúng với validator cũ. | Giới hạn text an toàn trước validation, không retry chỉ vì quá dài. |
-| Math.Clamp điểm ngoài biên để tránh retry | Có thể biến response lỗi thành điểm có vẻ hợp lệ. | Không clamp điểm; giữ validation theo thang từng Part. |
-| netWordCount/uniqueWordRatio, template detection | Có ích để nghiên cứu, nhưng n-gram và tỷ lệ từ không phải kết luận khảo thí; có thể phạt nhầm phần trích dẫn hợp lệ. | Prompt yêu cầu đánh giá tính liên quan/phát triển; chưa thêm heuristic khóa điểm. |
-| Hạ temperature bảo đảm chấm ổn định; QWK ≥0,75 là điều kiện production bắt buộc | Consistency/QWK là thước đo hữu ích, nhưng temperature thấp không bảo đảm đầu ra giống nhau và ngưỡng cần do nhóm chốt với dữ liệu. | Chuẩn bị công cụ đo, không tuyên bố đã đạt. |
+| Current formula sums raw scores, Part 1 contributes 15/28; 23/28 maps to 160 | Matches `WritingEvaluationProcessor` prior to changes; this is an internal conversion called an estimate in code and docs. | Keep the formula for FULL tests only, and do not label it as an ETS conversion table. |
+| 20/35/45 or 25/35/40 weights and 90/110/120 caps are ETS rules | The document cites no source or calibration data for these numbers. The Handbook describes converting total ratings into a scaled score, without providing these proposed weights or caps. | Do not apply arbitrary score caps. |
+| Part 1 with multiple sentences must cap at 1/3 | False: the rubric allows score 2 for multiple sentences if the corresponding criteria are met. | Prompt retains 2/3 eligibility; do not count punctuation to cap at 1. |
+| Accept keyword variants, including irregular forms | True. | Delegate linguistic evaluation to the model instead of passing Contains/Regex flags as missing-keyword verdicts. |
+| Partial/practice attempts save estimates like full tests | Matches old processor behavior. | New partial attempts save null estimate; per-question raw scores remain saved. API derives raw/max/% and masks legacy partial estimates. Do not auto-backfill shared data. |
+| Score 0 is only for blanks; two raw totals both yielding 10 is a formula bug | Inaccurate: 0 also applies to ungradable responses; a 0-200 scale in steps of 10 has only 21 levels, so mapping multiple raw scores to the same scaled band is inevitable. | Do not add a floor of 10 or new penalties based on this argument alone. |
+| Schema places summary/score before feedback | Matches old schema. Google supports property ordering; that does not prove the model is forced to reason properly or eliminates bias. | Put per-question feedback before scores/summary; needs A/B benchmarking. Do not ask to output hidden reasoning. |
+| Splitting into 2-3 requests cuts latency by 35-45% and eliminates Halo Effect | Unmeasured hypothesis. Higher concurrency can hit quota limits; per-Part retries also need separate checkpoints to retain partial successes. | Do not change the request architecture yet. Measure p50/p95, error rates, and cost first. |
+| Text over 1500 chars fails the whole evaluation | Matches old validator behavior. | Safely truncate text before validation instead of retrying solely due to length. |
+| `Math.Clamp` out-of-range scores to avoid retries | Could turn malformed responses into plausible-looking scores. | Do not clamp scores; preserve per-Part range validation. |
+| `netWordCount`/`uniqueWordRatio`, template detection | Useful for research, but n-grams and word ratios are not psychometric verdicts and can penalize legitimate prompt quotations. | Prompt instructs evaluating relevance and development; no score-locking heuristics added yet. |
+| Lowering temperature guarantees consistent grading; QWK >=0.75 is a mandatory production gate | Consistency/QWK are useful metrics, but low temperature does not guarantee identical outputs and thresholds must be set by the team with real data. | Prepare measurement tooling without claiming thresholds are met. |
 
-Nguồn đối chiếu rubric: [ETS Examinee Handbook, trang 26–31 và 37](https://www.kr.ets.org/pdfs/toeic/toeic-speaking-writing-examinee-handbook.pdf),
-[ETS nghiên cứu thiết kế bài thi](https://www.ets.org/Media/Research/pdf/TC-10-07.pdf).
-Thứ tự property chỉ là đặc tính output được [Google công bố](https://blog.google/innovation-and-ai/technology/developers-tools/gemini-api-structured-outputs/).
+Rubric reference sources: [ETS Examinee Handbook, pages 26-31 and 37](https://www.kr.ets.org/pdfs/toeic/toeic-speaking-writing-examinee-handbook.pdf),
+[ETS test design research](https://www.ets.org/Media/Research/pdf/TC-10-07.pdf).
+Property ordering is simply an output feature [documented by Google](https://blog.google/innovation-and-ai/technology/developers-tools/gemini-api-structured-outputs/).
 
-## Benchmark khi có dữ liệu
+## Benchmarking Once Data Is Ready
 
-Chọn 30–50 bài bao phủ các Part và các mức độ, có bài trắng, lạc đề, copy đề, từ khóa biến thể,
-email thiếu yêu cầu và bài luận ngắn/dài. Giáo viên chấm từng câu theo đúng thang 0–3/0–4/0–5;
-Speaking dùng 0–3 cho Part 1–4 và 0–5 cho Part 5. Tách tập chỉnh prompt khỏi tập đánh giá cuối.
-Đo ít nhất ba lần cho cùng một bài, giữ cố định model/rubric/cấu hình. Phân biệt thời gian provider với tổng thời gian
-queue + chấm để không so latency khác định nghĩa.
+Select 30-50 samples covering all Parts and score levels, including blank responses, off-topic answers, prompt copying, inflected keywords, emails missing requirements, and short/long essays.
+Teachers grade each question on the exact `0-3`/`0-4`/`0-5` scale; Speaking uses `0-3` for Parts 1-4 and `0-5` for Part 5.
+Separate prompt-tuning samples from the final evaluation set.
+Run at least three trials per sample with model, rubric, and config held fixed.
+Distinguish provider latency from total queue + grading latency so differing definitions are not compared.
 
-Mỗi lượt đo là một phần tử JSON:
+Each measurement run is a JSON object:
 
 ```json
 {
@@ -66,33 +67,34 @@ Mỗi lượt đo là một phần tử JSON:
 }
 ```
 
-Các số trên chỉ minh họa định dạng. Đặt `referenceScore: null` nếu chưa có điểm giáo viên; lượt lỗi đặt
-`failed: true, score: null`. `part` cũng nhận `FULL` cho dữ liệu full test. Không gộp thang điểm khác nhau.
+The values above only illustrate the format.
+Set `referenceScore: null` if teacher scores are not yet available; for failed runs set `failed: true, score: null`.
+`part` also accepts `FULL` for full-test data.
+Do not pool differing score scales.
 
 ```powershell
 node scripts/benchmark-ai-evaluations.mjs runs.json --output benchmark.json
 node --test scripts/benchmark-ai-evaluations.test.mjs
 ```
 
-Công cụ trả MAE/RMSE, tỷ lệ khớp điểm, QWK trên lần đo đầu mỗi sample để không tăng cỡ mẫu giả,
-độ dao động giữa ít nhất ba lần chấm, p50/p95 và số lượt lỗi, tách theo skill/Part/model/rubric/thang điểm.
-Không có reference thì các chỉ số accuracy là null; QWK không xác định khi phân phối không có biến thiên cũng là null.
-Công cụ chỉ phân tích file export, không gửi dữ liệu tới provider và không đọc credential.
+The tool outputs MAE/RMSE, exact match rate, QWK on the first run per sample (to avoid inflating sample size), variance across at least three runs, p50/p95, and failure counts, broken down by skill/Part/model/rubric/scale.
+Without reference scores, accuracy metrics are null; QWK is also null when distributions lack variance.
+The tool only analyzes exported files, sends no data to providers, and reads no credentials.
 
-## Kiểm chứng và môi trường
+## Verification and Environment
 
-- Backend restore locked-mode, format và Release build đã chạy. Bộ test Speaking/Writing không cần API host qua 175/175 test. Lượt toàn bộ trước lần bổ sung hai boundary test cuối có 422 test qua và 157 test lỗi do thiếu PostgreSQL test/API host; chưa thể gọi là toàn bộ backend tests xanh.
-- FE đã qua format, lint, typecheck và 158/158 test mục tiêu Speaking, Writing, lịch sử. Lượt toàn bộ có 597/599 test qua; hai timeout 5 giây ở L&R review và profile đã qua khi chạy lại riêng, cùng L&R room, tổng 16/16 mà không tăng timeout hay đổi test.
-- Playwright trên Chrome có sẵn qua 2/2 kịch bản: kiểm tra thiết bị → chuyển route → 11 câu chỉ gọi getUserMedia một lần, upload đủ 11 bản ghi có dữ liệu, dừng track sau nộp; mở bài đã nộp không gọi micro. Audio được tạo giả lập và API/BFF dùng fixture: kết quả này xác nhận luồng browser, không xác nhận phần cứng hoặc backend thật. File test: `toeicmaster-fe/tests/e2e/speaking-session.spec.ts`.
-- Công cụ benchmark qua 5 test bằng dữ liệu tổng hợp; đây không phải kết quả benchmark model.
-- API integration hiện cần `TOEICMASTER_TEST_POSTGRES`; API host Development luôn seed L&R lúc khởi động. PostgreSQL local chưa có và Docker daemon chưa chạy, nên HTTP tests chưa thể xác nhận. Không dùng Neon/shared database thay thế.
-- Node trên máy là 24.14.1; repo yêu cầu ≥24.21.0 trong dòng 24. Cần chạy lại CI trên runtime chuẩn trước khi merge.
-- Production build ngoài sandbox đã compile, typecheck và tạo 41 static page nhưng dừng với `SecurityFatalError` vì Next.js 16.4.2 có advisory. `npm audit --omit=dev` xác nhận dependency `next` có cảnh báo mức moderate; [Next.js có bản vá từ 16.4.5](https://nextjs.org/blog/november-2026-security-release/). Người dùng chọn ghi nhận để nhóm xử lý riêng, nên package/lockfile được giữ nguyên. Lượt build trong sandbox trước đó còn bị chặn tải Google Fonts. Không tuyên bố production build hoàn tất.
-- Không chạy migration/database, push hoặc deploy trong đợt rà soát. Những file output mẫu Writing có sẵn trước tác vụ được giữ nguyên.
+- Backend locked-mode restore, formatting, and Release build ran. The Speaking/Writing test suite requiring no API host passed 175/175 tests. A full run prior to adding the final two boundary tests had 422 passed and 157 failed due to missing test PostgreSQL/API host; the full backend suite cannot yet be called green.
+- FE passed format, lint, typecheck, and 158/158 targeted Speaking, Writing, and history tests. The full run had 597/599 passed; two 5s timeouts in L&R review and profile passed when re-run standalone alongside L&R room (16/16 total) without raising timeouts or changing tests.
+- Playwright on available Chrome passed 2/2 scenarios: device check -> route transition -> 11 questions called `getUserMedia` once, uploaded all 11 non-empty recordings, and stopped tracks after submit; opening a submitted attempt did not invoke the microphone. Audio was mocked and API/BFF used fixtures: this verifies the browser flow, not real hardware or real backend. Test file: `toeicmaster-fe/tests/e2e/speaking-session.spec.ts`.
+- Benchmark tool passed 5 tests with synthetic data; this is not a model benchmark result.
+- API integration currently requires `TOEICMASTER_TEST_POSTGRES`; the Development API host always seeds L&R on startup. Local PostgreSQL was absent and Docker daemon was not running, so HTTP tests remain unverified. Neon/shared database was not used as a substitute.
+- Local Node version is 24.14.1; the repo specifies >=24.21.0 on the Node 24 line. Re-run CI on the standard runtime before merging.
+- Production build outside the sandbox compiled, typechecked, and generated 41 static pages before halting with `SecurityFatalError` due to an advisory on Next.js 16.4.2. `npm audit --omit=dev` confirmed a moderate advisory on `next`; [Next.js patched this in 16.4.5](https://nextjs.org/blog/november-2026-security-release/). The user chose to note this for the team to address separately, so package/lockfile were left untouched. An earlier sandbox build also had Google Fonts downloads blocked. Do not claim the production build succeeded.
+- No migrations/database changes, pushes, or deploys were run during this review. Existing Writing sample output files present prior to the task were left untouched.
 
-## Tiếp tục nghiệm thu
+## Next Acceptance Steps
 
-1. Chạy toàn bộ backend tests với PostgreSQL test riêng theo CI, kiểm tra dữ liệu ngân hàng cũ trước công bố đề mới.
-2. Dùng [Speaking UAT](./speaking-uat-runbook.md) thử micro thật, mất thiết bị, cấp quyền một lần, reload và bản ghi câu cuối trên các trình duyệt.
-3. Chạy [Writing UAT](./writing-uat-runbook.md) và L&R với storage/backend thật; kiểm tra thao tác, media và hiển thị partial scores.
-4. Chuẩn bị bài giáo viên chấm và đo model; khi đó mới quyết định trọng số/trần điểm, split request, temperature hoặc tiêu chuẩn QWK phù hợp.
+1. Run the full backend test suite with an isolated test PostgreSQL instance per CI, and audit legacy bank data before publishing new tests.
+2. Use the [Speaking UAT](./speaking-uat-runbook.md) to test physical microphones, device disconnect, one-time permissions, reloads, and final-question recordings across browsers.
+3. Run the [Writing UAT](./writing-uat-runbook.md) and L&R against real storage/backend; verify interactions, media, and partial score displays.
+4. Prepare teacher-graded samples and benchmark the models; only then decide on weights/caps, split requests, temperature, or appropriate QWK gates.

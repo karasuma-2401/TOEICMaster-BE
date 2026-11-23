@@ -16,7 +16,7 @@ public sealed class UploadWritingImageCommandValidator : AbstractValidator<Uploa
     {
         RuleFor(command => command.ActorUserId).NotEmpty();
         RuleFor(command => command.Content).NotEmpty().Must(content => content.Length <= UploadWritingImageCommandHandler.MaxBytes)
-            .WithMessage("Ảnh không được vượt quá 5 MiB.");
+            .WithMessage("The image must not exceed 5 MiB.");
         RuleFor(command => command.ContentType).NotEmpty().MaximumLength(100);
         RuleFor(command => command.OriginalFileName).NotEmpty().MaximumLength(255);
     }

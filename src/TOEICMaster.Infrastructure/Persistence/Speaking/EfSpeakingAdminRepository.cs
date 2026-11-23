@@ -146,14 +146,14 @@ public sealed class EfSpeakingAdminRepository(ToeicDbContext context) : ISpeakin
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new SpeakingConflictException("Dữ liệu đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.");
+            throw new SpeakingConflictException("Data was modified elsewhere. Please reload the data.");
         }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException
         {
             SqlState: PostgresErrorCodes.UniqueViolation
         })
         {
-            throw new SpeakingConflictException("Mã đã tồn tại hoặc bài tập bị trùng trong đề.");
+            throw new SpeakingConflictException("Code already exists or exercise is duplicated in the test.");
         }
     }
 

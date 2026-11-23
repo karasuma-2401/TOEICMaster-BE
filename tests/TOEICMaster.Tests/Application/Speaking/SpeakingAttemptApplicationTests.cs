@@ -109,7 +109,7 @@ public sealed class SpeakingAttemptApplicationTests
             submitted.Questions[0].Content.Questions!);
         Assert.Equal(3, submitted.ReviewQuestions.Count);
         Assert.All(submitted.ReviewQuestions, review =>
-            Assert.Equal(("Rõ ràng, đúng trọng tâm.", "Model answer SP3-001."), (review.RubricNotes, review.ModelAnswer)));
+            Assert.Equal(("Clear, on-topic.", "Model answer SP3-001."), (review.RubricNotes, review.ModelAnswer)));
     }
 
     [Fact]

@@ -49,19 +49,19 @@ public sealed class PronunciationAssessmentException(PronunciationFailureKind ki
     public string Code { get; } = code;
 
     public static PronunciationAssessmentException InvalidAudio(string message =
-        "Bản thu không hợp lệ. Hãy thu lại trong tối đa 10 giây.") =>
+        "Invalid recording. Please record again for up to 10 seconds.") =>
         new(PronunciationFailureKind.InvalidAudio, "INVALID_AUDIO", message);
 
     public static PronunciationAssessmentException NotConfigured() =>
-        new(PronunciationFailureKind.NotConfigured, "NOT_CONFIGURED", "Chưa chấm được phát âm lúc này.");
+        new(PronunciationFailureKind.NotConfigured, "NOT_CONFIGURED", "Pronunciation could not be scored right now.");
 
     public static PronunciationAssessmentException ProviderError(Exception? innerException = null) =>
-        new(PronunciationFailureKind.ProviderError, "SPEECH_PROVIDER_ERROR", "Chưa chấm được phát âm lúc này.",
+        new(PronunciationFailureKind.ProviderError, "SPEECH_PROVIDER_ERROR", "Pronunciation could not be scored right now.",
             innerException);
 
     public static PronunciationAssessmentException Timeout(Exception? innerException = null) =>
-        new(PronunciationFailureKind.Timeout, "SPEECH_TIMEOUT", "Hệ thống chấm phản hồi quá lâu.", innerException);
+        new(PronunciationFailureKind.Timeout, "SPEECH_TIMEOUT", "The scoring system took too long to respond.", innerException);
 
     public static PronunciationAssessmentException Rejected() =>
-        new(PronunciationFailureKind.Rejected, "SPEECH_REJECTED", "Hệ thống chấm không xử lý được bản thu này.");
+        new(PronunciationFailureKind.Rejected, "SPEECH_REJECTED", "The scoring system could not process this recording.");
 }

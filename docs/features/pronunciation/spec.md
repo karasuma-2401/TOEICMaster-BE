@@ -1,86 +1,86 @@
-# Feature Specification: Luyện phát âm IPA (Learner)
+# Feature Specification: IPA Pronunciation Practice (Learner)
 
-> **Trạng thái:** In Review
-> **Người phụ trách:** Tân Mai Phú
+> **Status:** In Review
+> **Owner:** Tan Mai Phu
 > **Jira:** CNPMCS-60 (epic CNPMCS-55)
-> **Tài liệu liên quan:** Spec frontend `TOEICMaster-FE/docs/ipaPage.md` (§9.1 là nguồn của contract này)
+> **Related Docs:** Frontend spec `TOEICMaster-FE/docs/ipaPage.md` (§9.1 is the source for this contract)
 
 ---
 
-## 1. Mục tiêu & Phạm vi
+## 1. Goals & Scope
 
-### Mục tiêu chính
+### Primary Goal
 
-Học viên đọc một từ ví dụ của một âm IPA (ví dụ `think` cho /θ/). Backend chấm bản thu ở mức **âm vị**, trả về
-điểm từng âm và các âm hệ thống nghe ra, để frontend tính điểm riêng cho âm đang luyện.
+A learner reads an example word for an IPA phoneme (for example, `think` for /θ/).
+The backend grades the recording at the **phoneme** level and returns per-phoneme scores along with recognized candidate phonemes so the frontend can compute the score for the target phoneme being practiced.
 
-### Phạm vi
+### Scope
 
-- [x] `POST /api/v1/pronunciation/assessments`: nhận một bản thu ngắn, trả kết quả chấm.
-- [x] Chấm bằng Azure Pronunciation Assessment: có `ReferenceText`, `Granularity=Phoneme`, `PhonemeAlphabet=IPA`, `NBestPhonemeCount=5`.
-- [x] Yêu cầu đăng nhập, giới hạn 30 lần/phút cho mỗi người dùng đã xác thực.
+- [x] `POST /api/v1/pronunciation/assessments`: accepts a short recording and returns assessment results.
+- [x] Graded via Azure Pronunciation Assessment with `ReferenceText`, `Granularity=Phoneme`, `PhonemeAlphabet=IPA`, and `NBestPhonemeCount=5`.
+- [x] Requires authentication, rate-limited to 30 requests/minute per authenticated user.
 
-### Ngoài phạm vi
+### Out of Scope
 
 > [!IMPORTANT]
 >
-> - Không lưu bản thu, không lưu điểm, không có bảng dữ liệu hay migration. Bản thu chỉ xử lý trong bộ nhớ.
-> - Không có trang Admin. Dữ liệu 44 âm là tĩnh ở frontend.
-> - Không gộp vào Speaking: không thêm route, handler hay lịch sử nào vào Speaking.
+> - Recordings and scores are not persisted; there are no database tables or migrations. Recordings are processed strictly in memory.
+> - No Admin page. Data for the 44 phonemes is static on the frontend.
+> - Not merged into Speaking: do not add any routes, handlers, or history into Speaking.
 
-## 2. Tách biệt với các tính năng khác
+## 2. Isolation from Other Features
 
-Toàn bộ code nằm trong file mới:
+All code lives in new files:
 
-| Lớp            | File                                                                                       |
+| Layer          | Files                                                                                      |
 | -------------- | ------------------------------------------------------------------------------------------ |
 | Application    | `src/TOEICMaster.Application/Pronunciation/*`                                              |
 | Infrastructure | `src/TOEICMaster.Infrastructure/Pronunciation/*` (assessor, ffmpeg converter, options, DI) |
 | Api            | `Controllers/PronunciationController.cs`, `Configuration/PronunciationConfiguration.cs`    |
 | Tests          | `tests/.../{Application,Infrastructure,Api}/Pronunciation/*`, `TestDoubles/PronunciationTestDoubles.cs` |
 
-- Không dùng lại code Speaking. Converter ffmpeg và assessor là bản riêng (`IPronunciationAudioConverter`, `AzurePronunciationAssessor`).
-- Cấu hình **chỉ đọc** chung mục `AzureSpeech` (`Enabled`, `Key`, `Region`, `Endpoint`, `RequestTimeoutSeconds`, `FfmpegPath`), để một Azure Speech resource dùng cho cả hai tính năng. Không thêm biến môi trường mới.
-- Lỗi được chuyển thành ProblemDetails ngay trong controller, không thêm exception handler toàn cục.
-- Hai chỗ chạm vào file có sẵn, mỗi chỗ đúng một dòng:
+- Does not reuse Speaking code. The ffmpeg converter and assessor are dedicated implementations (`IPronunciationAudioConverter`, `AzurePronunciationAssessor`).
+- Configuration **reads only** from the shared `AzureSpeech` section (`Enabled`, `Key`, `Region`, `Endpoint`, `RequestTimeoutSeconds`, `FfmpegPath`), allowing one Azure Speech resource to serve both features. No new environment variables are introduced.
+- Errors are mapped to ProblemDetails directly in the controller without adding a global exception handler.
+- Only two existing files are touched, each by a single line:
   1. `src/TOEICMaster.Api/Program.cs`: `builder.Services.AddPronunciation(builder.Configuration);`
-  2. `tests/.../Application/Common/MediatorPipelineTests.cs`: đăng ký `SilentPronunciationAssessor`. Test này kiểm tra mọi handler MediatR đều resolve được, nên tính năng nào có handler mới cũng phải thêm một dòng ở đây.
+  2. `tests/.../Application/Common/MediatorPipelineTests.cs`: registers `SilentPronunciationAssessor`. This test verifies that every MediatR handler resolves cleanly, so any feature adding a new handler must add a line here as well.
 
-## 3. Luồng nghiệp vụ
+## 3. Business Flow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as Học viên
+    actor User as Learner
     participant FE as Frontend (BFF /api/pronunciation/assessments)
     participant API as Backend API
     participant FF as ffmpeg
     participant AZ as Azure Speech
 
-    User->>FE: Ghi âm từ "think" (≤ 5 giây)
+    User->>FE: Record the word "think" (<= 5s)
     FE->>API: POST /api/v1/pronunciation/assessments (multipart, Bearer)
-    API->>API: Kiểm tra token, rate limit, kích thước, chữ ký file, referenceText
-    API->>FF: WebM/Ogg/MP4/WAV → WAV PCM 16 kHz mono
+    API->>API: Validate token, rate limit, size, file signature, referenceText
+    API->>FF: WebM/Ogg/MP4/WAV -> WAV PCM 16 kHz mono
     API->>AZ: Pronunciation-Assessment (Phoneme, IPA, NBest 5)
-    AZ-->>API: NBest[0] với Words[].Phonemes[]
+    AZ-->>API: NBest[0] with Words[].Phonemes[]
     API-->>FE: 200 PronunciationAssessmentDto
-    FE-->>User: Điểm âm mục tiêu, chip âm vị, gợi ý sửa
+    FE-->>User: Target phoneme score, phoneme chips, correction tips
 ```
 
 ## 4. API
 
 ### `POST /api/v1/pronunciation/assessments`
 
-- **Auth:** Bearer token (người dùng đã đăng nhập). Chưa đăng nhập → `401`.
+- **Auth:** Bearer token (authenticated user). Unauthenticated -> `401`.
 - **Content-Type:** `multipart/form-data`.
-- **Rate limit:** 30 request/phút cho mỗi người dùng đã xác thực hoặc theo địa chỉ IP kết nối khi thiếu token hay token không hợp lệ.
-  Vượt giới hạn trả `429` kèm `Retry-After`.
+- **Rate limit:** 30 requests/minute per authenticated user, or by client connection IP when the token is missing or invalid.
+  Exceeding the limit returns `429` with `Retry-After`.
 
-| Field           | Bắt buộc | Ràng buộc                                                                                     |
-| --------------- | -------- | --------------------------------------------------------------------------------------------- |
-| `file`          | Có       | WebM, Ogg, MP4 hoặc WAV, nhận diện theo chữ ký file; tối đa 1 MiB; sau khi giải mã tối đa 10 giây |
-| `referenceText` | Có       | 1–40 ký tự sau khi trim, chỉ chữ cái tiếng Anh, khoảng trắng, `'` và `-`                       |
-| `locale`        | Không    | `en-US` (mặc định) hoặc `en-GB`                                                               |
+| Field           | Required | Constraints                                                                                     |
+| --------------- | -------- | ----------------------------------------------------------------------------------------------- |
+| `file`          | Yes      | WebM, Ogg, MP4, or WAV, detected by file signature; max 1 MiB; max 10 seconds after decoding    |
+| `referenceText` | Yes      | 1-40 characters after trimming, English letters, spaces, `'`, and `-` only                      |
+| `locale`        | No       | `en-US` (default) or `en-GB`                                                                    |
 
 #### Response `200 OK`
 
@@ -113,51 +113,51 @@ sequenceDiagram
 }
 ```
 
-- Mọi điểm nằm trong khoảng 0–100, làm tròn 1 chữ số thập phân.
-- `recognitionStatus` là `Recognized` hoặc `NoSpeech`. Khi `NoSpeech` (im lặng, bản thu < 0,2 giây, Azure trả `NoMatch`/`InitialSilenceTimeout`), mọi điểm bằng 0, `recognizedText` rỗng, `words` là `[]`.
+- All scores are in the 0-100 range, rounded to 1 decimal place.
+- `recognitionStatus` is `Recognized` or `NoSpeech`. When `NoSpeech` (silence, recording < 0.2s, or Azure returns `NoMatch`/`InitialSilenceTimeout`), all scores are 0, `recognizedText` is empty, and `words` is `[]`.
 
-#### Lỗi (ProblemDetails, `application/problem+json`, có `code` và `traceId`)
+#### Errors (ProblemDetails, `application/problem+json`, with `code` and `traceId`)
 
-| Status | `code`                  | Khi nào                                                        |
-| ------ | ----------------------- | -------------------------------------------------------------- |
-| 400    | `INVALID_AUDIO`         | Thiếu file, sai định dạng, không giải mã được, dài quá 10 giây  |
-| 400    | (ValidationProblemDetails) | `referenceText` hoặc `locale` không hợp lệ                  |
-| 401    | —                       | Chưa đăng nhập                                                 |
-| 413    | `INVALID_AUDIO`         | File vượt 1 MiB                                                |
-| 422    | `SPEECH_REJECTED`       | Azure trả 400 cho bản thu                                      |
-| 429    | —                       | Vượt rate limit, có `Retry-After`                              |
-| 502    | `SPEECH_PROVIDER_ERROR` | Azure lỗi 5xx/429, lỗi mạng, phản hồi không đọc được           |
-| 503    | `NOT_CONFIGURED`        | Azure Speech tắt/thiếu key, key sai (401/403), hoặc máy chủ thiếu ffmpeg |
-| 504    | `SPEECH_TIMEOUT`        | ffmpeg hoặc Azure quá thời gian                                |
+| Status | `code`                     | When                                                                      |
+| ------ | -------------------------- | ------------------------------------------------------------------------- |
+| 400    | `INVALID_AUDIO`            | Missing file, invalid format, undecodable audio, or duration over 10s     |
+| 400    | (ValidationProblemDetails) | Invalid `referenceText` or `locale`                                       |
+| 401    | -                          | Unauthenticated                                                           |
+| 413    | `INVALID_AUDIO`            | File exceeds 1 MiB                                                        |
+| 422    | `SPEECH_REJECTED`          | Azure returns 400 for the recording                                       |
+| 429    | -                          | Rate limit exceeded, includes `Retry-After`                               |
+| 502    | `SPEECH_PROVIDER_ERROR`    | Azure 5xx/429 error, network error, or unreadable response                |
+| 503    | `NOT_CONFIGURED`           | Azure Speech disabled/missing key, invalid key (401/403), or missing ffmpeg on host |
+| 504    | `SPEECH_TIMEOUT`           | ffmpeg or Azure timed out                                                 |
 
-`title` luôn là câu tiếng Việt an toàn để hiển thị, không chứa chi tiết nội bộ.
+`title` is always a safe Vietnamese sentence suitable for display, containing no internal details.
 
-## 5. Cấu hình & vận hành
+## 5. Configuration & Operations
 
-- Bật bằng các biến đã có: `AZURE_SPEECH_ENABLED=true`, `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` (docker compose) hoặc `AzureSpeech__*`.
-- Cần `ffmpeg` trên máy chạy API. Image trong `docker-compose.override.yml` đã cài sẵn.
-- Thiếu cấu hình thì API vẫn khởi động bình thường; endpoint trả `503 NOT_CONFIGURED`.
+- Enabled via existing variables: `AZURE_SPEECH_ENABLED=true`, `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` (docker compose) or `AzureSpeech__*`.
+- Requires `ffmpeg` on the machine running the API. The image in `docker-compose.override.yml` already has it installed.
+- If unconfigured, the API still starts normally; the endpoint returns `503 NOT_CONFIGURED`.
 
-## 6. Tiêu chí nghiệm thu
+## 6. Acceptance Criteria
 
 ```gherkin
-Scenario: Chấm phát âm một từ ví dụ
-  Given học viên đã đăng nhập và Azure Speech đã cấu hình
-  When gửi bản thu WebM đọc "think" với referenceText "think"
-  Then trả về 200 với điểm từng âm vị theo ký hiệu IPA và candidates
+Scenario: Grade pronunciation of an example word
+  Given an authenticated learner and configured Azure Speech
+  When a WebM recording of "think" is sent with referenceText "think"
+  Then 200 is returned with per-phoneme scores in IPA notation and candidates
 
-Scenario: Chưa đăng nhập
-  When gửi bản thu mà không có Bearer token
-  Then trả về 401 và không gọi Azure
+Scenario: Unauthenticated request
+  When a recording is sent without a Bearer token
+  Then 401 is returned and Azure is not called
 
-Scenario: Dữ liệu không hợp lệ
-  When referenceText chứa chữ số hoặc file không phải audio hỗ trợ
-  Then trả về 400 và không gọi Azure
+Scenario: Invalid input
+  When referenceText contains digits or the file is not a supported audio format
+  Then 400 is returned and Azure is not called
 
-Scenario: Dịch vụ chưa cấu hình
+Scenario: Service not configured
   Given AzureSpeech:Enabled=false
-  When gửi bản thu hợp lệ
-  Then trả về 503 với code NOT_CONFIGURED
+  When a valid recording is sent
+  Then 503 is returned with code NOT_CONFIGURED
 ```
 
-Kiểm thử: `AssessPronunciationTests` (validator, nhận diện audio, handler), `AzurePronunciationAssessorTests` (header Azure, parse kết quả, ánh xạ lỗi), `PronunciationApiTests` (401, contract JSON, 400/413/422/502/503/504; cần `TOEICMASTER_TEST_POSTGRES` như các API test khác).
+Tests: `AssessPronunciationTests` (validator, audio detection, handler), `AzurePronunciationAssessorTests` (Azure headers, result parsing, error mapping), `PronunciationApiTests` (401, JSON contract, 400/413/422/502/503/504; requires `TOEICMASTER_TEST_POSTGRES` like other API tests).

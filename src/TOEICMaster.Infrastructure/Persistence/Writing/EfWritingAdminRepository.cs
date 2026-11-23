@@ -126,7 +126,7 @@ public sealed class EfWritingAdminRepository(ToeicDbContext context) : IWritingA
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new WritingConflictException("Dữ liệu đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
+            throw new WritingConflictException("The data was updated by someone else. Please reload the data.");
         }
     }
 }

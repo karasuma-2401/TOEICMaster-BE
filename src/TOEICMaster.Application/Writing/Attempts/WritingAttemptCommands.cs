@@ -116,7 +116,7 @@ public sealed class GrantWritingEvaluationConsentCommandValidator : AbstractVali
         RuleFor(command => command.Owner).SetValidator(new WritingAttemptOwnerValidator());
         RuleFor(command => command.AttemptId).NotEmpty();
         RuleFor(command => command.Input.Accepted).Equal(true)
-            .WithMessage("Cần đồng ý trước khi gửi bài làm đến dịch vụ chấm AI.");
+            .WithMessage("Consent is required before submitting your work to the AI evaluation service.");
     }
 }
 
@@ -132,7 +132,7 @@ public sealed class StartWritingAttemptCommandHandler(IWritingAttemptRepository 
         var selected = test.Questions.Where(question => part is null || question.Part == part)
             .OrderBy(question => question.Part).ThenBy(question => question.SequenceNumber).ToArray();
         if (selected.Length == 0 || selected.Any(question => string.IsNullOrWhiteSpace(question.SnapshotJson)))
-            throw new WritingAttemptConflictException("Đề Writing chưa sẵn sàng để làm bài.");
+            throw new WritingAttemptConflictException("The Writing test is not ready for attempts.");
 
         var attemptId = Guid.NewGuid();
         var questions = selected.Select((question, index) =>
@@ -229,7 +229,7 @@ public sealed class GrantWritingEvaluationConsentCommandHandler(IWritingAttemptR
         var attempt = await WritingAttemptCommandHelpers.FindOwnedAttemptAsync(repository, request.Owner,
             request.AttemptId, cancellationToken);
         if (attempt.Status != WritingAttemptStatus.SubmittedAwaitingEvaluation)
-            throw new WritingAttemptConflictException("Chỉ có thể chấm AI sau khi đã nộp bài Writing.");
+            throw new WritingAttemptConflictException("AI evaluation is only available after the Writing attempt is submitted.");
 
         var now = timeProvider.GetUtcNow();
         var evaluation = await evaluationRepository.FindForUpdateByAttemptIdAsync(attempt.Id, cancellationToken);
@@ -238,7 +238,7 @@ public sealed class GrantWritingEvaluationConsentCommandHandler(IWritingAttemptR
             await evaluationRepository.HasAnonymousConsentAfterAsync(anonymousSessionHash, attempt.Id, now.AddDays(-1),
                 cancellationToken))
             throw new WritingAttemptConflictException(
-                "Phiên ẩn danh đã dùng lượt chấm AI trong 24 giờ qua. Hãy đăng nhập hoặc thử lại sau.");
+                "This anonymous session has already used an AI evaluation in the past 24 hours. Please sign in or try again later.");
         if (evaluation is null)
         {
             evaluation = WritingEvaluation.Create(attempt.Id, evaluationSettings.Provider, evaluationSettings.Model,

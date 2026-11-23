@@ -1,138 +1,140 @@
-# Thiết kế lại Test Builder Speaking (Admin)
+# Speaking Test Builder Redesign (Admin)
 
-> **Trạng thái:** Đã triển khai các AC tìm kiếm, giữ vị trí, đủ lỗi validation, lưu giữ builder và nhân bản ngày 2026-11-21. `publish-check`, cảnh báo gần giống và số đề sử dụng bài còn ở backlog.
-> **Màn hình:** `/admin/tests/speaking` (Figma 41), `/admin/content/speaking` (Figma 36)  
-> **Vấn đề gốc:** mục 4 của [báo cáo rà soát](../../runbooks/speaking-audit-report.md)  
-> **Luật không trùng:** [ADR-002](../../decisions/002-speaking-test-content-uniqueness.md)
+> **Status:** Implemented search, slot position preservation, full validation error display, non-closing draft save, and test cloning on 2026-11-21. `publish-check`, similarity warnings, and exercise usage counts remain in the backlog.
+> **Screens:** `/admin/tests/speaking` (Figma 41), `/admin/content/speaking` (Figma 36)  
+> **Root Issue:** section 4 of [audit report](../../runbooks/speaking-audit-report.md)  
+> **Uniqueness Rules:** [ADR-002](../../decisions/002-speaking-test-content-uniqueness.md)
 
-Thư mục FE trong tài liệu này tính từ `src/features/speaking/components/admin/`.
+FE directories in this document are relative to `src/features/speaking/components/admin/`.
 
-Builder hỗ trợ cả nhập nội dung trực tiếp và lắp từ ngân hàng theo yêu cầu hiện tại. Mã/tên đề mới được nhập
-khi nhân bản; bản sao luôn là đề DIRECT độc lập giữ nội dung snapshot của nguồn, kể cả nguồn từ ngân hàng.
-Giao thức clone thực tế có thêm `version`; xem [Admin API](./admin-api.md).
+The builder currently supports both direct content entry and assembly from the exercise bank as required.
+A new test code/title is entered when cloning; the clone is always an independent DIRECT test preserving the source snapshot content, even when the source came from the exercise bank.
+The actual clone contract also includes `version`; see [Admin API](./admin-api.md).
 
 ---
 
-## 1. Bố cục đích
+## 1. Target Layout
 
-Giữ layout 3 cột hiện có. Thay đổi chính: tổ chức theo **11 câu của thí sinh**, chọn bài bằng bộ chọn có tìm kiếm, và gom lỗi vào một chỗ có liên kết.
+Keep the existing 3-column layout.
+Key changes: organize around the **11 candidate questions**, pick exercises via a searchable picker, and group errors in a single place with jump links.
 
 ```text
-┌ TEST BUILDER · SP-2026-01 · [Bản nháp] · Đã lưu 10:32     [Đóng] [Lưu] [Xuất bản đề] ┐
-├ ⚠ 2 lỗi, 1 cảnh báo: Câu 1 và 2 trùng đoạn văn (Sửa →) · Câu 6 và 8 trùng (Sửa →)   ┤
+┌ TEST BUILDER · SP-2026-01 · [Draft] · Saved 10:32            [Close] [Save] [Publish] ┐
+├ ⚠ 2 errors, 1 warning: Q1 & Q2 duplicate passage (Fix ->) · Q6 & Q8 duplicate (Fix ->)┤
 ├───────────────┬─────────────────────────────────────┬─────────────────────────────────┤
-│ Thông tin đề  │ Part 1 · Đọc to · 1/2 bài · câu 1–2 │ Góc nhìn User                   │
-│ Mã, Tên, Mô tả│ ┌ Câu 1 ──────────────────────────┐ │ [Bài đang chọn] [Toàn đề 11 câu]│
-│               │ │ P1-003 · Library hours · Dùng ở 2│ │                                 │
-│ Sơ đồ 11 câu  │ │ [Đổi bài] [Xem] [Bỏ chọn]        │ │                                 │
-│ 1 2 3 4 5 6 7 │ ├ Câu 2 ──────────────────────────┤ │                                 │
-│ 8 9 10 11     │ │ [+ Chọn bài]                     │ │                                 │
-│ (xanh/đỏ/xám) │ └─────────────────────────────────┘ │                                 │
-│ Điều kiện     │ Part 3 · Trả lời · 0/1 bài · câu 5–7│                                 │
+│ Test Info     │ Part 1 · Read aloud · 1/2 · Q1-2    │ User View                       │
+│ Code, Title,  │ ┌ Question 1 ─────────────────────┐ │ [Selected Item] [Full 11 Qs]    │
+│ Description   │ │ P1-003 · Library hours · Used 2x│ │                                 │
+│               │ │ [Change] [View] [Clear]         │ │                                 │
+│ 11-Q Map      │ ├ Question 2 ─────────────────────┤ │                                 │
+│ 1 2 3 4 5 6 7 │ │ [+ Select exercise]             │ │                                 │
+│ 8 9 10 11     │ └─────────────────────────────────┘ │                                 │
+│(green/red/gry)│ Part 3 · Respond · 0/1 · Q5-7       │                                 │
+│ Requirements  │                                     │                                 │
 └───────────────┴─────────────────────────────────────┴─────────────────────────────────┘
 ```
 
-Bộ chọn bài mở dạng panel khi bấm "Chọn bài":
+The exercise picker opens as a panel when clicking "Select exercise":
 
 ```text
-┌ Chọn bài cho Câu 2 · Part 1 ──────────────────────┐
-│ [Tìm mã, chủ đề…] [Độ khó ▾]                      │
-│ P1-001 · Museum tour · Dễ · Dùng ở 1 đề   [Chọn]  │
-│ P1-003 · Library hours · Đang dùng ở Câu 1 (khóa) │
-│ P1-004 · Bus notice · Dễ                  [Chọn]  │
-│ ‹ Trang 1/5 ›     Chưa có bài phù hợp? [Tạo bài ↗]│
-└───────────────────────────────────────────────────┘
+┌ Select exercise for Question 2 · Part 1 ──────────────┐
+│ [Search code, topic...] [Difficulty v]                │
+│ P1-001 · Museum tour · Easy · Used in 1 test [Select] │
+│ P1-003 · Library hours · In use at Q1 (locked)        │
+│ P1-004 · Bus notice · Easy                   [Select] │
+│ < Page 1/5 >       No matching exercise? [Create ↗]   │
+└───────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Phương án theo từng vấn đề
+## 2. Solutions by Issue
 
-| ID | Phương án | File FE chính | Cần BE? |
+| ID | Solution | Primary FE Files | Needs BE? |
 | :--- | :--- | :--- | :--- |
-| UI-01 | Bỏ việc tải 100 bài lúc mở. Bộ chọn gọi `GET /admin/speaking/exercises?part=&query=&difficulty=&status=PUBLISHED&pageNumber=&pageSize=20`, debounce 300 ms. Giữ bản đồ `id → bài` từ các bài đã chọn và kết quả đã tải. | `speaking-test-workspace.tsx`, `test-slot-picker.tsx`, bộ chọn mới `exercise-picker-panel.tsx` | Không, API đã hỗ trợ |
-| UI-02 | Giữ đúng vị trí. Bỏ `compact()` khi gửi; `sequenceNumber = chỉ số ô + 1`, bỏ qua ô trống. Parser đặt bài vào `exerciseIds[part][sequenceNumber - 1]`. | `speaking-test-workspace.tsx`, `admin-api.ts`, `parsers.ts` | Không, validator đã cho phép đề nháp thiếu vị trí |
-| UI-03 | `fieldErrors` giữ toàn bộ mảng lỗi. Lưu ý các nơi đang đọc kiểu `string`. | `http.ts`, nơi gọi | Không |
-| UI-04 | Hiện đúng `title` của server. Xung đột version thì hiện nút "Tải lại bản mới" và **giữ** thay đổi đang sửa để Admin so sánh. Cần phân biệt bằng `code` trong ProblemDetails. | `speaking-test-workspace.tsx` | Có, thêm `code` (ngoài `title`) |
-| UI-05 | So sánh bản nháp với bản đã lưu. Có thay đổi thì hỏi xác nhận khi đóng; thêm `beforeunload`. | `speaking-test-workspace.tsx` | Không |
-| UI-06 | Lưu nháp không đóng builder: cập nhật `saved` và `version`, hiện "Đã lưu lúc …". | `speaking-test-workspace.tsx`, `admin-speaking-tests-page.tsx` | Không |
-| UI-07 | Tiêu đề lỗi theo thao tác: "Chưa lưu được" hoặc "Chưa thể công bố". | `publish-checklist-panel.tsx` | Không |
-| UI-08 | Huy hiệu và checklist cùng lấy từ một nguồn. Ô có 3 trạng thái: hợp lệ, có lỗi kèm lý do, trống. Bấm lỗi thì cuộn đến câu đó (theo Figma 43). | `test-slot-picker.tsx`, `publish-checklist.ts` | Dùng `publish-check` |
-| UI-09 | "Nhân bản thành nháp" cho đề đã công bố; "Xóa" cho đề nháp. "Gỡ đề" làm sau (D4). | `speaking-tests-table.tsx`, `speaking-test-workspace.tsx` | Có, xem mục 4 |
-| UI-10 | Thống nhất: tiêu đề `11 CÂU · 7 BÀI`; mỗi Part ghi `1/2 bài · câu 1–2`. | `speaking-test-workspace.tsx`, `test-slot-picker.tsx` | Không |
-| UI-11 | Part 4 dùng bảng nhập theo dòng (nhãn, nội dung, thêm, xóa, tối đa 20 dòng). Kiểm tra trước các giới hạn của server. Hiện lỗi cạnh từng trường. Tải bài cũ qua `DocumentRows` như hiện nay. | `speaking-exercise-fields.tsx`, `admin-draft.ts` | Không |
-| UI-12 | Trong form bài tập, hiện "Đang dùng ở N đề". Chuyển khỏi `PUBLISHED` khi có đề nháp đang dùng thì hỏi xác nhận. | `speaking-exercise-editor.tsx` | Có, thêm số đếm |
-| UI-13 | Thêm tab "Toàn đề 11 câu" ở cột xem trước; Part trống có liên kết "Tạo bài ↗" mở tab mới và làm mới khi quay lại. | `test-preview-panel.tsx` | Không |
-| DUP-04 | Bài đã dùng vẫn hiện nhưng bị khóa, kèm "Đang dùng ở Câu n". Không ẩn, để Admin biết vì sao không chọn được. | `exercise-picker-panel.tsx` | Không |
-| DUP-05 | Hiện "Dùng ở N đề" trong bộ chọn và bảng. | `exercise-picker-panel.tsx` | Có, thêm số đếm |
+| UI-01 | Stop loading 100 exercises on open. The picker calls `GET /admin/speaking/exercises?part=&query=&difficulty=&status=PUBLISHED&pageNumber=&pageSize=20` with a 300 ms debounce. Maintain an `id -> exercise` map from selected items and loaded results. | `speaking-test-workspace.tsx`, `test-slot-picker.tsx`, new picker `exercise-picker-panel.tsx` | No, API already supports it |
+| UI-02 | Preserve exact slot positions. Remove `compact()` on submit; `sequenceNumber = slotIndex + 1`, skipping empty slots. Parser places items at `exerciseIds[part][sequenceNumber - 1]`. | `speaking-test-workspace.tsx`, `admin-api.ts`, `parsers.ts` | No, validator already allows missing slots in drafts |
+| UI-03 | `fieldErrors` retains the full array of errors. Audit callers currently expecting `string`. | `http.ts`, call sites | No |
+| UI-04 | Display the server's `title` verbatim. On version conflict, show a "Reload latest" button and **preserve** in-progress edits so Admin can compare. Needs `code` in ProblemDetails to distinguish conflict causes. | `speaking-test-workspace.tsx` | Yes, add `code` (in addition to `title`) |
+| UI-05 | Diff the draft against the last saved state. Prompt for confirmation on close when dirty; add `beforeunload`. | `speaking-test-workspace.tsx` | No |
+| UI-06 | Saving a draft does not close the builder: update `saved` and `version`, and show "Saved at ...". | `speaking-test-workspace.tsx`, `admin-speaking-tests-page.tsx` | No |
+| UI-07 | Error heading matches the action: "Could not save" or "Cannot publish yet". | `publish-checklist-panel.tsx` | No |
+| UI-08 | Badges and checklist read from a single source. Each slot has 3 states: valid, invalid with reason, or empty. Clicking an error scrolls to that question (per Figma 43). | `test-slot-picker.tsx`, `publish-checklist.ts` | Uses `publish-check` |
+| UI-09 | "Clone as draft" for published tests; "Delete" for draft tests. "Withdraw" comes later (D4). | `speaking-tests-table.tsx`, `speaking-test-workspace.tsx` | Yes, see section 4 |
+| UI-10 | Standardize labels: header `11 QUESTIONS · 7 EXERCISES`; each Part shows `1/2 exercises · Q1-2`. | `speaking-test-workspace.tsx`, `test-slot-picker.tsx` | No |
+| UI-11 | Part 4 uses a row-based table input (label, value, add, remove, max 20 rows). Pre-validate server limits. Show errors beside each field. Load existing items via `DocumentRows` as before. | `speaking-exercise-fields.tsx`, `admin-draft.ts` | No |
+| UI-12 | In the exercise form, show "Used in N tests". Moving off `PUBLISHED` while a draft test uses it prompts for confirmation. | `speaking-exercise-editor.tsx` | Yes, add usage count |
+| UI-13 | Add a "Full 11 Qs" tab in the preview column; empty Parts show a "Create exercise ↗" link that opens a new tab and refreshes on return. | `test-preview-panel.tsx` | No |
+| DUP-04 | Already-used exercises remain visible but locked, labeled "In use at Question n". Do not hide them, so Admin understands why they cannot be selected. | `exercise-picker-panel.tsx` | No |
+| DUP-05 | Display "Used in N tests" in the picker and table. | `exercise-picker-panel.tsx` | Yes, add usage count |
 
 ---
 
-## 3. Luồng kiểm tra trước khi công bố
+## 3. Pre-publish Check Flow
 
-1. Admin đổi lựa chọn hoặc thông tin đề.
-2. Sau 500 ms, FE gọi `POST /admin/speaking/tests/publish-check` với bản nháp hiện tại, kể cả chưa lưu. Hủy request cũ bằng `AbortController`.
-3. Banner, sơ đồ 11 câu và checklist cùng hiển thị từ kết quả này.
-4. Nút "Xuất bản đề" bị khóa khi còn lỗi mức chặn. Nếu chỉ có cảnh báo, hộp xác nhận liệt kê từng cảnh báo.
-5. Khi bấm xuất bản: lưu bản nháp, rồi `POST /tests/{id}/publish`. Server kiểm tra lại toàn bộ.
-6. Nếu `publish-check` lỗi mạng: vẫn cho lưu nháp, ghi rõ "Chưa kiểm tra được", và để server quyết định khi công bố.
+1. Admin changes a selection or test metadata.
+2. After 500 ms, the FE calls `POST /admin/speaking/tests/publish-check` with the current draft, even if unsaved. Previous requests are cancelled via `AbortController`.
+3. The banner, 11-question map, and checklist all render from this response.
+4. The "Publish test" button is disabled while any blocking error remains. If only warnings exist, a confirmation dialog lists each warning.
+5. On publish click: save the draft, then call `POST /tests/{id}/publish`. The server re-validates everything.
+6. If `publish-check` fails due to a network error: still allow saving the draft, clearly display "Unable to verify yet", and let the server decide on publish.
 
-`publishChecklist` ở FE vẫn dùng cho phản hồi tức thì (đủ số bài, trùng ID). Luật về nội dung chỉ lấy từ server.
+FE `publishChecklist` remains active for instant feedback (required exercise counts, duplicate IDs). Content rules come strictly from the server.
 
 ---
 
-## 4. Thay đổi backend cần thiết
+## 4. Required Backend Changes
 
-Hợp đồng nằm ở [admin-api.md](./admin-api.md#đề-xuất-api-mới-chưa-triển-khai).
+The contract is defined in [admin-api.md](./admin-api.md#proposed-new-apis-not-yet-implemented).
 
-| Thay đổi | Endpoint hoặc trường | Migration? | Ưu tiên |
+| Change | Endpoint or Field | Migration? | Priority |
 | :--- | :--- | :--- | :--- |
-| Kiểm tra trước | `POST /tests/publish-check` | Không | P3 (mục 3 là thiết kế đích; trước đó lỗi hiện sau khi bấm công bố) |
-| Nhân bản | `POST /tests/{id}/clone` | Không | P2 |
-| Xóa đề nháp | `DELETE /tests/{id}?version=` | Không | P2 |
-| Số đề đang dùng bài | `usedInTestCount` trong danh sách bài | Không | P2 |
-| Mã lỗi máy đọc được | `code` trong ProblemDetails của `409` | Không | P2 |
-| Gỡ đề | `POST /tests/{id}/withdraw` | **Có**: `ck_speaking_tests_status` chỉ cho `DRAFT`, `PUBLISHED` | P3, chờ D4 |
+| Pre-publish check | `POST /tests/publish-check` | No | P3 (section 3 is the target design; before this, errors appear on publish click) |
+| Clone test | `POST /tests/{id}/clone` | No | P2 |
+| Delete draft | `DELETE /tests/{id}?version=` | No | P2 |
+| Exercise usage count | `usedInTestCount` in exercise list items | No | P2 |
+| Machine-readable error code | `code` in `409` ProblemDetails | No | P2 |
+| Withdraw test | `POST /tests/{id}/withdraw` | **Yes**: `ck_speaking_tests_status` currently only allows `DRAFT`, `PUBLISHED` | P3, pending D4 |
 
 ---
 
-## 5. Tiêu chí nghiệm thu
+## 5. Acceptance Criteria
 
 ```gherkin
-Scenario: Bài đã chọn không thể chọn lại
-  Given bài P1-003 đang ở Câu 1
-  When Admin mở bộ chọn của Câu 2
-  Then P1-003 hiện "Đang dùng ở Câu 1" và không bấm chọn được
+Scenario: Already-selected exercise cannot be selected again
+  Given exercise P1-003 is assigned to Question 1
+  When Admin opens the picker for Question 2
+  Then P1-003 shows "In use at Question 1" and cannot be clicked
 
-Scenario: Vẫn chọn được bài cũ trong ngân hàng lớn
-  Given Part 1 có hơn 100 bài PUBLISHED
-  When Admin tìm mã của bài cũ nhất
-  Then bài đó xuất hiện và chọn được
+Scenario: Older exercises remain selectable in a large bank
+  Given Part 1 has more than 100 PUBLISHED exercises
+  When Admin searches for the code of the oldest exercise
+  Then that exercise appears and can be selected
 
-Scenario: Lưu không làm đổi vị trí
-  Given Câu 2 đã chọn bài và Câu 1 còn trống
-  When Admin lưu nháp rồi mở lại
-  Then bài vẫn ở Câu 2 và Câu 1 vẫn trống
+Scenario: Saving does not shift slot positions
+  Given Question 2 has a selected exercise and Question 1 is empty
+  When Admin saves the draft and reopens it
+  Then the exercise remains at Question 2 and Question 1 remains empty
 
-Scenario: Lưu nháp không làm mất ngữ cảnh
-  When Admin bấm "Lưu bản nháp"
-  Then builder vẫn mở, hiện thời điểm đã lưu, và version mới được dùng cho lần lưu sau
+Scenario: Saving a draft does not lose editing context
+  When Admin clicks "Save draft"
+  Then the builder stays open, displays the saved timestamp, and uses the new version for subsequent saves
 
-Scenario: Không mất thay đổi khi đóng nhầm
-  Given có thay đổi chưa lưu
-  When Admin bấm "Đóng"
-  Then hệ thống hỏi xác nhận trước khi đóng
+Scenario: Unsaved changes are not lost on accidental close
+  Given there are unsaved changes
+  When Admin clicks "Close"
+  Then the system asks for confirmation before closing
 
-Scenario: Hiện đủ lỗi và dẫn tới đúng vị trí
-  Given Câu 1 và Câu 2 trùng đoạn văn, và Câu 5 trùng Câu 8
-  When kết quả kiểm tra trả về
-  Then banner hiện đủ 2 lỗi
-  And bấm vào một lỗi thì cuộn đến câu tương ứng
-  And nút "Xuất bản đề" bị khóa
+Scenario: All errors are displayed and link to exact positions
+  Given Question 1 and Question 2 have duplicate passages, and Question 5 duplicates Question 8
+  When the validation result returns
+  Then the banner shows both errors
+  And clicking an error scrolls to the corresponding question
+  And the "Publish test" button is disabled
 
-Scenario: Sửa đề đã công bố bằng cách nhân bản
-  Given đề SP-01 đã công bố
-  When Admin chọn "Nhân bản thành nháp"
-  Then có đề nháp mới với mã mới và cùng các bài
-  And SP-01 và các lượt làm của nó không đổi
+Scenario: Editing a published test via cloning
+  Given test SP-01 is published
+  When Admin selects "Clone as draft"
+  Then a new draft test is created with a new code and the same exercises
+  And SP-01 and its existing attempts remain unchanged
 ```

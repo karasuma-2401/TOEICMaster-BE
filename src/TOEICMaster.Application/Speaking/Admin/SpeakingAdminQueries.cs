@@ -20,15 +20,15 @@ public sealed class GetSpeakingExercisesQueryValidator : AbstractValidator<GetSp
     public GetSpeakingExercisesQueryValidator()
     {
         RuleFor(query => query.Filter.Part).Must(part => part is null || Domain.Entities.SpeakingTiming.IsPart(part.Value))
-            .OverridePropertyName("Part").WithMessage("Part phải từ 1 đến 5.");
+            .OverridePropertyName("Part").WithMessage("Part must be from 1 to 5.");
         RuleFor(query => query.Filter.Query).Must(value => value is null || value.Trim().Length <= 100)
-            .OverridePropertyName("Query").WithMessage("Từ khóa tối đa 100 ký tự.");
+            .OverridePropertyName("Query").WithMessage("Query must not exceed 100 characters.");
         RuleFor(query => query.Filter.Difficulty)
             .Must(value => string.IsNullOrWhiteSpace(value) || SpeakingCodes.TryParseDifficulty(value, out _))
-            .OverridePropertyName("Difficulty").WithMessage("Độ khó không hợp lệ.");
+            .OverridePropertyName("Difficulty").WithMessage("Invalid difficulty.");
         RuleFor(query => query.Filter.Status)
             .Must(value => string.IsNullOrWhiteSpace(value) || SpeakingCodes.TryParseExerciseStatus(value, out _))
-            .OverridePropertyName("Status").WithMessage("Trạng thái không hợp lệ.");
+            .OverridePropertyName("Status").WithMessage("Invalid status.");
         RuleFor(query => query.Filter.PageNumber).GreaterThan(0).OverridePropertyName("PageNumber");
         RuleFor(query => query.Filter.PageSize).InclusiveBetween(1, 100).OverridePropertyName("PageSize");
     }
@@ -39,10 +39,10 @@ public sealed class GetSpeakingTestsQueryValidator : AbstractValidator<GetSpeaki
     public GetSpeakingTestsQueryValidator()
     {
         RuleFor(query => query.Filter.Query).Must(value => value is null || value.Trim().Length <= 100)
-            .OverridePropertyName("Query").WithMessage("Từ khóa tối đa 100 ký tự.");
+            .OverridePropertyName("Query").WithMessage("Query must not exceed 100 characters.");
         RuleFor(query => query.Filter.Status)
             .Must(value => string.IsNullOrWhiteSpace(value) || SpeakingCodes.TryParseTestStatus(value, out _))
-            .OverridePropertyName("Status").WithMessage("Trạng thái không hợp lệ.");
+            .OverridePropertyName("Status").WithMessage("Invalid status.");
         RuleFor(query => query.Filter.PageNumber).GreaterThan(0).OverridePropertyName("PageNumber");
         RuleFor(query => query.Filter.PageSize).InclusiveBetween(1, 100).OverridePropertyName("PageSize");
     }
@@ -73,7 +73,7 @@ public sealed class GetSpeakingExerciseQueryHandler(ISpeakingAdminRepository rep
     public async Task<SpeakingExerciseDto> Handle(GetSpeakingExerciseQuery request,
         CancellationToken cancellationToken) =>
         (await repository.FindExerciseAsync(request.ExerciseId, cancellationToken))?.ToDto()
-        ?? throw new SpeakingNotFoundException("Không tìm thấy bài tập Speaking.");
+        ?? throw new SpeakingNotFoundException("Speaking exercise not found.");
 }
 
 public sealed class GetSpeakingTestsQueryHandler(ISpeakingAdminRepository repository)
@@ -95,7 +95,7 @@ public sealed class GetSpeakingTestQueryHandler(ISpeakingAdminRepository reposit
     public async Task<SpeakingTestDetailDto> Handle(GetSpeakingTestQuery request, CancellationToken cancellationToken)
     {
         var loaded = await repository.FindTestAsync(request.TestId, cancellationToken)
-            ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
+            ?? throw new SpeakingNotFoundException("Speaking test not found.");
         var exercises = await SpeakingTestInputs.LoadDetailExercisesAsync(loaded, repository, cancellationToken);
         return loaded.ToDetailDto(exercises);
     }

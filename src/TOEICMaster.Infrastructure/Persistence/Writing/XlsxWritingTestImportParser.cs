@@ -23,7 +23,7 @@ public sealed class XlsxWritingTestImportParser : IWritingTestImportParser
             using var stream = new MemoryStream(content, writable: false);
             using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
             if (archive.Entries.Count > 1_000 || archive.Entries.Sum(entry => entry.Length) > 32L * 1024 * 1024)
-                throw new InvalidWritingImportException("Nội dung giải nén của file Excel quá lớn.");
+                throw new InvalidWritingImportException("The decompressed Excel file content is too large.");
             var workbook = LoadXml(archive, "xl/workbook.xml");
             var relationships = LoadXml(archive, "xl/_rels/workbook.xml.rels");
             var sharedEntry = archive.GetEntry("xl/sharedStrings.xml");
@@ -38,38 +38,38 @@ public sealed class XlsxWritingTestImportParser : IWritingTestImportParser
                 var name = sheet.Attribute("name")?.Value;
                 var id = sheet.Attributes().FirstOrDefault(item => item.Name.LocalName == "id")?.Value;
                 if (name is null || id is null || !SheetNames.Contains(name, StringComparer.OrdinalIgnoreCase)) continue;
-                if (!links.TryGetValue(id, out var target)) throw new InvalidWritingImportException("Thiếu worksheet trong file.");
+                if (!links.TryGetValue(id, out var target)) throw new InvalidWritingImportException("Missing worksheet in the file.");
                 var path = target.TrimStart('/');
                 if (!path.StartsWith("xl/", StringComparison.Ordinal)) path = "xl/" + path;
                 if (!path.StartsWith("xl/worksheets/", StringComparison.Ordinal) || path.Contains("..", StringComparison.Ordinal))
-                    throw new InvalidWritingImportException("Đường dẫn worksheet không hợp lệ.");
+                    throw new InvalidWritingImportException("Invalid worksheet path.");
                 if (!sheets.TryAdd(name, ReadSheet(LoadXml(archive, path), shared)))
-                    throw new InvalidWritingImportException("Tên worksheet bị trùng.");
+                    throw new InvalidWritingImportException("Duplicate worksheet name.");
             }
             if (SheetNames.Any(name => !sheets.ContainsKey(name)))
-                throw new InvalidWritingImportException("File cần đủ 4 sheet: Manifest, Part1, Part2, Part3.");
+                throw new InvalidWritingImportException("The file must contain all 4 sheets: Manifest, Part1, Part2, Part3.");
             var errors = new List<string>();
             var manifests = sheets["Manifest"];
-            if (manifests.Count != 1) return new WritingTestImportPreviewDto(null, ["Manifest cần đúng một dòng dữ liệu."]);
+            if (manifests.Count != 1) return new WritingTestImportPreviewDto(null, ["Manifest must contain exactly one data row."]);
             string Get(IReadOnlyDictionary<string, string> row, string key) => row.GetValueOrDefault(key)?.Trim() ?? "";
             var code = Get(manifests[0], "TestCode");
             var title = Get(manifests[0], "Title");
             var description = Get(manifests[0], "Description");
             if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(title))
-                errors.Add("Manifest cần TestCode và Title.");
+                errors.Add("Manifest requires TestCode and Title.");
             var questions = new List<WritingTestQuestionInput>();
             for (var part = 1; part <= 3; part++)
             {
                 var rows = sheets[$"Part{part}"];
                 var expected = part == 1 ? 5 : part == 2 ? 2 : 1;
-                if (rows.Count != expected) errors.Add($"Part {part} cần đúng {expected} câu.");
+                if (rows.Count != expected) errors.Add($"Part {part} requires exactly {expected} {(expected == 1 ? "question" : "questions")}.");
                 if (rows.Count > expected) continue;
                 for (var index = 0; index < rows.Count; index++)
                 {
                     var row = rows[index];
                     var globalSequence = part == 1 ? index + 1 : part == 2 ? index + 6 : index + 8;
                     if (!int.TryParse(Get(row, "SequenceNumber"), out var sequence) || sequence != globalSequence)
-                        errors.Add($"Part {part}, dòng {index + 2}: SequenceNumber phải là {globalSequence}.");
+                        errors.Add($"Part {part}, row {index + 2}: SequenceNumber must be {globalSequence}.");
                     var imageId = Guid.TryParse(Get(row, "ImageAssetId"), out var parsedImage) ? parsedImage : (Guid?)null;
                     var minimum = int.TryParse(Get(row, "MinimumWordCount"), out var parsedMinimum) ? parsedMinimum : (int?)null;
                     var input = new WritingExerciseInput(part, $"{code}-P{part}-{index + 1}", title, "MEDIUM", "DRAFT",
@@ -78,7 +78,7 @@ public sealed class XlsxWritingTestImportParser : IWritingTestImportParser
                         Get(row, "Subject"), Get(row, "EmailBody"), Get(row, "Directions"), Get(row, "Prompt"), minimum,
                         Get(row, "Outline"));
                     var validation = new WritingExerciseInputValidator().Validate(input);
-                    errors.AddRange(validation.Errors.Select(error => $"Part {part}, dòng {index + 2}: {error.ErrorMessage}"));
+                    errors.AddRange(validation.Errors.Select(error => $"Part {part}, row {index + 2}: {error.ErrorMessage}"));
                     questions.Add(new WritingTestQuestionInput(null, part, index + 1, input));
                 }
             }
@@ -90,7 +90,7 @@ public sealed class XlsxWritingTestImportParser : IWritingTestImportParser
         catch (InvalidWritingImportException) { throw; }
         catch (Exception exception) when (exception is InvalidDataException or System.Xml.XmlException or ArgumentException)
         {
-            throw new InvalidWritingImportException("File Excel không hợp lệ.");
+            throw new InvalidWritingImportException("Invalid Excel file.");
         }
     }
 
@@ -132,7 +132,7 @@ public sealed class XlsxWritingTestImportParser : IWritingTestImportParser
 
     private static XDocument LoadXml(ZipArchive archive, string path)
     {
-        var entry = archive.GetEntry(path) ?? throw new InvalidWritingImportException($"File thiếu {path}.");
+        var entry = archive.GetEntry(path) ?? throw new InvalidWritingImportException($"The file is missing {path}.");
         using var stream = entry.Open();
         return XDocument.Load(stream);
     }
@@ -148,7 +148,7 @@ public sealed class XlsxWritingTestImportParser : IWritingTestImportParser
     private static IReadOnlyList<Dictionary<string, string>> ReadSheet(XDocument document, string[] shared)
     {
         var rows = document.Descendants().Where(item => item.Name.LocalName == "row").Take(10_002).ToArray();
-        if (rows.Length > 10_001) throw new InvalidWritingImportException("Worksheet có quá nhiều dòng.");
+        if (rows.Length > 10_001) throw new InvalidWritingImportException("The worksheet has too many rows.");
         if (rows.Length == 0) return [];
         Dictionary<int, string> Cells(XElement row) => row.Elements().Where(item => item.Name.LocalName == "c")
             .Select(item => (Index: Column(item.Attribute("r")?.Value), Value: Cell(item, shared)))
@@ -156,7 +156,7 @@ public sealed class XlsxWritingTestImportParser : IWritingTestImportParser
             .ToDictionary(group => group.Key, group => group.Last().Value);
         var headers = Cells(rows[0]);
         if (headers.Values.Where(value => value.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).Count() !=
-            headers.Values.Count(value => value.Length > 0)) throw new InvalidWritingImportException("File có cột trùng tên.");
+            headers.Values.Count(value => value.Length > 0)) throw new InvalidWritingImportException("The file contains duplicate column names.");
         return rows.Skip(1).Select(Cells).Where(row => row.Values.Any(value => !string.IsNullOrWhiteSpace(value)))
             .Select(row => headers.Where(header => !string.IsNullOrWhiteSpace(header.Value)).ToDictionary(
                 header => header.Value.Trim(), header => row.GetValueOrDefault(header.Key) ?? "", StringComparer.OrdinalIgnoreCase)).ToArray();

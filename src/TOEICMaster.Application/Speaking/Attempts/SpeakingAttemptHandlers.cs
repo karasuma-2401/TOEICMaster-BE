@@ -43,7 +43,7 @@ public sealed class GetPublishedSpeakingTestsQueryValidator : AbstractValidator<
     public GetPublishedSpeakingTestsQueryValidator()
     {
         RuleFor(query => query.Query).Must(value => value is null || value.Trim().Length <= 100)
-            .WithMessage("Từ khóa tối đa 100 ký tự.");
+            .WithMessage("Query must not exceed 100 characters.");
         RuleFor(query => query.PageNumber).GreaterThan(0);
         RuleFor(query => query.PageSize).InclusiveBetween(1, 100);
     }
@@ -54,7 +54,7 @@ public sealed class GetPublishedSpeakingExercisesQueryValidator : AbstractValida
     public GetPublishedSpeakingExercisesQueryValidator()
     {
         RuleFor(query => query.Part).InclusiveBetween(1, 5).When(query => query.Part is not null)
-            .WithMessage("Part phải từ 1 đến 5.");
+            .WithMessage("Part must be from 1 to 5.");
         RuleFor(query => query.PageNumber).GreaterThan(0);
         RuleFor(query => query.PageSize).InclusiveBetween(1, 100);
     }
@@ -67,10 +67,10 @@ public sealed class StartSpeakingAttemptCommandValidator : AbstractValidator<Sta
         RuleFor(command => command.Owner).SetValidator(new SpeakingAttemptOwnerValidator());
         RuleFor(command => command.Input).Must(input => (input.TestId is { } testId && testId != Guid.Empty) !=
                                                        (input.ExerciseId is { } exerciseId && exerciseId != Guid.Empty))
-            .OverridePropertyName("TestId").WithMessage("Cần chọn một đề hoặc một bài tập Speaking.");
+            .OverridePropertyName("TestId").WithMessage("Please select a Speaking test or exercise.");
         RuleFor(command => command.Input.Mode).Must(mode => SpeakingCodes.TryParseMode(mode, out _))
             .When(command => command.Input.ExerciseId is null)
-            .OverridePropertyName("Mode").WithMessage("Chế độ làm bài phải là FULL hoặc PART_1 đến PART_5.");
+            .OverridePropertyName("Mode").WithMessage("Attempt mode must be FULL or PART_1 through PART_5.");
     }
 }
 
@@ -81,9 +81,9 @@ public sealed class UploadSpeakingRecordingCommandValidator : AbstractValidator<
         RuleFor(command => command.Owner).SetValidator(new SpeakingAttemptOwnerValidator());
         RuleFor(command => command.Position).GreaterThan(0);
         RuleFor(command => command.Content).NotEmpty().OverridePropertyName("File")
-            .WithMessage("Bản ghi trống, không thể tải lên.");
+            .WithMessage("Recording is empty and cannot be uploaded.");
         RuleFor(command => command.DurationSeconds).GreaterThanOrEqualTo(0)
-            .WithMessage("Thời lượng bản ghi không hợp lệ.");
+            .WithMessage("Invalid recording duration.");
     }
 }
 
@@ -106,7 +106,7 @@ public sealed class GetPublishedSpeakingTestQueryHandler(ISpeakingAttemptReposit
     public async Task<SpeakingPublicTestDto> Handle(GetPublishedSpeakingTestQuery request,
         CancellationToken cancellationToken) =>
         (await repository.FindPublishedTestAsync(request.TestId, cancellationToken))?.ToPublicDto()
-        ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
+        ?? throw new SpeakingNotFoundException("Speaking test not found.");
 }
 
 public sealed class GetPublishedSpeakingImageQueryHandler(ISpeakingAttemptRepository repository,
@@ -116,7 +116,7 @@ public sealed class GetPublishedSpeakingImageQueryHandler(ISpeakingAttemptReposi
         CancellationToken cancellationToken)
     {
         var asset = await repository.FindPublishedImageAsync(request.AssetId, cancellationToken)
-            ?? throw new SpeakingNotFoundException("Không tìm thấy ảnh.");
+            ?? throw new SpeakingNotFoundException("Image not found.");
         return new SpeakingMediaContent(await store.DownloadAsync(asset.Kind, asset.ObjectKey, cancellationToken),
             asset.ContentType);
     }
@@ -141,7 +141,7 @@ public sealed class GetPublishedSpeakingExerciseQueryHandler(ISpeakingAttemptRep
     public async Task<SpeakingPublicExerciseDto> Handle(GetPublishedSpeakingExerciseQuery request,
         CancellationToken cancellationToken) =>
         (await repository.FindPublishedExerciseAsync(request.ExerciseId, cancellationToken))?.ToPublicDto()
-        ?? throw new SpeakingNotFoundException("Không tìm thấy bài tập Speaking.");
+        ?? throw new SpeakingNotFoundException("Speaking exercise not found.");
 }
 
 public sealed class StartSpeakingAttemptCommandHandler(ISpeakingAttemptRepository repository,
@@ -153,14 +153,14 @@ public sealed class StartSpeakingAttemptCommandHandler(ISpeakingAttemptRepositor
         if (request.Input.ExerciseId is { } exerciseId)
             return await StartExercisePracticeAsync(request.Owner, exerciseId, cancellationToken);
         var loaded = await repository.FindPublishedTestAsync(request.Input.TestId!.Value, cancellationToken)
-            ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
+            ?? throw new SpeakingNotFoundException("Speaking test not found.");
         SpeakingCodes.TryParseMode(request.Input.Mode, out var mode);
         var part = mode.Part();
         var slots = loaded.Slots.Where(slot => part is null || slot.Part == part).ToArray();
         if (slots.Length == 0 || slots.Any(slot => slot.SnapshotJson is null && slot.ContentJson is null))
             throw new SpeakingConflictException(part is null
-                ? "Đề Speaking chưa sẵn sàng để làm bài."
-                : $"Đề Speaking chưa có Part {part}.");
+                ? "Speaking test is not ready to start."
+                : $"Speaking test does not have Part {part}.");
 
         var attemptId = Guid.NewGuid();
         var now = timeProvider.GetUtcNow();
@@ -175,7 +175,7 @@ public sealed class StartSpeakingAttemptCommandHandler(ISpeakingAttemptRepositor
         CancellationToken cancellationToken)
     {
         var exercise = await repository.FindPublishedExerciseAsync(exerciseId, cancellationToken)
-            ?? throw new SpeakingNotFoundException("Không tìm thấy bài tập Speaking.");
+            ?? throw new SpeakingNotFoundException("Speaking exercise not found.");
         var attemptId = Guid.NewGuid();
         var now = timeProvider.GetUtcNow();
         var attempt = SpeakingAttempt.CreateForExercise(attemptId, exercise.Id, exercise.Part, owner.UserId,
@@ -272,16 +272,16 @@ public sealed class UploadSpeakingRecordingCommandHandler(ISpeakingAttemptReposi
         var attempt = await SpeakingAttemptAccess.FindOwnedAsync(repository, request.Owner, request.AttemptId,
             cancellationToken);
         var question = attempt.FindQuestion(request.Position)
-            ?? throw new SpeakingNotFoundException("Không tìm thấy câu hỏi trong lượt làm.");
+            ?? throw new SpeakingNotFoundException("Question not found in attempt.");
         if (request.Content.Length > SpeakingMediaRules.MaxRecordingBytesFor(question.ResponseSeconds))
-            throw new SpeakingMediaTooLargeException("Bản ghi vượt quá dung lượng cho phép của câu này.");
+            throw new SpeakingMediaTooLargeException("Recording exceeds the allowed size for this question.");
         var contentType = DetectRecording(request.Content, request.ContentType);
         if (request.DurationSeconds > question.ResponseSeconds + 2)
             throw new ValidationException([new ValidationFailure("DurationSeconds",
-                $"Bản ghi không được dài hơn {question.ResponseSeconds} giây.")]);
+                $"Recording must not be longer than {question.ResponseSeconds} seconds.")]);
         attempt.AdvanceExpired(now);
         if (!attempt.CanAcceptRecording(request.Position, now))
-            throw new SpeakingConflictException("Đã hết thời gian tải bản ghi cho câu này.");
+            throw new SpeakingConflictException("The recording upload window for this question has expired.");
 
         var objectKey = $"recordings/{attempt.Id:N}/{request.Position}-{Guid.NewGuid():N}." +
                         SpeakingMediaRules.Extension(contentType);
@@ -309,7 +309,7 @@ public sealed class UploadSpeakingRecordingCommandHandler(ISpeakingAttemptReposi
         catch (InvalidOperationException)
         {
             await DeleteQuietlyAsync(objectKey);
-            throw new SpeakingConflictException("Đã hết thời gian tải bản ghi cho câu này.");
+            throw new SpeakingConflictException("The recording upload window for this question has expired.");
         }
         catch
         {
@@ -326,7 +326,7 @@ public sealed class UploadSpeakingRecordingCommandHandler(ISpeakingAttemptReposi
         var detected = SpeakingMediaRules.DetectAudio(content);
         var declared = SpeakingMediaRules.BaseContentType(declaredContentType);
         if (detected is null || declared is not ("" or "application/octet-stream") && declared != detected)
-            throw new InvalidSpeakingMediaException("Bản ghi phải là âm thanh WebM, Ogg hoặc MP4 hợp lệ.");
+            throw new InvalidSpeakingMediaException("Recording must be valid WebM, Ogg, or MP4 audio.");
         return detected;
     }
 
@@ -346,9 +346,9 @@ public sealed class GetSpeakingRecordingQueryHandler(ISpeakingAttemptRepository 
         var attempt = await SpeakingAttemptAccess.FindOwnedAsync(repository, request.Owner, request.AttemptId,
             cancellationToken);
         var assetId = attempt.FindQuestion(request.Position)?.RecordingAssetId
-            ?? throw new SpeakingNotFoundException("Câu này chưa có bản ghi.");
+            ?? throw new SpeakingNotFoundException("This question has no recording yet.");
         var asset = await repository.FindMediaAssetAsync(assetId, cancellationToken)
-            ?? throw new SpeakingNotFoundException("Câu này chưa có bản ghi.");
+            ?? throw new SpeakingNotFoundException("This question has no recording yet.");
         return new SpeakingMediaContent(await store.DownloadAsync(asset.Kind, asset.ObjectKey, cancellationToken),
             asset.ContentType);
     }
@@ -364,7 +364,7 @@ internal static class SpeakingAttemptAccess
     {
         var attempt = await repository.FindAttemptForUpdateAsync(attemptId, cancellationToken);
         if (attempt is null || !attempt.IsOwnedBy(owner.UserId, owner.AnonymousSessionHash))
-            throw new SpeakingNotFoundException("Không tìm thấy lượt làm Speaking.");
+            throw new SpeakingNotFoundException("Speaking attempt not found.");
         return attempt;
     }
 

@@ -1,21 +1,31 @@
-# Barem điểm Listening & Reading
+# Listening & Reading Score Profiles
 
-> Tài liệu này mô tả **cấu hình barem và điều kiện công bố đề hiện có**, không mô tả một API chấm bài học viên. Xem [Admin API](./admin-api.md#2-barem-điểm) và [Attempt API](./attempt-api.md).
+> This document describes the **existing score profile configuration and exam publish requirements**, not a learner scoring API.
+> See [Admin API](./admin-api.md#2-score-profiles) and [Attempt API](./attempt-api.md).
 
-## Dữ liệu barem
+## Score Profile Data
 
-`ScoreProfile` là barem Admin tạo và gắn với một `ExamRevision` bằng UUID. Mỗi `ScoreConversion` chứa `skill` (`Listening` hoặc `Reading`), `rawCorrectCount` (0–100) và `scaledScore` (5–495, bội số của 5). Profile được coi là đầy đủ khi có đúng 101 mốc khác nhau cho mỗi kỹ năng, tức tổng cộng 202 mốc.
+`ScoreProfile` is a conversion table created by Admin and bound to an `ExamRevision` by UUID.
+Each `ScoreConversion` contains `skill` (`Listening` or `Reading`), `rawCorrectCount` (0-100), and `scaledScore` (5-495, multiple of 5).
+A profile is considered complete when it has all 101 distinct entries for each skill, totaling 202 entries.
 
-`POST /api/v1/admin/score-profiles` tạo profile; `GET /api/v1/admin/score-profiles` liệt kê profile với `isComplete` và `mappingCount`. Backend không cung cấp bảng quy đổi mặc định, không khẳng định profile do Admin nhập là barem ETS chính thức, và chưa có API sửa/xóa profile.
+`POST /api/v1/admin/score-profiles` creates a profile; `GET /api/v1/admin/score-profiles` lists profiles with `isComplete` and `mappingCount`.
+The backend does not provide a default conversion table, does not claim Admin-entered profiles are official ETS tables, and does not yet have APIs to edit/delete profiles.
 
-## Gắn barem với đề
+## Binding Score Profiles to Exams
 
-Tạo hoặc import đề cần `scoreProfileId` trỏ tới profile có thật. Draft có thể đổi profile qua `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/score-profile`. Publish từ chối nếu profile chưa đủ 101 mốc Listening và 101 mốc Reading, trả `400 ValidationProblemDetails` key `exam`.
+Creating or importing an exam requires `scoreProfileId` pointing to an existing profile.
+A Draft can switch profiles via `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/score-profile`.
+Publish rejects if the profile does not yet have 101 Listening entries and 101 Reading entries, returning `400 ValidationProblemDetails` with key `exam`.
 
-Revision đã công bố giữ `scoreProfileId`; fork tạo Draft mới từ revision đã công bố. Hiện backend chưa có `L&R Attempt`, bước đếm số câu đúng, tra bảng quy đổi cho lượt làm hay API trả điểm Listening/Reading/tổng điểm. Công thức và thời điểm trả kết quả cho học viên là yêu cầu sản phẩm trong [PRD](../../specs/prd-mvp.md), chưa phải hành vi API hiện tại.
+A published revision retains its `scoreProfileId`; forking creates a new Draft from a published revision.
+Currently, the backend does not yet have `L&R Attempt`, a step to count correct answers, lookup against the conversion table for an attempt, or an API returning Listening/Reading/total scores.
+The formula and timing for returning results to learners are product requirements in the [PRD](../../specs/prd-mvp.md), not current API behavior.
 
-## Hiển thị và sử dụng trên FE hiện tại
+## Current Display and Usage on FE
 
-FE Admin gọi `GET /api/admin/score-profiles` qua BFF và hiển thị profile trong lựa chọn khi tạo Draft. Response FE dùng đúng bốn trường tóm tắt `id`, `name`, `isComplete`, `mappingCount`; không nhận bảng conversion chi tiết từ API list.
+Admin FE calls `GET /api/admin/score-profiles` via the BFF and displays profiles in the selector when creating a Draft.
+The FE response uses only the four summary fields `id`, `name`, `isComplete`, `mappingCount`; it does not receive the detailed conversion table from the list API.
 
-Hiện chưa có form/BFF FE để gọi `POST /api/v1/admin/score-profiles`, chưa có UI đổi barem của revision mặc dù BE có endpoint `PUT .../score-profile`, và chưa có bất kỳ UI learner nào hiển thị điểm quy đổi. Vì vậy tài liệu này không khẳng định FE đã tính hay hiển thị điểm TOEIC cho thí sinh.
+Currently there is no FE form/BFF to call `POST /api/v1/admin/score-profiles`, no UI to change a revision's score profile even though BE has the `PUT .../score-profile` endpoint, and no learner UI displaying scaled scores.
+Therefore, this document does not claim that FE already computes or displays TOEIC scores for examinees.

@@ -1,117 +1,117 @@
 # Feature Specification: TOEIC Writing Module
 
-> **Trạng thái:** Cần kiểm thử tích hợp và UAT sau migration
-> **Phạm vi kỹ năng:** TOEIC Writing (Part 1: 5 câu, Part 2: 2 câu, Part 3: 1 câu)  
-> **Ánh xạ Figma & Routes Frontend:**
-> - `/admin/content/writing` (Figma Màn hình 38, 39) — Ngân hàng câu hỏi lẻ theo Part
-> - `/admin/tests/writing` (Figma Màn hình 42) — Quản lý & Tạo đề thi Writing độc lập
-> - `/writing` (Figma Màn hình 11, 14) — Thư viện đề thi Writing & Luyện tập
-> - `/writing/tests/[id]` (Figma Màn hình 24) — Hướng dẫn thi & Cấu trúc Timing
-> - `/writing/attempts/[id]` (Figma Màn hình 25) — Phòng thi ảo 2-Phase (Chuẩn bị ➜ Làm bài)
-> - `/writing/attempts/[id]/result` (Figma Màn hình 26, 27) — Kết quả và báo cáo chấm AI
-> - `/writing/practice/[part]` — Luyện bài tập lẻ theo Part
-> - `/history/writing` (Figma Màn hình 06) — Lịch sử làm bài thi Writing
+> **Status:** Integration testing and UAT needed after migration
+> **Skill Scope:** TOEIC Writing (Part 1: 5 questions, Part 2: 2 questions, Part 3: 1 question)  
+> **Figma Mapping & Frontend Routes:**
+> - `/admin/content/writing` (Figma Screens 38, 39) - Standalone question bank by Part
+> - `/admin/tests/writing` (Figma Screen 42) - Manage & Create standalone Writing tests
+> - `/writing` (Figma Screens 11, 14) - Writing Test Library & Practice
+> - `/writing/tests/[id]` (Figma Screen 24) - Test Instructions & Timing Structure
+> - `/writing/attempts/[id]` (Figma Screen 25) - 2-Phase Virtual Test Room (Preparation ➜ Answering)
+> - `/writing/attempts/[id]/result` (Figma Screens 26, 27) - Results and AI Grading Report
+> - `/writing/practice/[part]` - Standalone exercise practice by Part
+> - `/history/writing` (Figma Screen 06) - Writing Test History
 >
-> **Tài liệu chi tiết liên quan:**
-> - [Admin API](./admin-api.md) — Quản lý ngân hàng câu hỏi, tạo đề độc lập & Import Excel đề thi
-> - [Attempt API](./attempt-api.md) — Làm bài thi, hỗ trợ người dùng đăng nhập & Anonymous
-> - [AI Evaluation](./ai-evaluation.md) — Kiến trúc hàng đợi chấm điểm AI với Google Gemini
-> - [Giao ước API Tổng thể](../../contracts/api-contract.md#quản-trị-đề-toeic-writing--ngân-hàng-câu-hỏi) — Single Source of Truth (SSoT)
-> - [UAT Runbook](../../runbooks/writing-uat-runbook.md) — Kịch bản kiểm thử UAT và checklist bàn giao
+> **Related Detailed Documentation:**
+> - [Admin API](./admin-api.md) - Manage question bank, create standalone tests & Excel test import
+> - [Attempt API](./attempt-api.md) - Taking tests, supporting signed-in users & Anonymous
+> - [AI Evaluation](./ai-evaluation.md) - Durable AI grading queue architecture with Google Gemini
+> - [Overall API Contract](../../contracts/api-contract.md#toeic-writing-test-and-question-bank-administration) - Single Source of Truth (SSoT)
+> - [UAT Runbook](../../runbooks/writing-uat-runbook.md) - UAT test scenarios and handoff checklist
 
 ---
 
-## 1. Mục tiêu & Phạm vi (Goal & Scope)
+## 1. Goal & Scope
 
-### Mục tiêu chính
-Cung cấp phân hệ luyện thi và thi thử TOEIC Writing gồm 8 câu hỏi, hỗ trợ chấm điểm tự động bằng Gemini và phản hồi theo rubric. Điểm bài thi 0–200 chỉ là ước tính luyện tập; bài tập lẻ hiển thị điểm thô theo Part.
+### Primary Goal
+Provide a TOEIC Writing practice and mock-test module with 8 questions, supporting automatic grading via Gemini and rubric-based feedback. The 0-200 test score is an AI estimate for practice only; standalone exercises display raw scores per Part.
 
-### Phạm vi triển khai (In-scope)
-- [x] **Ngân hàng bài tập lẻ độc lập (`/api/v1/admin/writing/exercises` / UI: `/admin/content/writing`):** 
-  - Bài tập lẻ phục vụ luyện theo Part (`/writing/practice/[part]`) và độc lập với đề thi nhập trực tiếp.
-  - Quản lý câu hỏi Part 1 (Write sentence based on picture), Part 2 (Respond to written request), Part 3 (Write an opinion essay).
-  - Hỗ trợ Import câu hỏi lẻ theo Part bằng file Excel (`POST /exercises/imports/validate?part={1|2|3}`).
-- [x] **Quản lý Đề thi Writing độc lập (`/api/v1/admin/writing/tests` / UI: `/admin/tests/writing`):**
-  - **Tạo đề thi mới hoàn toàn (Direct Exam Creation):** Nhập trực tiếp trọn gói 8 câu hỏi trong đề thi (5 câu Part 1, 2 câu Part 2, 1 câu Part 3) mà không cần nhặt câu hỏi từ Ngân hàng bài tập lẻ.
-  - **Import đề thi bằng file Excel trọn gói:** Bổ sung cơ chế import toàn bộ 8 câu hỏi kèm metadata của một đề thi hoàn chỉnh từ file `.xlsx` (`POST /api/v1/admin/writing/tests/import`).
-  - **Vòng đời đề thi an toàn:** Đề tạo ở trạng thái `DRAFT` có thể chỉnh sửa hoặc xóa; đủ 8 câu đúng cấu trúc (5/2/1) thì được công bố `PUBLISHED` và đóng băng nội dung. Admin có thể lưu trữ `ARCHIVED` hoặc khôi phục về `PUBLISHED`; lịch sử và lượt làm đã bắt đầu được giữ.
-- [x] **Luồng làm bài học viên (`/api/v1/writing`):** 
-  - Đề thi chỉ trả câu hỏi đã `PUBLISHED`, tuyệt đối không lộ đáp án mẫu (model answer) hay rubric chấm điểm.
-  - Hỗ trợ cả thành viên đăng nhập (JWT `sub`) và khách vãng lai qua Header `X-Writing-Anonymous-Session` (server lưu SHA-256).
-  - Phòng thi 2-Phase theo từng câu (Chuẩn bị ➜ Làm bài), Editor khóa trong pha chuẩn bị, tự động lưu autosave (debounce 800ms).
-- [x] **Chấm điểm bằng AI Gemini (Hàng đợi bền vững):**
-  - Chuyển trạng thái an toàn: `CONSENT_REQUIRED` -> `QUEUED` -> `PROCESSING` -> `COMPLETED`/`FAILED`.
-  - Cơ chế kiểm soát quota Gemini Free Tier: Người dùng ẩn danh chỉ được tạo 1 lượt chấm mới trong mỗi 24 giờ.
+### Implementation Scope (In-scope)
+- [x] **Standalone Exercise Bank (`/api/v1/admin/writing/exercises` / UI: `/admin/content/writing`):** 
+  - Standalone exercises serve Part-based practice (`/writing/practice/[part]`) and are independent of directly entered tests.
+  - Manage Part 1 (Write sentence based on picture), Part 2 (Respond to written request), and Part 3 (Write an opinion essay) questions.
+  - Support importing standalone questions by Part via Excel file (`POST /exercises/imports/validate?part={1|2|3}`).
+- [x] **Standalone Writing Test Management (`/api/v1/admin/writing/tests` / UI: `/admin/tests/writing`):**
+  - **Direct Exam Creation:** Directly enter all 8 questions of a test (5 Part 1 questions, 2 Part 2 questions, 1 Part 3 question) without needing to pick questions from the standalone exercise bank.
+  - **Full-Test Excel Import:** Added a mechanism to import all 8 questions along with metadata of a complete test from an `.xlsx` file (`POST /api/v1/admin/writing/tests/import`).
+  - **Safe Test Lifecycle:** Tests created in `DRAFT` status can be edited or deleted; once 8 questions with the valid structure (5/2/1) are present, they can be `PUBLISHED` and content is frozen. Admins can archive (`ARCHIVED`) or restore back to `PUBLISHED`; history and started attempts are preserved.
+- [x] **Learner Attempt Flow (`/api/v1/writing`):** 
+  - Tests only return `PUBLISHED` questions and never expose the model answer or grading rubric.
+  - Supports both signed-in members (JWT `sub`) and guests via the `X-Writing-Anonymous-Session` header (server stores SHA-256).
+  - 2-Phase test room per question (Preparation ➜ Answering), Editor locked during the preparation phase, automatic autosave (800ms debounce).
+- [x] **AI Grading with Google Gemini (Durable Queue):**
+  - Safe state transitions: `CONSENT_REQUIRED` -> `QUEUED` -> `PROCESSING` -> `COMPLETED`/`FAILED`.
+  - Gemini Free Tier quota control mechanism: Anonymous users can only create 1 new grading attempt per 24 hours.
 
-### Ngoài phạm vi (Explicit Non-Goals)
+### Out of Scope (Explicit Non-Goals)
 > [!IMPORTANT]
-> - Không dùng điểm AI làm kết quả thi chứng chỉ ETS chính thức (luôn ghi chú: "Điểm TOEIC Writing ước tính bởi AI").
-> - Không cho phép browser gọi trực tiếp Google Gemini API (toàn bộ key và lời gọi AI được đóng gói bảo mật tại backend worker).
-> - Đề thi (`WritingTest`) và Ngân hàng bài tập lẻ (`WritingExercise`) không chia sẻ phụ thuộc cứng (tight coupling): sửa/xóa bài tập lẻ không làm ảnh hưởng đến đề thi đã xuất bản.
+> - Do not use AI scores as official ETS certification test results (always note: "AI-estimated TOEIC Writing score").
+> - Do not allow the browser to call the Google Gemini API directly (all keys and AI calls are securely encapsulated in the backend worker).
+> - Tests (`WritingTest`) and the standalone exercise bank (`WritingExercise`) do not share tight coupling: editing or deleting a standalone exercise does not affect published tests.
 
 ---
 
-## 2. Luồng nghiệp vụ Chấm điểm AI (Business Flow)
+## 2. AI Grading Business Flow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as Học viên (User / Guest)
+    actor User as Learner (User / Guest)
     participant FE as Frontend / BFF
     participant API as Backend API
     participant Worker as Background Worker
     participant Gemini as Google Gemini AI
 
-    User->>FE: Bấm nộp bài Writing
+    User->>FE: Click submit Writing attempt
     FE->>API: POST /api/v1/writing/attempts/{id}/submit
-    API->>API: Lưu Attempt & tạo Evaluation (CONSENT_REQUIRED)
-    API-->>FE: Trả về trạng thái CONSENT_REQUIRED
-    User->>FE: Đọc thông báo & Bấm "Đồng ý chấm AI"
+    API->>API: Save Attempt & create Evaluation (CONSENT_REQUIRED)
+    API-->>FE: Return CONSENT_REQUIRED status
+    User->>FE: Read notice & Click "Consent to AI Grading"
     FE->>API: POST /api/v1/writing/attempts/{id}/evaluation-consent
-    API->>API: Chuyển Job sang QUEUED
-    Worker->>API: Lấy Job QUEUED -> Chuyển sang PROCESSING
-    Worker->>Gemini: Gửi đề, ảnh Part 1 và bài làm sau consent
-    Gemini-->>Worker: Trả JSON feedback và điểm thô theo từng Part
-    Worker->>API: Quy đổi 0-200 chỉ cho FULL, lưu kết quả và COMPLETED
-    FE->>API: Polling GET /attempts/{id} (mỗi 5s)
-    API-->>FE: Trả về kết quả đánh giá chi tiết
+    API->>API: Transition Job to QUEUED
+    Worker->>API: Pick up QUEUED Job -> Transition to PROCESSING
+    Worker->>Gemini: Send prompts, Part 1 images & answers after consent
+    Gemini-->>Worker: Return JSON feedback and raw scores per Part
+    Worker->>API: Convert 0-200 only for FULL, save results and COMPLETED
+    FE->>API: Polling GET /attempts/{id} (every 5s)
+    API-->>FE: Return detailed evaluation results
 ```
 
 ---
 
-## 3. Ràng buộc Kỹ thuật & Bảo mật cốt lõi (Guardrails)
+## 3. Core Technical & Security Guardrails
 
-1. **Bảo mật đề thi & Model Answer:**
-   - `modelAnswer` là thông tin tham khảo tùy chọn của Admin; API học viên không trả bài mẫu.
-2. **Phiên ẩn danh an toàn (Anonymous Ownership):**
-   - Định danh khách vãng lai thông qua header `X-Writing-Anonymous-Session`. Backend chỉ lưu hash SHA-256, không bao giờ lưu UUID thô.
-   - Một attempt chỉ thuộc về một chủ sở hữu duy nhất. Người khác truy cập sẽ nhận `404 Not Found` (không trả `403` để tránh rò rỉ sự tồn tại của attempt).
-3. **Bảo vệ Quota AI:**
-   - Áp dụng rate limit 24h đối với khách vãng lai.
-   - Thao tác Retry của **cùng một attempt** bị lỗi không bị tính vào hạn mức mới.
-4. **Tính toàn vẹn & Bất biến của Đề thi (Exam Immutability):**
-   - Đề thi Writing sau khi `PUBLISHED` là bất biến. Không cho phép sửa đổi câu hỏi của đề đã xuất bản để đảm bảo kết quả làm bài của học viên trong quá khứ không bị sai lệch.
-   - Đề nhập trực tiếp độc lập với ngân hàng; đề cũ dùng `exerciseId` vẫn được hỗ trợ để bảo toàn tương thích.
+1. **Test & Model Answer Security:**
+   - `modelAnswer` is optional Admin reference information; the learner API does not return model answers.
+2. **Secure Anonymous Ownership:**
+   - Guest identification via the `X-Writing-Anonymous-Session` header. The backend only stores the SHA-256 hash and never stores raw UUIDs.
+   - An attempt belongs to a single owner only. Other users accessing it receive `404 Not Found` (do not return `403` to avoid leaking the existence of the attempt).
+3. **AI Quota Protection:**
+   - Apply a 24h rate limit for guests.
+   - Retrying the **same failed attempt** does not count against the new quota.
+4. **Exam Integrity & Immutability:**
+   - Once `PUBLISHED`, a Writing test is immutable. Editing questions on a published test is not permitted, ensuring past learner attempt results are not skewed.
+   - Directly entered tests are independent of the bank; legacy tests using `exerciseId` are still supported to preserve backward compatibility.
 
 ---
 
-## 4. Tiêu chí nghiệm thu (Acceptance Criteria)
+## 4. Acceptance Criteria
 
 ```gherkin
-Scenario: Admin tạo đề thi Writing độc lập mới hoàn toàn
-  Given Admin nhập đầy đủ thông tin đề thi và 8 câu hỏi (5 câu Part 1, 2 câu Part 2, 1 câu Part 3)
-  When Admin lưu đề ở trạng thái DRAFT
-  Then hệ thống lưu trữ toàn bộ 8 câu hỏi gắn liền với đề thi mà không cần tham chiếu ngân hàng câu hỏi lẻ
-  And khi bấm PUBLISH, hệ thống kiểm tra đủ điều kiện và đóng băng nội dung thành phiên bản bất biến
+Scenario: Admin creates a completely new standalone Writing test
+  Given Admin enters complete test info and 8 questions (5 Part 1, 2 Part 2, 1 Part 3)
+  When Admin saves the test in DRAFT status
+  Then the system stores all 8 questions attached to the test without referencing the standalone question bank
+  And when clicking PUBLISH, the system validates completeness and freezes the content into an immutable version
 
-Scenario: Admin import đề thi Writing hoàn chỉnh từ file Excel
-  Given Admin có file Excel đúng cấu trúc template gồm đầy đủ thông tin đề và 8 câu hỏi (5/2/1) kèm hình ảnh Part 1 đã upload
-  When Admin gọi POST /api/v1/admin/writing/tests/import
-  Then hệ thống tạo một đề thi Writing mới hoàn chỉnh ở trạng thái DRAFT với đầy đủ 8 câu hỏi
+Scenario: Admin imports a complete Writing test from an Excel file
+  Given Admin has an Excel file matching the template structure with full test info and 8 questions (5/2/1) along with uploaded Part 1 images
+  When Admin calls POST /api/v1/admin/writing/tests/import
+  Then the system creates a complete new Writing test in DRAFT status with all 8 questions
 
-Scenario: Học viên làm bài thi Writing và yêu cầu chấm điểm AI
-  Given học viên vào phòng thi ảo với đề thi đã PUBLISHED
-  When học viên trải qua các câu hỏi theo 2 pha (Chuẩn bị -> Làm bài) và nộp bài
-  Then hệ thống lưu attempt và cho phép học viên gửi yêu cầu chấm điểm AI (Consent)
-  And AI Background Worker tiến hành đánh giá và trả về điểm số ước tính 0-200 cùng feedback chi tiết
+Scenario: Learner takes a Writing test and requests AI grading
+  Given a learner enters the virtual test room with a PUBLISHED test
+  When the learner progresses through questions in 2 phases (Preparation -> Answering) and submits the attempt
+  Then the system stores the attempt and allows the learner to submit an AI grading request (Consent)
+  And the AI Background Worker evaluates and returns an estimated 0-200 score along with detailed feedback
 ```

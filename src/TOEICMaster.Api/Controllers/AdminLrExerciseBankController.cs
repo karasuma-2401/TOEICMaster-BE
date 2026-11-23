@@ -42,7 +42,7 @@ public sealed class AdminLrExerciseBankController(ISender sender, IWebHostEnviro
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length is <= 0 or > 10 * 1024 * 1024)
-            return BadRequest(new ProblemDetails { Status = 400, Title = "File import không hợp lệ." });
+            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid import file." });
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         var result = await sender.Send(new ImportLrExerciseItemsCommand(CurrentUserId(), part, file.FileName,

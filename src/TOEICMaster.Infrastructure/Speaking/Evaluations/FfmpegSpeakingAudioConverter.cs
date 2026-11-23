@@ -67,7 +67,7 @@ public sealed class FfmpegSpeakingAudioConverter(IOptions<AzureSpeechOptions> op
                 if (cancellationToken.IsCancellationRequested)
                     throw;
                 throw new SpeakingEvaluatorException("AUDIO_CONVERSION_TIMEOUT",
-                    "Xử lý bản ghi mất nhiều thời gian hơn dự kiến. Hệ thống sẽ thử lại.", true);
+                    "Processing the recording took longer than expected. The system will retry.", true);
             }
             if (process.ExitCode != 0)
             {
@@ -75,7 +75,7 @@ public sealed class FfmpegSpeakingAudioConverter(IOptions<AzureSpeechOptions> op
                 if ((await standardError).Contains(UndecodableInput, StringComparison.OrdinalIgnoreCase))
                     return [];
                 throw new SpeakingEvaluatorException("AUDIO_CONVERSION_FAILED",
-                    "Chưa xử lý được bản ghi. Hệ thống sẽ thử lại.", true);
+                    "Could not process the recording yet. The system will retry.", true);
             }
 
             return File.Exists(output)
@@ -96,12 +96,12 @@ public sealed class FfmpegSpeakingAudioConverter(IOptions<AzureSpeechOptions> op
         {
             return Process.Start(startInfo)
                    ?? throw new SpeakingEvaluatorException("AUDIO_CONVERTER_UNAVAILABLE",
-                       "Máy chủ chưa cài công cụ xử lý âm thanh cho chấm AI Speaking.", false);
+                       "The server does not have the audio processing tool installed for Speaking AI evaluation.", false);
         }
         catch (Win32Exception exception)
         {
             throw new SpeakingEvaluatorException("AUDIO_CONVERTER_UNAVAILABLE",
-                "Máy chủ chưa cài công cụ xử lý âm thanh cho chấm AI Speaking.", false, innerException: exception);
+                "The server does not have the audio processing tool installed for Speaking AI evaluation.", false, innerException: exception);
         }
     }
 

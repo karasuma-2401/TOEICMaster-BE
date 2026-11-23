@@ -20,9 +20,9 @@ public sealed class XlsxLrExerciseBankImportParser : ILrExerciseBankImportParser
     public IReadOnlyList<LrExerciseItemInput> Parse(int part, string fileName, byte[] content)
     {
         if (part is < 1 or > 7)
-            throw new LrExerciseBankImportException("Part import không hợp lệ.");
+            throw new LrExerciseBankImportException("Invalid import part.");
         if (!fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
-            throw new LrExerciseBankImportException("Chỉ hỗ trợ file Excel .xlsx.");
+            throw new LrExerciseBankImportException("Only Excel .xlsx files are supported.");
         try
         {
             using var stream = new MemoryStream(content, writable: false);
@@ -30,17 +30,17 @@ public sealed class XlsxLrExerciseBankImportParser : ILrExerciseBankImportParser
             ValidateArchive(archive);
             var worksheetEntry = archive.Entries.Where(entry => entry.FullName.StartsWith("xl/worksheets/", StringComparison.Ordinal) &&
                 entry.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)).OrderBy(entry => entry.FullName,
-                StringComparer.Ordinal).FirstOrDefault() ?? throw new LrExerciseBankImportException("Workbook không có worksheet.");
+                StringComparer.Ordinal).FirstOrDefault() ?? throw new LrExerciseBankImportException("Workbook has no worksheet.");
             var sharedStrings = ReadSharedStrings(archive);
             var worksheet = LoadXml(worksheetEntry);
             var rows = ReadRows(worksheet, sharedStrings).ToArray();
             if (rows.Length == 0)
-                throw new LrExerciseBankImportException("Workbook chưa có dòng tiêu đề.");
+                throw new LrExerciseBankImportException("Workbook does not have a header row.");
             var headers = ReadHeaders(rows[0], IsGrouped(part) ? GroupHeaders : SingleHeaders);
             var dataRows = rows.Skip(1).Where(row => row.Cells.Values.Any(value => !string.IsNullOrWhiteSpace(value)))
                 .Take(MaximumRows + 1).ToArray();
             if (dataRows.Length > MaximumRows)
-                throw new LrExerciseBankImportException($"Workbook chỉ hỗ trợ tối đa {MaximumRows} dòng dữ liệu.");
+                throw new LrExerciseBankImportException($"Workbook supports at most {MaximumRows} data rows.");
             return IsGrouped(part) ? ParseGroups(dataRows, headers) : ParseSingles(dataRows, headers);
         }
         catch (LrExerciseBankImportException)
@@ -49,11 +49,11 @@ public sealed class XlsxLrExerciseBankImportParser : ILrExerciseBankImportParser
         }
         catch (InvalidDataException)
         {
-            throw new LrExerciseBankImportException("File không phải workbook .xlsx hợp lệ.");
+            throw new LrExerciseBankImportException("File is not a valid .xlsx workbook.");
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            throw new LrExerciseBankImportException("Không thể đọc workbook import: " + exception.Message);
+            throw new LrExerciseBankImportException("Could not read import workbook: " + exception.Message);
         }
     }
 
@@ -68,7 +68,7 @@ public sealed class XlsxLrExerciseBankImportParser : ILrExerciseBankImportParser
             var code = Cell(row, headers, "Code");
             if (string.IsNullOrWhiteSpace(code))
             {
-                errors.Add($"Dòng {row.RowNumber}: Code là bắt buộc.");
+                errors.Add($"Row {row.RowNumber}: Code is required.");
                 continue;
             }
             items.Add(new LrExerciseItemInput(code, Cell(row, headers, "Topic"), Cell(row, headers, "Difficulty"),
@@ -89,7 +89,7 @@ public sealed class XlsxLrExerciseBankImportParser : ILrExerciseBankImportParser
             var groupCode = Cell(row, headers, "GroupCode");
             if (string.IsNullOrWhiteSpace(groupCode))
             {
-                errors.Add($"Dòng {row.RowNumber}: GroupCode là bắt buộc.");
+                errors.Add($"Row {row.RowNumber}: GroupCode is required.");
                 continue;
             }
             if (!groups.TryGetValue(groupCode.Trim(), out var group))
@@ -129,9 +129,9 @@ public sealed class XlsxLrExerciseBankImportParser : ILrExerciseBankImportParser
         var missing = required.Where(name => !result.ContainsKey(name)).ToArray();
         var duplicated = result.Where(pair => pair.Value.Length > 1).Select(pair => pair.Key).ToArray();
         if (missing.Length > 0)
-            errors.Add("Thiếu cột: " + string.Join(", ", missing) + ".");
+            errors.Add("Missing columns: " + string.Join(", ", missing) + ".");
         if (duplicated.Length > 0)
-            errors.Add("Trùng cột: " + string.Join(", ", duplicated) + ".");
+            errors.Add("Duplicate columns: " + string.Join(", ", duplicated) + ".");
         ThrowIfErrors(errors);
         return result.ToDictionary(pair => pair.Key, pair => pair.Value[0], StringComparer.OrdinalIgnoreCase);
     }

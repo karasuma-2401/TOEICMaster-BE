@@ -27,8 +27,8 @@ function addQuestion(blockKey, part, number) {
     "C. Sample option C",
     part === 2 ? "" : "D. Sample option D",
     "A",
-    "Bản dịch mẫu. Thay bằng nội dung được biên soạn.",
-    "Giải thích mẫu. Thay bằng nội dung được biên soạn.",
+    "Sample translation. Replace with authored content.",
+    "Sample explanation. Replace with authored content.",
     "",
     part === 1,
   ]);
@@ -109,15 +109,15 @@ readMe.tabColor = "#64748B";
 
 styleTitle(readMe, "A1:H1", "TOEIC Listening & Reading import template");
 readMe.getRange("A3:B11").values = [
-  ["Mục", "Hướng dẫn"],
-  ["Phạm vi", "Một workbook tạo đúng một đề L&R gồm đủ 200 câu, cấu trúc ETS cố định từ Part 1 đến Part 7."],
-  ["Master Audio", "Đính kèm riêng một file .mp3 hoặc .wav trong cùng request import. Không nhúng audio vào Excel. Giới hạn 100 MB."],
-  ["Barem", "Tạo Score Profile trước, rồi thay ScoreProfileId trong Manifest bằng UUID profile do API trả về. Draft có thể dùng profile chưa đủ mapping; Publish sẽ chặn cho đến khi đủ 101 mốc Listening và 101 mốc Reading."],
-  ["Ảnh Part 1", "Upload ảnh trước qua API media. Thay ImageAssetId placeholder ở các câu Part 1 bằng UUID asset trả về. Chỉ dùng PNG, JPG/JPEG hoặc WEBP, tối đa 5 MB."],
-  ["Ảnh ngữ cảnh", "Muốn thêm ảnh cho nhóm Part 3, 4, 6 hoặc 7: thêm dòng ContextBlocks, Type=IMAGE, ImageAssetId là UUID đã upload; giữ Ordinal liên tiếp từ 1."],
-  ["Không sửa cấu trúc", "Không thêm, xóa, đổi BlockKey, Part, QuestionNumber hay QuestionCount. Importer đối chiếu toàn bộ 103 block và 200 slot; chỉ cần một lỗi là từ chối toàn bộ."],
-  ["Nội dung mẫu", "Toàn bộ câu/context trong template là placeholder để thay thế. Không dùng để xuất bản."],
-  ["Nguồn yêu cầu", "2. Tài liệu phân tích.md, AC-02.1 đến AC-02.11; quyết định nghiệp vụ đã chốt: một Master Audio tổng, import atomic."],
+  ["Section", "Instructions"],
+  ["Scope", "One workbook creates exactly one L&R exam with all 200 questions in the fixed ETS structure from Part 1 to Part 7."],
+  ["Master Audio", "Attach a single .mp3 or .wav file separately in the same import request. Do not embed audio in Excel. Maximum 100 MB."],
+  ["Score Profile", "Create a Score Profile first, then replace ScoreProfileId in Manifest with the profile UUID returned by the API. A draft may use an incomplete mapping; publishing will be blocked until all 101 Listening and 101 Reading entries are present."],
+  ["Part 1 Images", "Upload images first via the media API. Replace the placeholder ImageAssetId on Part 1 questions with the returned asset UUID. Only PNG, JPG/JPEG, or WEBP up to 5 MB are allowed."],
+  ["Context Images", "To add images for Part 3, 4, 6, or 7 groups: add ContextBlocks rows with Type=IMAGE and ImageAssetId set to the uploaded UUID; keep Ordinal contiguous starting from 1."],
+  ["Do not alter structure", "Do not add, delete, or change BlockKey, Part, QuestionNumber, or QuestionCount. The importer validates all 103 blocks and 200 slots; a single error rejects the entire workbook."],
+  ["Sample content", "All questions and contexts in this template are placeholders to be replaced. Do not use them for publishing."],
+  ["Requirement source", "Analysis document (AC-02.1 to AC-02.11); finalized business decision: single Master Audio file, atomic import."],
 ];
 styleHeader(readMe, "A3:B3");
 styleInputs(readMe, "A4:B11");

@@ -22,17 +22,17 @@ public sealed class XlsxWritingExerciseImportParser : IWritingExerciseImportPars
             using var stream = new MemoryStream(content, writable: false);
             using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
             if (archive.Entries.Count > 1_000 || archive.Entries.Sum(entry => entry.Length) > 32L * 1024 * 1024)
-                throw new InvalidWritingImportException("Nội dung giải nén của file Excel quá lớn.");
+                throw new InvalidWritingImportException("The decompressed Excel file content is too large.");
             var workbook = archive.Entries.Where(entry => entry.FullName.StartsWith("xl/worksheets/", StringComparison.Ordinal) &&
                                                            entry.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(entry => entry.FullName, StringComparer.Ordinal).FirstOrDefault()
-                ?? throw new InvalidWritingImportException("File .xlsx không có worksheet.");
+                ?? throw new InvalidWritingImportException("The .xlsx file has no worksheet.");
             var sharedStrings = ReadSharedStrings(archive);
             using var worksheetStream = workbook.Open();
             var worksheet = XDocument.Load(worksheetStream);
             var rows = ReadRows(worksheet, sharedStrings).ToArray();
             if (rows.Length == 0)
-                throw new InvalidWritingImportException("File .xlsx chưa có dòng tiêu đề.");
+                throw new InvalidWritingImportException("The .xlsx file does not have a header row.");
             var headers = rows[0].Cells.ToDictionary(pair => pair.Key, pair => pair.Value.Trim(),
                 EqualityComparer<int>.Default);
             var headerIndexes = headers.Where(pair => !string.IsNullOrWhiteSpace(pair.Value))
@@ -45,9 +45,9 @@ public sealed class XlsxWritingExerciseImportParser : IWritingExerciseImportPars
             {
                 var errors = new List<string>();
                 if (missing.Length > 0)
-                    errors.Add($"Thiếu cột: {string.Join(", ", missing)}.");
+                    errors.Add($"Missing columns: {string.Join(", ", missing)}.");
                 if (duplicated.Length > 0)
-                    errors.Add($"Trùng cột: {string.Join(", ", duplicated)}.");
+                    errors.Add($"Duplicate columns: {string.Join(", ", duplicated)}.");
                 return new WritingExerciseImportPreviewDto(part, fileName,
                     [new WritingExerciseImportRowDto(rows[0].RowNumber, null, errors)]);
             }
@@ -56,7 +56,7 @@ public sealed class XlsxWritingExerciseImportParser : IWritingExerciseImportPars
             var dataRows = rows.Skip(1).Where(row => row.Cells.Values.Any(value => !string.IsNullOrWhiteSpace(value)))
                 .Take(MaximumRows + 1).ToArray();
             if (dataRows.Length > MaximumRows)
-                throw new InvalidWritingImportException($"File import chỉ hỗ trợ tối đa {MaximumRows} dòng dữ liệu.");
+                throw new InvalidWritingImportException($"The import file supports at most {MaximumRows} data rows.");
             return new WritingExerciseImportPreviewDto(part, fileName,
                 dataRows.Select(row => ValidateRow(part, row, validHeaders)).ToArray());
         }
@@ -66,11 +66,11 @@ public sealed class XlsxWritingExerciseImportParser : IWritingExerciseImportPars
         }
         catch (InvalidDataException)
         {
-            throw new InvalidWritingImportException("File import không phải .xlsx hợp lệ.");
+            throw new InvalidWritingImportException("The import file is not a valid .xlsx file.");
         }
         catch (System.Xml.XmlException)
         {
-            throw new InvalidWritingImportException("Nội dung .xlsx không hợp lệ.");
+            throw new InvalidWritingImportException("The .xlsx content is invalid.");
         }
     }
 
@@ -84,22 +84,22 @@ public sealed class XlsxWritingExerciseImportParser : IWritingExerciseImportPars
         foreach (var header in RequiredHeaders[part])
         {
             if (string.IsNullOrWhiteSpace(Value(header)))
-                errors.Add($"Thiếu {header}.");
+                errors.Add($"Missing {header}.");
         }
         if (!string.IsNullOrWhiteSpace(code) && code.Length > 64)
-            errors.Add("Code không được vượt quá 64 ký tự.");
+            errors.Add("Code must not exceed 64 characters.");
         if (!string.IsNullOrWhiteSpace(Value("Topic")) && Value("Topic").Length > 100)
-            errors.Add("Topic không được vượt quá 100 ký tự.");
+            errors.Add("Topic must not exceed 100 characters.");
         if (!string.IsNullOrWhiteSpace(Value("Difficulty")) &&
             new[] { "EASY", "MEDIUM", "HARD" }.Contains(Value("Difficulty"), StringComparer.OrdinalIgnoreCase) is false)
-            errors.Add("Difficulty phải là EASY, MEDIUM hoặc HARD.");
+            errors.Add("Difficulty must be EASY, MEDIUM, or HARD.");
         if (!string.IsNullOrWhiteSpace(Value("Status")) &&
             new[] { "DRAFT", "PUBLISHED", "ARCHIVED" }.Contains(Value("Status"), StringComparer.OrdinalIgnoreCase) is false)
-            errors.Add("Status phải là DRAFT, PUBLISHED hoặc ARCHIVED.");
+            errors.Add("Status must be DRAFT, PUBLISHED, or ARCHIVED.");
         if (part == 1 && !Guid.TryParse(Value("ImageAssetId"), out _))
-            errors.Add("ImageAssetId phải là UUID của ảnh đã upload.");
+            errors.Add("ImageAssetId must be the UUID of an uploaded image.");
         if (part == 3 && (!int.TryParse(Value("MinimumWordCount"), out var minimum) || minimum is < 1 or > 5_000))
-            errors.Add("MinimumWordCount phải là số từ 1 đến 5000.");
+            errors.Add("MinimumWordCount must be a number from 1 to 5000.");
         var input = new WritingExerciseInput(part, code, Value("Topic"), Value("Difficulty"), Value("Status"),
             Value("RubricNotes"), Value("ModelAnswer"),
             Guid.TryParse(Value("ImageAssetId"), out var imageId) ? imageId : null,

@@ -247,5 +247,5 @@ public static class SpeakingSamples
         };
 
     private static SpeakingExerciseInput Common(int part, string code, string status) =>
-        new(part, code, "Công việc", "MEDIUM", status, "Rõ ràng, đúng trọng tâm.", $"Model answer {code}.");
+        new(part, code, "Work", "MEDIUM", status, "Clear, on-topic.", $"Model answer {code}.");
 }

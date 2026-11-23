@@ -14,7 +14,7 @@ public sealed class AssessPronunciationTests
     [InlineData("", false)]
     [InlineData("   ", false)]
     [InlineData("think1", false)]
-    [InlineData("thínk", false)]
+    [InlineData("th\u00ednk", false)]
     [InlineData("<script>", false)]
     [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", false)]
     public void Reference_text_allows_only_short_english_words(string value, bool expected) =>

@@ -74,7 +74,7 @@ public static class AuthRateLimitingExtensions
         var problem = new ProblemDetails
         {
             Status = StatusCodes.Status429TooManyRequests,
-            Title = "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.",
+            Title = "Too many requests. Please try again later.",
             Type = "https://tools.ietf.org/html/rfc6585#section-4"
         };
         problem.Extensions["traceId"] = Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;

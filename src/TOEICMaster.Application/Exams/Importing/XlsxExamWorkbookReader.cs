@@ -34,14 +34,14 @@ public static class XlsxExamWorkbookReader
     {
         if (content.Length == 0 || content.Length > MaxBytes || content.Length < 4 ||
             content[0] != (byte)'P' || content[1] != (byte)'K')
-            throw new ExamWorkbookFormatException(["Workbook phải là tệp XLSX hợp lệ, tối đa 10 MiB."]);
+            throw new ExamWorkbookFormatException(["Workbook must be a valid XLSX file of at most 10 MiB."]);
 
         try
         {
             using var stream = new MemoryStream(content, writable: false);
             using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
             if (archive.Entries.Count > MaxEntries || archive.Entries.Sum(entry => entry.Length) > MaxBytes)
-                throw new ExamWorkbookFormatException(["Workbook vượt quá giới hạn cấu trúc an toàn."]);
+                throw new ExamWorkbookFormatException(["Workbook exceeds safe structural limits."]);
 
             var sharedStrings = ReadSharedStrings(archive);
             var sheets = ReadSheets(archive, sharedStrings);
@@ -66,12 +66,12 @@ public static class XlsxExamWorkbookReader
         }
         catch (InvalidDataException)
         {
-            throw new ExamWorkbookFormatException(["Workbook XLSX bị hỏng hoặc không thể đọc."]);
+            throw new ExamWorkbookFormatException(["XLSX workbook is corrupted or unreadable."]);
         }
         catch (Exception exception) when (exception is FormatException or XmlException or OverflowException or
                                            ArgumentException or InvalidOperationException or NullReferenceException)
         {
-            throw new ExamWorkbookFormatException(["Workbook XLSX có dữ liệu không hợp lệ."]);
+            throw new ExamWorkbookFormatException(["XLSX workbook contains invalid data."]);
         }
     }
 
@@ -159,7 +159,7 @@ public static class XlsxExamWorkbookReader
     {
         if (sheets.TryGetValue(sheetName, out var sheet))
             return sheet;
-        errors.Add($"Thiếu sheet bắt buộc '{sheetName}'.");
+        errors.Add($"Missing required sheet '{sheetName}'.");
         return new SheetData(sheetName, []);
     }
 
@@ -173,11 +173,11 @@ public static class XlsxExamWorkbookReader
             var value = row.Get("Value");
             if (string.IsNullOrWhiteSpace(field) || string.IsNullOrWhiteSpace(value))
             {
-                errors.Add($"Manifest!A{row.RowNumber}: Field và Value là bắt buộc.");
+                errors.Add($"Manifest!A{row.RowNumber}: Field and Value are required.");
                 continue;
             }
             if (!result.TryAdd(field.Trim(), value.Trim()))
-                errors.Add($"Manifest!A{row.RowNumber}: Field '{field}' bị lặp.");
+                errors.Add($"Manifest!A{row.RowNumber}: Duplicate Field '{field}'.");
         }
         return result;
     }
@@ -223,7 +223,7 @@ public static class XlsxExamWorkbookReader
                 if (Guid.TryParse(assetId, out var parsed))
                     imageAssetId = parsed;
                 else
-                    errors.Add($"{sheet.Name}!E{row.RowNumber}: ImageAssetId không phải UUID.");
+                    errors.Add($"{sheet.Name}!E{row.RowNumber}: ImageAssetId is not a valid UUID.");
             }
             result.Add(new ImportedExamContext(key, ordinal, type, EmptyToNull(row.Get("Text")), imageAssetId,
                 EmptyToNull(row.Get("AltText")), imageRequired));
@@ -257,7 +257,7 @@ public static class XlsxExamWorkbookReader
                 if (Guid.TryParse(assetId, out var parsed))
                     imageAssetId = parsed;
                 else
-                    errors.Add($"{sheet.Name}!L{row.RowNumber}: ImageAssetId không phải UUID.");
+                    errors.Add($"{sheet.Name}!L{row.RowNumber}: ImageAssetId is not a valid UUID.");
             }
             if (blockKey is null || code is null || stem is null || optionA is null || optionB is null || optionC is null ||
                 correctKey is null)
@@ -276,7 +276,7 @@ public static class XlsxExamWorkbookReader
             string.Equals(value.Trim(), expected, StringComparison.Ordinal))));
         if (header is null)
         {
-            errors.Add($"Sheet '{sheet.Name}' thiếu header yêu cầu.");
+            errors.Add($"Sheet '{sheet.Name}' is missing required headers.");
             return [];
         }
         var columns = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -286,7 +286,7 @@ public static class XlsxExamWorkbookReader
                 StringComparison.Ordinal)).ToArray();
             if (matches.Length != 1)
             {
-                errors.Add($"Sheet '{sheet.Name}' có header '{headerName}' bị lặp hoặc không xác định.");
+                errors.Add($"Sheet '{sheet.Name}' has duplicate or missing header '{headerName}'.");
                 continue;
             }
             columns[headerName] = matches[0].Key;
@@ -297,7 +297,7 @@ public static class XlsxExamWorkbookReader
                 var matches = header.Cells.Where(cell => string.Equals(cell.Value.Trim(), headerName,
                     StringComparison.Ordinal)).ToArray();
                 if (matches.Length > 1)
-                    errors.Add($"Sheet '{sheet.Name}' cÃ³ header '{headerName}' bá»‹ láº·p.");
+                    errors.Add($"Sheet '{sheet.Name}' has duplicate header '{headerName}'.");
                 else if (matches.Length == 1)
                     columns[headerName] = matches[0].Key;
             }
@@ -313,11 +313,11 @@ public static class XlsxExamWorkbookReader
     {
         foreach (var required in new[] { "SchemaVersion", "TestCode", "Title", "Scope", "ScoreProfileId" })
             if (!manifest.ContainsKey(required))
-                errors.Add($"Manifest thiếu '{required}'.");
+                errors.Add($"Manifest is missing '{required}'.");
         if (manifest.TryGetValue("SchemaVersion", out var schemaVersion) && schemaVersion != "1")
-            errors.Add("Manifest!B: SchemaVersion phải là 1.");
+            errors.Add("Manifest!B: SchemaVersion must be 1.");
         if (manifest.TryGetValue("Scope", out var scope) && scope != "LISTENING_READING")
-            errors.Add("Manifest!B: Scope phải là LISTENING_READING.");
+            errors.Add("Manifest!B: Scope must be LISTENING_READING.");
     }
 
     private static Guid ParseGuid(IReadOnlyDictionary<string, string> values, string name, string sheetName,
@@ -325,7 +325,7 @@ public static class XlsxExamWorkbookReader
     {
         if (values.TryGetValue(name, out var value) && Guid.TryParse(value, out var id) && id != Guid.Empty)
             return id;
-        errors.Add($"{sheetName}: '{name}' phải là UUID hợp lệ.");
+        errors.Add($"{sheetName}: '{name}' must be a valid UUID.");
         return Guid.Empty;
     }
 
@@ -334,7 +334,7 @@ public static class XlsxExamWorkbookReader
     {
         if (int.TryParse(row.Get(field), out value))
             return true;
-        errors.Add($"{sheetName}!{field}{row.RowNumber}: phải là số nguyên.");
+        errors.Add($"{sheetName}!{field}{row.RowNumber}: must be an integer.");
         return false;
     }
 
@@ -359,7 +359,7 @@ public static class XlsxExamWorkbookReader
             value = false;
             return true;
         }
-        errors.Add($"{sheetName}!{field}{row.RowNumber}: chá»‰ nháº­n true hoáº·c false.");
+        errors.Add($"{sheetName}!{field}{row.RowNumber}: accepts only true or false.");
         return false;
     }
 
@@ -376,7 +376,7 @@ public static class XlsxExamWorkbookReader
             type = ExamBlockType.Group;
             return true;
         }
-        errors.Add($"{sheetName}!BlockType{row.RowNumber}: chỉ nhận SINGLE hoặc GROUP.");
+        errors.Add($"{sheetName}!BlockType{row.RowNumber}: accepts only SINGLE or GROUP.");
         type = default;
         return false;
     }
@@ -394,7 +394,7 @@ public static class XlsxExamWorkbookReader
             type = ExamContextType.Image;
             return true;
         }
-        errors.Add($"{sheetName}!Type{row.RowNumber}: chỉ nhận TEXT hoặc IMAGE.");
+        errors.Add($"{sheetName}!Type{row.RowNumber}: accepts only TEXT or IMAGE.");
         type = default;
         return false;
     }
@@ -404,7 +404,7 @@ public static class XlsxExamWorkbookReader
         var value = row.Get(field);
         if (!string.IsNullOrWhiteSpace(value))
             return value;
-        errors.Add($"{sheetName}!{field}{row.RowNumber}: là bắt buộc.");
+        errors.Add($"{sheetName}!{field}{row.RowNumber}: is required.");
         return null;
     }
 

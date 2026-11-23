@@ -283,9 +283,9 @@ public sealed class SpeakingEvaluationProviderTests
                             new
                             {
                                 text = """
-                                    {"summary":"Khá tốt.","strengths":["Rõ ràng."],"improvements":[],
+                                    {"summary":"Pretty good.","strengths":["Clear."],"improvements":[],
                                      "items":[{"position":2,"grammarScore":75,"vocabularyScore":60,
-                                               "relevanceScore":90,"feedback":"Ổn.","suggestedResponse":"Better."}]}
+                                               "relevanceScore":90,"feedback":"Okay.","suggestedResponse":"Better."}]}
                                     """
                             }
                         }
@@ -310,7 +310,7 @@ public sealed class SpeakingEvaluationProviderTests
         var body = Encoding.UTF8.GetString(request.Body);
         Assert.Contains("I read every day.", body);
         Assert.Contains("responseJsonSchema", body);
-        Assert.Equal(("Khá tốt.", 75, 60, 90), (result.Summary, result.Items[0].GrammarScore,
+        Assert.Equal(("Pretty good.", 75, 60, 90), (result.Summary, result.Items[0].GrammarScore,
             result.Items[0].VocabularyScore, result.Items[0].RelevanceScore));
     }
 

@@ -53,13 +53,13 @@ public sealed class EfKnowledgeReader(ToeicDbContext db, IKnowledgeAdminReposito
                join a in db.KnowledgeArticles on b.ArticleId equals a.Id
                where b.UserId == userId
                orderby b.SavedAtUtc descending
-               select new SavedKnowledgeArticle(a.Id, a.Status == KnowledgeArticleStatus.Published ? a.Title : "Bài học không còn khả dụng",
+               select new SavedKnowledgeArticle(a.Id, a.Status == KnowledgeArticleStatus.Published ? a.Title : "Lesson is no longer available",
                    "/knowledge/" + a.Slug, a.Status == KnowledgeArticleStatus.Published)).ToListAsync(ct);
 
     public async Task SaveAsync(Guid userId, Guid articleId, CancellationToken ct)
     {
         if (!await db.KnowledgeArticles.AnyAsync(a => a.Id == articleId && a.Status == KnowledgeArticleStatus.Published, ct))
-            throw new KnowledgeNotFoundException("Không tìm thấy bài học.");
+            throw new KnowledgeNotFoundException("Lesson not found.");
         await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO knowledge_bookmarks (user_id, article_id, saved_at_utc) VALUES ({userId}, {articleId}, {timeProvider.GetUtcNow()}) ON CONFLICT DO NOTHING", ct);
     }
 

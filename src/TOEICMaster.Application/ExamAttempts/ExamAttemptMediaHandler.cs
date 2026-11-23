@@ -36,7 +36,7 @@ public sealed class GetExamAttemptMediaUrlHandler(
             cancellationToken);
 
         if (lookup.Status == AttemptMediaLookupStatus.ListeningLocked)
-            throw new ExamAttemptConflictException("Audio phần Listening đã bị khóa sau khi chuyển sang Reading.");
+            throw new ExamAttemptConflictException("Listening audio is locked after moving to Reading.");
 
         if (lookup.Status != AttemptMediaLookupStatus.Found || string.IsNullOrWhiteSpace(lookup.ObjectKey))
             throw ExamAttemptNotFoundException.ForAttempt(request.AttemptId);
@@ -69,10 +69,10 @@ public sealed class GetExamAttemptListeningPlaylistHandler(
             ?? throw ExamAttemptNotFoundException.ForAttempt(request.AttemptId);
 
         if (source.Status != ExamAttemptStatus.InProgress)
-            throw new ExamAttemptConflictException("Danh sách audio Listening chỉ khả dụng khi bài thi đang diễn ra.");
+            throw new ExamAttemptConflictException("The Listening audio playlist is only available while the exam is in progress.");
 
         if (source.IsListeningLocked)
-            throw new ExamAttemptConflictException("Audio phần Listening đã bị khóa sau khi chuyển sang Reading.");
+            throw new ExamAttemptConflictException("Listening audio is locked after moving to Reading.");
 
         if (source.Blocks.Count == 0)
             return new ExamAttemptListeningPlaylistDto([]);

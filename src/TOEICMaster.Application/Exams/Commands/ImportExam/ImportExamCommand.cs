@@ -26,7 +26,7 @@ public sealed class ImportExamCommandHandler(IExamRepository repository, TimePro
             throw new ExamNotFoundException();
         if (!await repository.ImageAssetsExistAsync(ImportedExamDraftBuilder.GetReferencedImageAssetIds(workbook),
                 cancellationToken))
-            throw new ExamWorkbookFormatException(["Workbook tham chiếu ImageAssetId chưa tồn tại."]);
+            throw new ExamWorkbookFormatException(["Workbook references an ImageAssetId that does not exist."]);
 
         var exam = ImportedExamDraftBuilder.Build(workbook, timeProvider.GetUtcNow());
         await repository.AddExamAsync(exam, cancellationToken);

@@ -32,11 +32,11 @@ public sealed class ResetAdminUserPasswordCommandHandler(
 
         if (!target.HasPassword)
             throw new AdminUserOperationConflictException("PASSWORD_RESET_UNSUPPORTED_PROVIDER",
-                "Tài khoản đăng nhập bằng Google không hỗ trợ đặt lại mật khẩu.");
+                "Google sign-in accounts do not support password reset.");
 
         if (!target.IsActive || !target.EmailVerified)
             throw new AdminUserOperationConflictException("USER_INACTIVE_OR_UNVERIFIED",
-                "Chỉ có thể gửi đặt lại mật khẩu cho tài khoản đang hoạt động và đã xác minh email.");
+                "Password reset can only be sent to active accounts with a verified email.");
 
         var nowUtc = timeProvider.GetUtcNow();
         var code = codeService.Issue(target.NormalizedEmail);
@@ -45,7 +45,7 @@ public sealed class ResetAdminUserPasswordCommandHandler(
                 nowUtc + codeService.Lifetime, codeService.ResendCooldown, cancellationToken))
         {
             throw new AdminUserRateLimitException("PASSWORD_RESET_COOLDOWN",
-                "Vui lòng chờ trước khi gửi lại mã đặt lại mật khẩu.");
+                "Please wait before resending the password reset code.");
         }
 
         try

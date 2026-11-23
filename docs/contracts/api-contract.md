@@ -2,91 +2,107 @@
 
 ## TOEIC Speaking
 
-Admin và learner Speaking dùng `/api/v1/admin/speaking/*` và `/api/v1/speaking/*`.
-Hợp đồng chi tiết: [Admin API](../features/speaking/admin-api.md), [Attempt API](../features/speaking/attempt-api.md).
-Clone mới dùng `POST /admin/speaking/tests/{id}/clone` với `{version, code, title}`, trả `201` và đề DIRECT nháp
-độc lập từ nội dung snapshot của nguồn. Lỗi công bố `422` giữ đủ mảng thông báo, gồm khóa `Content` cho nội dung trùng.
+Admin and learner Speaking endpoints use `/api/v1/admin/speaking/*` and `/api/v1/speaking/*`.
+Detailed contracts: [Admin API](../features/speaking/admin-api.md), [Attempt API](../features/speaking/attempt-api.md).
+Cloning uses `POST /admin/speaking/tests/{id}/clone` with `{version, code, title}`, returning `201` and an independent draft DIRECT test from the source's snapshot content.
+Publish validation error `422` preserves the full error message array, including the `Content` key for duplicate content.
 
-Writing evaluation/history bổ sung `rawScore`, `maxRawScore`, `scorePercentage`; `estimatedScore` là `null`
-với bài practice hoặc chỉ làm một Part. Chỉ full test Writing đủ 5/2/1 câu mới được quy đổi 0–200.
+Writing evaluation/history adds `rawScore`, `maxRawScore`, and `scorePercentage`; `estimatedScore` is `null` for practice items or single-Part attempts.
+Only a full Writing test with all 5/2/1 questions is scaled to 0-200.
 
-## Quản trị đề TOEIC Listening & Reading
+## TOEIC Listening & Reading Exam Administration
 
-Nhóm endpoint `/api/v1/admin/exams`, `/api/v1/admin/exam-media` và `/api/v1/admin/score-profiles` yêu cầu policy `AccountAdministration` (role `Admin`). Phạm vi này chỉ quản trị nội dung đề. Không có endpoint làm bài, nộp bài, chấm điểm hay xem đề của học viên.
+The `/api/v1/admin/exams`, `/api/v1/admin/exam-media`, and `/api/v1/admin/score-profiles` endpoint groups require the `AccountAdministration` policy (`Admin` role).
+This scope covers exam content administration only.
+There are no learner attempt, submission, scoring, or exam-taking endpoints here.
 
-`POST /api/v1/admin/score-profiles` tạo một barem tái sử dụng. Request gồm `name` và `conversions`, trong đó mỗi conversion có `skill` (`Listening` hoặc `Reading`), `rawCorrectCount` từ 0 đến 100 và `scaledScore` từ 5 đến 495, là bội số của 5. `GET /api/v1/admin/score-profiles` trả về các profile để Admin chọn khi tạo hoặc import đề. Một profile được xem là đầy đủ khi có 101 mốc cho mỗi kỹ năng; API không tự seed barem ETS.
+`POST /api/v1/admin/score-profiles` creates a reusable score conversion profile.
+The request includes `name` and `conversions`, where each conversion has `skill` (`Listening` or `Reading`), `rawCorrectCount` from 0 to 100, and `scaledScore` from 5 to 495 as a multiple of 5.
+`GET /api/v1/admin/score-profiles` returns the profiles for Admins to select when creating or importing an exam.
+A profile is considered complete when it has 101 entries for each skill; the API does not automatically seed ETS score tables.
 
-`POST /api/v1/admin/exams` nhận JSON:
+`POST /api/v1/admin/exams` accepts JSON:
 
 ```json
 { "code": "LR-2026-001", "title": "Practice test 1", "scoreProfileId": "<uuid>" }
 ```
 
-Trả `201` với Draft revision đã có đúng 200 slot. `GET /api/v1/admin/exams?status=Draft&pageNumber=1&pageSize=20` phân trang theo trạng thái revision mới nhất. `GET /api/v1/admin/exams/{examId}/revisions/{revisionId}` trả nội dung preview đầy đủ dành cho Admin, bao gồm đáp án.
+Returns `201` with a Draft revision already populated with exactly 200 slots.
+`GET /api/v1/admin/exams?status=Draft&pageNumber=1&pageSize=20` paginates by the latest revision status.
+`GET /api/v1/admin/exams/{examId}/revisions/{revisionId}` returns the full preview content for Admins, including answer keys.
 
-Để chỉnh Draft:
+To edit a Draft:
 
-| Endpoint | Nội dung |
+| Endpoint | Description |
 | --- | --- |
-| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/questions/{questionNumber}` | JSON nội dung câu hỏi và đáp án; Part 2 chỉ nhận A–C, các Part khác A–D. Có thêm `imageRequired`; khi `true`, Publish chỉ thành công sau khi ảnh được gắn. |
-| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/score-profile` | JSON `{ "scoreProfileId": "<uuid>" }`; chọn lại barem cho Draft. |
-| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/blocks/{blockKey}/contexts` | JSON `{ "contexts": [...] }`, với `ordinal` liên tiếp từ 1. Context có `imageRequired`; ảnh bắt buộc phải được gắn trước Publish. |
-| `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/publish` | Publish nếu revision đầy đủ. |
-| `POST /api/v1/admin/exams/{examId}/revisions` | JSON `{ "sourceRevisionId": "<published-revision-uuid>" }`; fork published revision thành Draft mới. |
+| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/questions/{questionNumber}` | JSON question content and answer key; Part 2 only accepts A-C, while other Parts accept A-D. Includes `imageRequired`; when `true`, Publish only succeeds after an image is attached. |
+| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/score-profile` | JSON `{ "scoreProfileId": "<uuid>" }`; reassigns the score profile for the Draft. |
+| `PUT /api/v1/admin/exams/{examId}/revisions/{revisionId}/blocks/{blockKey}/contexts` | JSON `{ "contexts": [...] }`, with `ordinal` sequential starting from 1. Contexts include `imageRequired`; required images must be attached before Publish. |
+| `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/publish` | Publishes the revision if it is complete. |
+| `POST /api/v1/admin/exams/{examId}/revisions` | JSON `{ "sourceRevisionId": "<published-revision-uuid>" }`; forks a published revision into a new Draft. |
 
-`POST /api/v1/admin/exam-media/images` nhận `multipart/form-data`, field `file`, chỉ PNG/JPEG/WebP tối đa 5 MiB. API kiểm tra signature file và trả asset UUID; client dùng UUID đó trong `ImageAssetId`, không dùng tên file hoặc URL.
+`POST /api/v1/admin/exam-media/images` accepts `multipart/form-data` with field `file`, PNG/JPEG/WebP only, up to 5 MiB.
+The API validates the file signature and returns an asset UUID; the client uses that UUID in `ImageAssetId`, not the filename or URL.
 
-### Media workspace cho đề thi
+### Media workspace for exams
 
-Mọi revision Draft đều dùng kiến trúc media thống nhất gắn qua presigned URL.
-`GET revision` trả `audioAssetId` và `audioDurationMs` của block, cùng `imageRequired` của question/context (không còn `usesMediaWorkspace` hay `hasMasterAudio`).
+Every Draft revision uses a unified media architecture attached via presigned URLs.
+`GET revision` returns `audioAssetId` and `audioDurationMs` for blocks, along with `imageRequired` for questions/contexts (`usesMediaWorkspace` and `hasMasterAudio` are no longer returned).
 
-1. `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents` nhận JSON `{ ownerKind, ownerKey, contentType, byteSize, durationMs? }`, trả `201` với `{ intentId, uploadUrl, expiresAtUtc, requiredHeaders }`.
-`ownerKind` là `AudioGroup` (Part 1-4), `QuestionImage` (Part 1-7) hoặc `ContextImage` (Part 5-7).
-Server chỉ cấp URL cho Draft revision, key do server tạo, audio MP3/WAV (`audio/mpeg`, `audio/mp3`, `audio/wav`, `audio/x-wav`) tối đa 100 MiB (kèm `durationMs` tùy chọn trong `1..3_600_000`), và image PNG/JPEG/WebP tối đa 5 MiB (`durationMs` phải `null`).
-2. Browser `PUT` bytes trực tiếp tới `uploadUrl` với `requiredHeaders`; không gửi credential storage qua FE.
-3. `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents/{intentId}/complete` xác minh object tồn tại, MIME và kích thước, lưu `durationMs` từ `expectedDurationMs` sang `ExamMediaAsset` và gắn vào owner; trả `201` với `{ id, contentType, kind, byteSize, durationMs }`.
-Intent hết hạn, đã hoàn tất hoặc Draft không còn hợp lệ trả `409`.
+1. `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents` accepts JSON `{ ownerKind, ownerKey, contentType, byteSize, durationMs? }` and returns `201` with `{ intentId, uploadUrl, expiresAtUtc, requiredHeaders }`.
+   `ownerKind` is `AudioGroup` (Part 1-4), `QuestionImage` (Part 1-7), or `ContextImage` (Part 5-7).
+   The server only issues URLs for Draft revisions with server-generated keys, MP3/WAV audio (`audio/mpeg`, `audio/mp3`, `audio/wav`, `audio/x-wav`) up to 100 MiB (with optional `durationMs` in `1..3_600_000`), and PNG/JPEG/WebP images up to 5 MiB (`durationMs` must be `null`).
+2. The browser performs a `PUT` of raw bytes directly to `uploadUrl` with `requiredHeaders`; storage credentials are not exposed through the FE.
+3. `POST /api/v1/admin/exams/{examId}/revisions/{revisionId}/media-upload-intents/{intentId}/complete` verifies object existence, MIME type, and size, saves `durationMs` from `expectedDurationMs` to `ExamMediaAsset`, and attaches it to the owner; returns `201` with `{ id, contentType, kind, byteSize, durationMs }`.
+   Expired intents, already completed intents, or invalid Drafts return `409`.
 
-Publish yêu cầu audio cho mọi block Listening Part 1-4 và mọi ảnh có `imageRequired=true`.
-Intent chưa hoàn tất được dọn sau khi hết hạn; bucket private và URL ký sẵn không được lưu vào database.
+Publish requires audio for every Listening Part 1-4 block and every image with `imageRequired=true`.
+Incomplete intents are cleaned up after expiration; the bucket is private and presigned URLs are not stored in the database.
 
-### Import một đề L&R hoàn chỉnh
+### Importing a complete L&R exam
 
-`POST /api/v1/admin/exams/import` nhận `multipart/form-data` với field bắt buộc:
+`POST /api/v1/admin/exams/import` accepts `multipart/form-data` with the required field:
 
-- `workbook`: XLSX, tối đa 10 MiB.
+- `workbook`: XLSX, up to 10 MiB.
 
-Import tạo một Draft revision tiêu chuẩn; audio cho từng block Part 1-4 được upload sau qua `media-upload-intents`.
+Importing creates a standard Draft revision; audio for each Part 1-4 block is uploaded afterward via `media-upload-intents`.
 
-Workbook có bốn sheet bắt buộc: `Manifest`, `Blocks`, `ContextBlocks`, `Questions`. `Manifest` có `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, `ScoreProfileId`. `ContextBlocks` và `Questions` hỗ trợ cột `ImageRequired` (true/false; cột cũ không có vẫn hợp lệ). Importer đối chiếu chính xác 103 block và 200 câu theo `BlockKey` + `QuestionNumber`; không dựa vào thứ tự dòng. Lỗi workbook trả `400 ValidationProblemDetails` với key `workbook` và không tạo Draft.
+The workbook has four required sheets: `Manifest`, `Blocks`, `ContextBlocks`, and `Questions`.
+`Manifest` contains `SchemaVersion=1`, `TestCode`, `Title`, `Scope=LISTENING_READING`, and `ScoreProfileId`.
+`ContextBlocks` and `Questions` support the `ImageRequired` column (true/false; older workbooks omitting this column remain valid).
+The importer matches exactly 103 blocks and 200 questions by `BlockKey` + `QuestionNumber`; it does not rely on row order.
+Workbook errors return `400 ValidationProblemDetails` with key `workbook` and do not create a Draft.
 
-Thay toàn bộ placeholder nội dung, `ScoreProfileId` và `ImageAssetId` trước khi import; template cố ý không thể publish nguyên trạng.
+Replace all placeholder content, `ScoreProfileId`, and `ImageAssetId` values before importing; the template is intentionally not publishable as-is.
 
-`GET /api/v1/admin/exams/import-template` tải mẫu XLSX 200 câu, 103 block với đủ Part 1-7.
-Mẫu được phân phối từ API sau khi admin đăng nhập.
-Thay `ScoreProfileId`, các `ImageAssetId` và nội dung demo trước khi gọi endpoint import.
+`GET /api/v1/admin/exams/import-template` downloads a 200-question, 103-block XLSX template covering Parts 1-7.
+The template is distributed by the API after admin sign-in.
+Replace `ScoreProfileId`, `ImageAssetId` values, and demo content before calling the import endpoint.
 
-Các endpoint trong tài liệu này dùng prefix `/api/v1`. Frontend gọi backend qua Next.js route handler và cấu hình
-server-side `API_BASE_URL`; không đưa URL backend hoặc credential vào browser bundle.
+Endpoints in this document use the `/api/v1` prefix.
+The frontend calls the backend through Next.js route handlers and server-side `API_BASE_URL` configuration; do not expose backend URLs or credentials in the browser bundle.
 
-Contract hồ sơ người dùng dùng backend prefix `/api/v1/profile`; BFF ánh xạ nhóm này thành `/api/profile` cho browser.
-Các route `/api/v1/users/me` vẫn có sẵn để tương thích với client cũ.
+The user profile contract uses the backend `/api/v1/profile` prefix; the BFF maps this group to `/api/profile` for the browser.
+The `/api/v1/users/me` routes remain available for backward compatibility with older clients.
 
-## Hồ sơ người dùng (User Profile)
+## User Profile
 
-Browser gọi các Next.js BFF route `/api/profile`, `/api/profile/password` và `/api/profile/avatar`. BFF chuyển tiếp đến backend qua prefix `/api/v1/profile`. Các route backend dưới `/api/v1/users/me` vẫn được giữ làm alias tương thích. Tất cả endpoint backend dưới đây yêu cầu `Authorization: Bearer <accessToken>`. Backend lấy user ID từ claim `sub` đã xác thực; client không gửi user ID.
+The browser calls Next.js BFF routes `/api/profile`, `/api/profile/password`, and `/api/profile/avatar`.
+The BFF forwards requests to the backend under the `/api/v1/profile` prefix.
+Backend routes under `/api/v1/users/me` are kept as compatibility aliases.
+All backend endpoints below require `Authorization: Bearer <accessToken>`.
+The backend reads the user ID from the authenticated `sub` claim; the client does not send a user ID.
 
-| Endpoint | Input | Thành công | Lỗi chính |
+| Endpoint | Input | Success | Primary Errors |
 | :--- | :--- | :--- | :--- |
-| `GET /api/v1/profile` | Không có body | `200` JSON profile | `401` khi không có phiên hợp lệ |
-| `PATCH /api/v1/profile` | JSON `{ "displayName": "Tên mới" }` | `200` JSON profile sau cập nhật | `400` khi tên trống hoặc quá 100 ký tự |
-| `PUT /api/v1/profile` | JSON `{ "displayName": "Tên", "phone": "0912345678", "targetScore": 750 }` | `200` JSON profile sau cập nhật | `400` khi dữ liệu không hợp lệ |
-| `PUT /api/v1/profile/avatar` | `multipart/form-data`, field `file` | `200` JSON profile sau cập nhật (hoặc `204`) | `400` khi file không hợp lệ, `413` khi vượt 2 MiB |
-| `GET /api/v1/profile/avatar` | Không có body | `200` binary PNG/JPEG/WebP | `404` khi chưa có ảnh |
-| `PUT /api/v1/profile/password` | JSON `{ "currentPassword": "...", "newPassword": "..." }` | `204 No Content` | `400` khi mật khẩu cũ sai hoặc dữ liệu không hợp lệ |
+| `GET /api/v1/profile` | No body | `200` profile JSON | `401` when there is no valid session |
+| `PATCH /api/v1/profile` | JSON `{ "displayName": "New Name" }` | `200` updated profile JSON | `400` when name is empty or exceeds 100 characters |
+| `PUT /api/v1/profile` | JSON `{ "displayName": "Name", "phone": "0912345678", "targetScore": 750 }` | `200` updated profile JSON | `400` when data is invalid |
+| `PUT /api/v1/profile/avatar` | `multipart/form-data`, field `file` | `200` updated profile JSON (or `204`) | `400` when file is invalid, `413` when exceeding 2 MiB |
+| `GET /api/v1/profile/avatar` | No body | `200` binary PNG/JPEG/WebP | `404` when no avatar exists |
+| `PUT /api/v1/profile/password` | JSON `{ "currentPassword": "...", "newPassword": "..." }` | `204 No Content` | `400` when current password is wrong or data is invalid |
 
-JSON profile:
+Profile JSON:
 
 ```json
 {
@@ -101,27 +117,28 @@ JSON profile:
 }
 ```
 
-- `avatarUrl`, `phone`, `targetScore` là `null` nếu chưa có.
-- `avatarUrl` là đường dẫn tương đối cần Bearer token.
-- Ảnh đại diện giới hạn 2 MiB, định dạng `image/png`, `image/jpeg` hoặc `image/webp`.
-- Đổi mật khẩu yêu cầu 8–128 ký tự và thu hồi toàn bộ refresh session cũ.
+- `avatarUrl`, `phone`, and `targetScore` are `null` if not set.
+- `avatarUrl` is a relative path requiring a Bearer token.
+- Avatar size limit is 2 MiB, formats `image/png`, `image/jpeg`, or `image/webp`.
+- Changing password requires 8-128 characters and revokes all existing refresh sessions.
 
-## Quản trị người dùng (Admin Users)
+## Admin Users
 
-Tất cả endpoint dưới `/api/v1/admin/users` yêu cầu policy `AccountAdministration` (role `Admin`). Lỗi trả về `application/problem+json` theo RFC 9457 kèm `traceId` (và `code` cho các xung đột nghiệp vụ hoặc rate-limit).
+All endpoints under `/api/v1/admin/users` require the `AccountAdministration` policy (`Admin` role).
+Errors return `application/problem+json` per RFC 9457 with `traceId` (and `code` for business conflicts or rate limits).
 
-### 1. Danh sách người dùng
+### 1. List users
 
 `GET /api/v1/admin/users`
 
-| Query | Mặc định | Điều kiện |
+| Query | Default | Constraints |
 | :--- | :--- | :--- |
-| `page` | 1 | 1 đến 10000 |
-| `pageSize` | 10 | 1 đến 100 |
-| `q` | | Tìm trong họ tên và email, tối đa 100 ký tự |
+| `page` | 1 | 1 to 10000 |
+| `pageSize` | 10 | 1 to 100 |
+| `q` | | Search in full name and email, up to 100 characters |
 | `role` | | `USER`, `ADMIN` |
 | `status` | | `ACTIVE`, `PENDING`, `LOCKED` |
-| `sort` | `createdAt:desc` | `fullName`, `createdAt` hoặc `lastLoginAt`, kèm `:asc` hoặc `:desc` |
+| `sort` | `createdAt:desc` | `fullName`, `createdAt`, or `lastLoginAt`, with `:asc` or `:desc` |
 
 Response `200 OK`:
 
@@ -149,20 +166,20 @@ Response `200 OK`:
 }
 ```
 
-- `status`: `ACTIVE` khi `IsActive`; `PENDING` khi chưa kích hoạt và chưa xác thực email; `LOCKED` khi chưa kích hoạt nhưng đã xác thực email.
-- `authProvider`: `GOOGLE` khi tài khoản không có mật khẩu, còn lại là `PASSWORD`.
-- `lastLoginAt`: thời điểm tạo phiên đăng nhập mới nhất, không tính các phiên sinh ra do refresh.
-- `avatarUrl` luôn `null` vì endpoint ảnh đại diện chỉ phục vụ người đang đăng nhập.
-- `stats` tính trên toàn bộ người dùng, không phụ thuộc bộ lọc.
+- `status`: `ACTIVE` when `IsActive`; `PENDING` when inactive and email not verified; `LOCKED` when inactive and email verified.
+- `authProvider`: `GOOGLE` when the account has no password, otherwise `PASSWORD`.
+- `lastLoginAt`: timestamp of the newest login session creation, excluding sessions created via refresh.
+- `avatarUrl` is always `null` because the avatar endpoint only serves the currently authenticated user.
+- `stats` is calculated across all users, independent of filters.
 
-### 2. Chi tiết người dùng
+### 2. Get user details
 
 `GET /api/v1/admin/users/{id}`
 
-- Response `200 OK`: `AdminUserDto` (10 trường như phần tử trong `items`).
-- Response `404 Not Found`: ProblemDetails khi không tìm thấy người dùng.
+- Response `200 OK`: `AdminUserDto` (the same 10 fields as an element in `items`).
+- Response `404 Not Found`: ProblemDetails when the user is not found.
 
-### 3. Tạo người dùng mới
+### 3. Create new user
 
 `POST /api/v1/admin/users`
 
@@ -175,13 +192,13 @@ Response `200 OK`:
 }
 ```
 
-- `role`: `USER` hoặc `ADMIN`.
-- Khi `sendActivationEmail` là `true`: tạo tài khoản ở trạng thái `PENDING` (`emailVerified: false`) và gửi email mã kích hoạt; lỗi gửi mail sẽ giải phóng cooldown.
-- Khi `sendActivationEmail` là `false`: tạo tài khoản `ACTIVE` (`emailVerified: true`) và không gửi email.
-- Response `201 Created`: header `Location` trỏ về `/api/v1/admin/users/{id}` và body `AdminUserDto`.
-- Lỗi: `400 ValidationProblemDetails` (input không hợp lệ), `409 Conflict` (email đã tồn tại).
+- `role`: `USER` or `ADMIN`.
+- When `sendActivationEmail` is `true`: creates the account in `PENDING` state (`emailVerified: false`) and sends an activation code email; mail-sending errors release the cooldown.
+- When `sendActivationEmail` is `false`: creates an `ACTIVE` account (`emailVerified: true`) without sending an email.
+- Response `201 Created`: `Location` header pointing to `/api/v1/admin/users/{id}` and body `AdminUserDto`.
+- Errors: `400 ValidationProblemDetails` (invalid input), `409 Conflict` (email already exists).
 
-### 4. Cập nhật vai trò người dùng
+### 4. Update user role
 
 `PATCH /api/v1/admin/users/{id}`
 
@@ -191,101 +208,107 @@ Response `200 OK`:
 }
 ```
 
-- Response `200 OK`: `AdminUserDto` sau cập nhật (idempotent nếu vai trò không đổi). Hạ quyền `ADMIN -> USER` sẽ thu hồi toàn bộ refresh session đang hoạt động của người dùng đó.
-- Lỗi: `400 ValidationProblemDetails`, `404 Not Found`, `409 Conflict` (`code: "CANNOT_DEMOTE_SELF"` khi tự hạ quyền mình; `code: "LAST_ACTIVE_ADMIN"` khi hạ quyền quản trị viên đang hoạt động cuối cùng).
+- Response `200 OK`: updated `AdminUserDto` (idempotent if the role is unchanged).
+  Demoting `ADMIN -> USER` revokes all active refresh sessions for that user.
+- Errors: `400 ValidationProblemDetails`, `404 Not Found`, `409 Conflict` (`code: "CANNOT_DEMOTE_SELF"` when demoting oneself; `code: "LAST_ACTIVE_ADMIN"` when demoting the last active administrator).
 
-### 5. Xóa người dùng
+### 5. Delete user
 
 `DELETE /api/v1/admin/users/{id}`
 
-- Response `204 No Content`: xóa người dùng trong transaction (dọn self-FK `ReplacedBySessionId` trước khi xóa và xóa avatar trên MinIO best-effort sau commit).
-- Lỗi: `404 Not Found`, `409 Conflict` (`code: "CANNOT_DELETE_SELF"`, `code: "LAST_ACTIVE_ADMIN"`, hoặc `code: "USER_HAS_REFERENCED_CONTENT"` khi người dùng đang được tham chiếu bởi nội dung Knowledge hoặc dữ liệu bị `Restrict`).
+- Response `204 No Content`: deletes the user within a transaction (clears self-FK `ReplacedBySessionId` before deletion and deletes the avatar in MinIO best-effort after commit).
+- Errors: `404 Not Found`, `409 Conflict` (`code: "CANNOT_DELETE_SELF"`, `code: "LAST_ACTIVE_ADMIN"`, or `code: "USER_HAS_REFERENCED_CONTENT"` when the user is referenced by Knowledge content or `Restrict`-constrained data).
 
-### 6. Khóa tài khoản người dùng
+### 6. Lock user account
 
-`POST /api/v1/admin/users/{id}/lock` (không có request body)
+`POST /api/v1/admin/users/{id}/lock` (no request body)
 
-- Response `204 No Content`: đặt `IsActive = false`, thu hồi toàn bộ `UserSessions` đang hoạt động và xóa `PasswordResetChallenges` trong cùng transaction.
-- Lỗi: `404 Not Found`, `409 Conflict` (`code: "CANNOT_LOCK_SELF"`, `code: "LAST_ACTIVE_ADMIN"`, `code: "USER_PENDING_VERIFICATION"`).
+- Response `204 No Content`: sets `IsActive = false`, revokes all active `UserSessions`, and removes `PasswordResetChallenges` in the same transaction.
+- Errors: `404 Not Found`, `409 Conflict` (`code: "CANNOT_LOCK_SELF"`, `code: "LAST_ACTIVE_ADMIN"`, `code: "USER_PENDING_VERIFICATION"`).
 
-### 7. Mở khóa tài khoản người dùng
+### 7. Unlock user account
 
-`DELETE /api/v1/admin/users/{id}/lock` (không có request body)
+`DELETE /api/v1/admin/users/{id}/lock` (no request body)
 
-- Response `204 No Content`: đặt `IsActive = true` (idempotent nếu đang `ACTIVE`).
-- Lỗi: `404 Not Found`, `409 Conflict` (`code: "USER_PENDING_VERIFICATION"` khi tài khoản chưa xác minh email).
+- Response `204 No Content`: sets `IsActive = true` (idempotent if already `ACTIVE`).
+- Errors: `404 Not Found`, `409 Conflict` (`code: "USER_PENDING_VERIFICATION"` when the account has not verified its email).
 
-### 8. Gửi đặt lại mật khẩu cho người dùng
+### 8. Send password reset for user
 
-`POST /api/v1/admin/users/{id}/reset-password` (không có request body)
+`POST /api/v1/admin/users/{id}/reset-password` (no request body)
 
-- Response `204 No Content`: tạo OTP đặt lại mật khẩu và gửi `PasswordResetMail` (lỗi gửi mail sẽ giải phóng cooldown).
-- Lỗi: `404 Not Found`, `409 Conflict` (`code: "PASSWORD_RESET_UNSUPPORTED_PROVIDER"` với tài khoản Google-only; `code: "USER_INACTIVE_OR_UNVERIFIED"` với tài khoản bị khóa hoặc chưa xác minh), `429 Too Many Requests` (`code: "PASSWORD_RESET_COOLDOWN"`).
+- Response `204 No Content`: creates a password reset OTP and sends `PasswordResetMail` (mail-sending errors release the cooldown).
+- Errors: `404 Not Found`, `409 Conflict` (`code: "PASSWORD_RESET_UNSUPPORTED_PROVIDER"` for Google-only accounts; `code: "USER_INACTIVE_OR_UNVERIFIED"` for locked or unverified accounts), `429 Too Many Requests` (`code: "PASSWORD_RESET_COOLDOWN"`).
 
-## Thi thử TOEIC Listening & Reading (learner)
+## TOEIC Listening & Reading Mock Test (learner)
 
-`GET /api/v1/exams/lr` cho phép xem danh sách đề đã công bố không cần đăng nhập (giống Speaking, Writing và L&R Practice). Các endpoint còn lại yêu cầu Bearer token và chỉ truy cập được lượt làm bài của chính người dùng đó. Server là nguồn thời gian duy nhất: giới hạn 120 phút do server đặt (client không gửi), thời gian còn lại tính từ `startedAtUtc`.
+`GET /api/v1/exams/lr` allows viewing the list of published exams without signing in (similar to Speaking, Writing, and L&R Practice).
+All remaining endpoints require a Bearer token and only allow access to attempts belonging to the authenticated user.
+The server is the single source of time: the 120-minute time limit is set by the server (not sent by the client), with remaining time calculated from `startedAtUtc`.
 
-| Method | Đường dẫn | Mục đích |
-| ------ | --------- | -------- |
-| GET | `/api/v1/exams/lr` | Danh sách revision Published mới nhất của từng đề, không chứa đáp án đúng (`AllowAnonymous`) |
-| GET | `/api/v1/exams/{examId}/lr-overview` | Màn hướng dẫn: tên đề, 200 câu, 120 phút, thang 10–990, `activeAttemptId` nếu có lượt đang làm dở |
-| POST | `/api/v1/exams/{examId}/attempts` | Bắt đầu lượt mới, hoặc tiếp tục lượt đang làm. Lượt cũ đã quá hạn được nộp tự động tại hạn chót rồi mở lượt mới |
-| GET | `/api/v1/exams/{examId}/current-attempt` | Lượt đang làm dở, `404` nếu không có |
-| GET | `/api/v1/exam-attempts/{attemptId}` | Tải lại đề và đáp án đã lưu (`phase`: `listening` hoặc `reading`) |
-| POST | `/api/v1/exam-attempts/{attemptId}/start-reading` | Chuyển sang Reading. Từ đây câu 1–100 bị khóa |
-| PUT | `/api/v1/exam-attempts/{attemptId}/answers` | Autosave: `[{ "questionId", "selectedKey", "isFlagged" }]`, tối đa 200 câu mỗi lần. `selectedKey` null hoặc rỗng là bỏ chọn |
-| PUT | `/api/v1/exam-attempts/{attemptId}/questions/{questionId}/flag` | Gắn hoặc bỏ cờ: `{ "isFlagged": true }` |
-| POST | `/api/v1/exam-attempts/{attemptId}/submit` | Nộp bài, trả kết quả |
-| POST | `/api/v1/exam-attempts/{attemptId}/abandon` | Hủy lượt đang làm |
-| GET | `/api/v1/exam-attempts/{attemptId}/listening-audio-urls` | Danh sách presigned URL audio Part 1-4 theo thứ tự (`items: [{ blockId, part, firstQuestionNumber, audioAssetId, durationMs, url, expiresAtUtc }]`); trả `409` nếu đã khóa Listening hoặc không ở trạng thái `InProgress` |
-| GET | `/api/v1/exam-attempts/{attemptId}/audio/{assetId}` | Presigned URL cho một audio asset thuộc lượt làm (`409` nếu `InProgress` và đã khóa Listening; hợp lệ khi Review ở trạng thái `Completed`) |
-| GET | `/api/v1/exam-attempts/{attemptId}/images/{assetId}` | Presigned URL cho ảnh thuộc lượt làm |
-| GET | `/api/v1/exam-attempts/{attemptId}/result` | Báo cáo điểm: Listening/Reading, tổng, số đúng/sai/bỏ qua, hiệu suất theo Part (`parts`) |
-| GET | `/api/v1/exam-attempts/{attemptId}/review?filter=All` | Xem lại: `All`, `Incorrect` (sai hoặc bỏ qua), `Flagged`. Câu được nhóm theo `blocks` kèm đoạn văn (`contextBlocks`), `audioAssetId` và `audioDurationMs` cho Part 1-4; `status` là `correct`, `wrong` hoặc `skipped` |
-| GET | `/api/v1/exam-attempts/history` | Lịch sử các lượt làm |
+| Method | Path | Purpose |
+| ------ | ---- | ------- |
+| GET | `/api/v1/exams/lr` | List of the latest Published revision for each exam, without answer keys (`AllowAnonymous`) |
+| GET | `/api/v1/exams/{examId}/lr-overview` | Instructions screen: exam title, 200 questions, 120 minutes, 10-990 scale, `activeAttemptId` if an in-progress attempt exists |
+| POST | `/api/v1/exams/{examId}/attempts` | Starts a new attempt, or resumes an active attempt. Any expired prior attempt is auto-submitted at its deadline before opening a new one |
+| GET | `/api/v1/exams/{examId}/current-attempt` | Current in-progress attempt, `404` if none exists |
+| GET | `/api/v1/exam-attempts/{attemptId}` | Reloads the exam and saved answers (`phase`: `listening` or `reading`) |
+| POST | `/api/v1/exam-attempts/{attemptId}/start-reading` | Switches to Reading. From this point, questions 1-100 are locked |
+| PUT | `/api/v1/exam-attempts/{attemptId}/answers` | Autosave: `[{ "questionId", "selectedKey", "isFlagged" }]`, up to 200 questions per call. Null or empty `selectedKey` clears the selection |
+| PUT | `/api/v1/exam-attempts/{attemptId}/questions/{questionId}/flag` | Flags or unflags a question: `{ "isFlagged": true }` |
+| POST | `/api/v1/exam-attempts/{attemptId}/submit` | Submits the attempt and returns the result |
+| POST | `/api/v1/exam-attempts/{attemptId}/abandon` | Abandons the current in-progress attempt |
+| GET | `/api/v1/exam-attempts/{attemptId}/listening-audio-urls` | Ordered list of Part 1-4 audio presigned URLs (`items: [{ blockId, part, firstQuestionNumber, audioAssetId, durationMs, url, expiresAtUtc }]`); returns `409` if Listening is locked or status is not `InProgress` |
+| GET | `/api/v1/exam-attempts/{attemptId}/audio/{assetId}` | Presigned URL for an audio asset belonging to the attempt (`409` if `InProgress` and Listening is locked; allowed during Review when `Completed`) |
+| GET | `/api/v1/exam-attempts/{attemptId}/images/{assetId}` | Presigned URL for an image belonging to the attempt |
+| GET | `/api/v1/exam-attempts/{attemptId}/result` | Score report: Listening/Reading scores, total, correct/wrong/skipped counts, performance by Part (`parts`) |
+| GET | `/api/v1/exam-attempts/{attemptId}/review?filter=All` | Review: `All`, `Incorrect` (wrong or skipped), `Flagged`. Questions are grouped by `blocks` with passages (`contextBlocks`), `audioAssetId`, and `audioDurationMs` for Parts 1-4; `status` is `correct`, `wrong`, or `skipped` |
+| GET | `/api/v1/exam-attempts/history` | Attempt history |
 
-Quy tắc server:
+Server rules:
 
-- Đáp án phải là `A`–`D` (Part 2 chỉ `A`–`C`) và câu hỏi phải thuộc đề của lượt làm, nếu không trả `400`.
-- Sau `start-reading`, sửa hoặc gắn cờ câu Listening trả `409`.
-- Quá hạn chót cộng 5 giây, lưu đáp án trả `409`. Mở lại hoặc nộp sau hạn chót: bài được chấm tại hạn chót và `isTimeExpired = true`.
-- Chưa có `review` và `result` trước khi nộp (`409`).
-- Câu bỏ trống tính là `skipped`. Điểm quy đổi dùng barem của đề, barem thiếu mốc thì `400` thay vì tự suy ra điểm.
-- `explanation` và `translation` là hai trường văn bản duy nhất hiện có cho mỗi câu. Phần Bẫy, Ghi chú, Kỹ năng trên màn Review chưa có dữ liệu.
+- Answers must be `A`-`D` (Part 2 only `A`-`C`) and the question must belong to the attempt's exam; otherwise `400`.
+- After `start-reading`, editing or flagging Listening questions returns `409`.
+- Past the deadline plus 5 seconds, saving answers returns `409`.
+  Reopening or submitting after the deadline grades the attempt at the deadline with `isTimeExpired = true`.
+- `review` and `result` are unavailable before submission (`409`).
+- Unanswered questions count as `skipped`.
+  Scaled scores use the exam's score profile; if the profile is missing entries, `400` is returned instead of interpolating scores.
+- `explanation` and `translation` are the only two text fields currently available per question.
+  The Traps, Notes, and Skills sections on the Review screen do not yet have data.
 
-Migration `AddExamAttemptReadingPhase` thêm cột `ExamAttempts.ReadingStartedAtUtc`.
+Migration `AddExamAttemptReadingPhase` adds the `ExamAttempts.ReadingStartedAtUtc` column.
 
-## Luyện tập Listening & Reading (learner)
+## Listening & Reading Practice (learner)
 
-| Method | Đường dẫn | Auth | Mục đích và trạng thái |
-| ------ | --------- | ---- | ---------------------- |
-| GET | `/api/v1/lr-practice/parts/{part}/items?pageNumber=1&pageSize=20` | Anonymous | Danh sách item Published của Part 1-7, tối đa 50 item mỗi trang; trả `400` khi Part hoặc trang không hợp lệ |
-| GET | `/api/v1/lr-practice/items/{id}` | Anonymous | Chi tiết item Published; không trả `correctKey`, `translation` hoặc `explanation`; item không tồn tại hoặc Draft trả `404` |
-| POST | `/api/v1/lr-practice/items/{id}/submit` | Bearer | Chấm bài và lưu attempt của learner; trả `200`, `400`, `401` hoặc `404` |
-| GET | `/api/v1/lr-practice/parts/{part}/statistics` | Bearer | Thống kê riêng của learner theo item trong Part; trả `200`, `400` hoặc `401` |
+| Method | Path | Auth | Purpose and Status |
+| ------ | ---- | ---- | ------------------ |
+| GET | `/api/v1/lr-practice/parts/{part}/items?pageNumber=1&pageSize=20` | Anonymous | List of Published items for Parts 1-7, up to 50 items per page; returns `400` if Part or page is invalid |
+| GET | `/api/v1/lr-practice/items/{id}` | Anonymous | Published item details; omits `correctKey`, `translation`, and `explanation`; nonexistent or Draft items return `404` |
+| POST | `/api/v1/lr-practice/items/{id}/submit` | Bearer | Grades and saves the learner's attempt; returns `200`, `400`, `401`, or `404` |
+| GET | `/api/v1/lr-practice/parts/{part}/statistics` | Bearer | Learner-specific statistics by item within the Part; returns `200`, `400`, or `401` |
 
-Request submit có dạng `{ "answers": [{ "questionId": "<uuid>", "selectedKey": "A" }] }`.
-`selectedKey` không có hoặc rỗng được tính là bỏ qua, còn giá trị khác phải là option đang tồn tại của câu hỏi và không dài quá 8 ký tự.
-User ID luôn lấy từ JWT claim `sub` hoặc `NameIdentifier`.
-Statistics được tổng hợp trong PostgreSQL và không đọc attempt của user khác.
+The submit request has the shape `{ "answers": [{ "questionId": "<uuid>", "selectedKey": "A" }] }`.
+A missing or empty `selectedKey` counts as skipped, while any other value must be an existing option for the question and at most 8 characters long.
+The user ID is always read from the JWT `sub` or `NameIdentifier` claim.
+Statistics are aggregated in PostgreSQL and do not read attempts from other users.
 
-## Giới hạn request xác thực
+## Authentication Rate Limiting
 
-Các endpoint xác thực có fixed-window rate limit theo địa chỉ IP trong từng API instance:
+Authentication endpoints apply a fixed-window rate limit by IP address per API instance:
 
-| Nhóm | Endpoint | Giới hạn local |
+| Group | Endpoints | Local Limit |
 | --- | --- | --- |
-| Gửi email | `register`, `resend-verification`, `forgot-password` | 5 request/phút/IP |
-| Credential | `verify-email`, `verify-password-reset`, `reset-password`, `login`, `google` | 10 request/phút/IP |
-| Phiên | `refresh`, `logout` | 30 request/phút/IP |
+| Email sending | `register`, `resend-verification`, `forgot-password` | 5 requests/minute/IP |
+| Credentials | `verify-email`, `verify-password-reset`, `reset-password`, `login`, `google` | 10 requests/minute/IP |
+| Sessions | `refresh`, `logout` | 30 requests/minute/IP |
 
-Khi vượt giới hạn, API trả `429 Too Many Requests`, header `Retry-After` và `ProblemDetails` có `traceId`. Rate limit
-này bổ sung cho cooldown resend và giới hạn nhập sai OTP theo account; không thay thế hai cơ chế đó. Bản local lưu bộ
-đếm trong memory của process. Khi triển khai nhiều API instance, chuyển lớp giới hạn chung sang gateway hoặc distributed
-store và cấu hình trusted proxy trước khi dùng forwarded client IP.
+When exceeded, the API returns `429 Too Many Requests`, a `Retry-After` header, and `ProblemDetails` with `traceId`.
+This rate limit supplements the per-account resend cooldown and OTP failure limit; it does not replace those two mechanisms.
+The local build stores counters in process memory.
+When deploying multiple API instances, move the shared rate-limiting layer to a gateway or distributed store and configure trusted proxies before using forwarded client IPs.
 
-## Đăng ký tài khoản local
+## Local Account Registration
 
 `POST /api/v1/auth/register`
 
@@ -299,20 +322,22 @@ Request:
 }
 ```
 
-- `displayName`: bắt buộc, sau khi trim còn 1–100 ký tự.
-- `email`: bắt buộc, định dạng email hợp lệ, tối đa 254 ký tự. Backend trim và dùng bản chuẩn hóa không phân biệt
-  hoa thường để kiểm tra trùng.
-- `password`: giữ nguyên khoảng trắng, từ 8–128 ký tự. Backend chỉ lưu BCrypt enhanced hash, không lưu plaintext.
+- `displayName`: required, 1-100 characters after trimming.
+- `email`: required, valid email format, maximum 254 characters.
+  The backend trims and uses a case-insensitive normalized form for duplicate checks.
+- `password`: preserves whitespace, 8-128 characters.
+  The backend only stores a BCrypt enhanced hash, never plaintext.
 
-| Status | Nội dung |
+| Status | Description |
 | --- | --- |
-| `202 Accepted` | Tạo tài khoản chưa kích hoạt và gửi OTP, response không có body. |
-| `400 Bad Request` | `ValidationProblemDetails`, lỗi theo các field `DisplayName`, `Email`, `Password`. |
-| `409 Conflict` | Email thuộc tài khoản đã kích hoạt. |
+| `202 Accepted` | Creates an inactive account and sends an OTP; empty response body. |
+| `400 Bad Request` | `ValidationProblemDetails`, errors keyed by `DisplayName`, `Email`, `Password`. |
+| `409 Conflict` | Email belongs to an already activated account. |
 
-Tài khoản local mới không thể đăng nhập trước khi xác minh. OTP gồm 6 chữ số, hết hạn sau 10 phút, chỉ lưu HMAC trong
-PostgreSQL và cho phép tối đa 5 lần nhập sai. Đăng ký lại một email đang chờ xác minh không thay đổi tên hoặc mật khẩu
-đã lưu; backend chỉ gửi mã mới nếu đã qua cooldown 60 giây. Trong cooldown vẫn trả `202` để tránh tạo cơ chế spam.
+New local accounts cannot sign in before verification.
+The OTP consists of 6 digits, expires after 10 minutes, is stored only as an HMAC in PostgreSQL, and allows at most 5 failed attempts.
+Re-registering an email that is pending verification does not overwrite the stored name or password; the backend only sends a new code if the 60-second cooldown has passed.
+During the cooldown, it still returns `202` to avoid creating an enumeration/spam vector.
 
 `POST /api/v1/auth/verify-email`
 
@@ -320,8 +345,9 @@ PostgreSQL và cho phép tối đa 5 lần nhập sai. Đăng ký lại một em
 { "email": "learner@example.com", "code": "123456" }
 ```
 
-Trả `204 No Content` khi xác minh thành công. Mã sai, hết hạn hoặc đã đủ 5 lần sai trả `400 ProblemDetails` với thông báo
-chung. Sau khi nhận `204`, frontend chuyển người dùng về trang đăng nhập.
+Returns `204 No Content` on successful verification.
+An invalid, expired, or 5-times-failed code returns `400 ProblemDetails` with a generic message.
+After receiving `204`, the frontend redirects the user to the sign-in page.
 
 `POST /api/v1/auth/resend-verification`
 
@@ -329,15 +355,15 @@ chung. Sau khi nhận `204`, frontend chuyển người dùng về trang đăng 
 { "email": "learner@example.com" }
 ```
 
-Luôn trả `202 Accepted` cho request hợp lệ, kể cả email không tồn tại, đã kích hoạt hoặc còn trong cooldown. Chỉ tài
-khoản chưa kích hoạt đã qua cooldown mới được cấp và gửi mã mới; việc này tránh dò email và spam SMTP.
+Always returns `202 Accepted` for valid requests, even if the email does not exist, is already active, or is within the cooldown.
+Only inactive accounts past the cooldown are issued and sent a new code; this prevents email enumeration and SMTP spam.
 
-## Quên mật khẩu
+## Forgot Password
 
-Luồng đặt lại mật khẩu gồm ba bước. OTP và reset token chỉ được lưu dạng hash, dùng một lần và tách biệt hoàn toàn với
-OTP kích hoạt tài khoản.
+The password reset flow consists of three steps.
+OTPs and reset tokens are stored only as hashes, are single-use, and are completely separate from account activation OTPs.
 
-### Yêu cầu mã đặt lại mật khẩu
+### Request a password reset code
 
 `POST /api/v1/auth/forgot-password`
 
@@ -345,11 +371,11 @@ OTP kích hoạt tài khoản.
 { "email": "learner@example.com" }
 ```
 
-Request hợp lệ luôn trả `202 Accepted` và không có body, kể cả email không tồn tại, tài khoản chỉ đăng nhập Google,
-tài khoản chưa kích hoạt hoặc đang trong cooldown 60 giây. Chỉ tài khoản local đã kích hoạt và xác minh email mới nhận
-OTP 6 chữ số. OTP hết hạn sau 10 phút và cho phép tối đa 5 lần nhập sai.
+Valid requests always return `202 Accepted` with an empty body, even if the email does not exist, belongs to a Google-only account, is inactive, or is within the 60-second cooldown.
+Only activated and email-verified local accounts receive a 6-digit OTP.
+The OTP expires after 10 minutes and allows at most 5 failed attempts.
 
-### Xác minh mã đặt lại mật khẩu
+### Verify the password reset code
 
 `POST /api/v1/auth/verify-password-reset`
 
@@ -366,10 +392,11 @@ Response `200 OK`:
 }
 ```
 
-Response có `Cache-Control: no-store`. Xác minh thành công làm OTP không thể dùng lại; reset token sống 10 phút và chỉ
-dùng được một lần. Mã sai, hết hạn, đã dùng hoặc vượt 5 lần sai trả `400 ProblemDetails` với thông báo chung.
+The response includes `Cache-Control: no-store`.
+Successful verification invalidates the OTP so it cannot be reused; the reset token has a 10-minute lifetime and can only be used once.
+An invalid, expired, already used, or 5-times-failed code returns `400 ProblemDetails` with a generic message.
 
-### Đặt mật khẩu mới
+### Set a new password
 
 `POST /api/v1/auth/reset-password`
 
@@ -380,13 +407,13 @@ dùng được một lần. Mã sai, hết hạn, đã dùng hoặc vượt 5 l�
 }
 ```
 
-- `newPassword`: giữ nguyên khoảng trắng, từ 8–128 ký tự.
-- Thành công trả `204 No Content`, dùng reset token một lần và thu hồi toàn bộ refresh session đang hoạt động của tài
-  khoản. Access token đã cấp trước đó tự hết hạn theo thời gian sống tối đa 15 phút.
-- Token sai, hết hạn hoặc đã dùng trả `400 ProblemDetails` với thông báo chung.
-- Response có `Cache-Control: no-store`.
+- `newPassword`: preserves whitespace, 8-128 characters.
+- Success returns `204 No Content`, consumes the reset token (single-use), and revokes all active refresh sessions for the account.
+  Previously issued access tokens expire naturally according to their maximum 15-minute lifetime.
+- Invalid, expired, or already used tokens return `400 ProblemDetails` with a generic message.
+- The response includes `Cache-Control: no-store`.
 
-## Đăng nhập local
+## Local Sign-In
 
 `POST /api/v1/auth/login`
 
@@ -400,9 +427,8 @@ Request:
 }
 ```
 
-Backend trim và chuẩn hóa email không phân biệt hoa thường; password được kiểm tra nguyên trạng. Tài khoản không tồn
-tại, chưa xác minh email, không có mật khẩu local, bị vô hiệu hóa hoặc sai mật khẩu đều nhận cùng response `401` để
-không tiết lộ trạng thái tài khoản.
+The backend trims and case-insensitively normalizes the email; the password is checked verbatim.
+Nonexistent accounts, unverified emails, accounts without a local password, disabled accounts, or wrong passwords all receive the same `401` response so account status is not disclosed.
 
 Response `200 OK`:
 
@@ -421,20 +447,20 @@ Response `200 OK`:
 }
 ```
 
-- Access token sống 15 phút. JWT chứa `sub`, `email`, `name`, `jti`, `iss`, `aud`, `iat`, `nbf`, `exp`; chưa có role
-  claim vì mô hình phân quyền chưa được chốt.
-- Refresh session sống 1 ngày khi `rememberMe=false`, 30 ngày khi `rememberMe=true`.
-- PostgreSQL chỉ lưu SHA-256 hash của refresh token. Token thô chỉ xuất hiện trong response lúc cấp phát.
-- Next.js BFF nên giữ refresh token trong cookie `Secure`, `HttpOnly`, `SameSite`; không lưu refresh token vào
-  `localStorage` hoặc JavaScript phía browser.
+- Access tokens live for 15 minutes.
+  The JWT contains `sub`, `email`, `name`, `jti`, `iss`, `aud`, `iat`, `nbf`, and `exp`; there is no role claim yet because the authorization model has not been finalized.
+- Refresh sessions live for 1 day when `rememberMe=false`, and 30 days when `rememberMe=true`.
+- PostgreSQL only stores the SHA-256 hash of the refresh token.
+  The raw token only appears in the response when issued.
+- The Next.js BFF should store the refresh token in a `Secure`, `HttpOnly`, `SameSite` cookie; do not store refresh tokens in `localStorage` or browser-side JavaScript.
 
-| Status | Nội dung |
+| Status | Description |
 | --- | --- |
-| `200 OK` | Token pair và thông tin người dùng. |
-| `400 Bad Request` | `ValidationProblemDetails` theo các field `Email`, `Password`. |
-| `401 Unauthorized` | `ProblemDetails` với title chung `Email hoặc mật khẩu không chính xác.` |
+| `200 OK` | Token pair and user information. |
+| `400 Bad Request` | `ValidationProblemDetails` keyed by `Email`, `Password`. |
+| `401 Unauthorized` | `ProblemDetails` with the generic title `"Email or password is incorrect."` |
 
-## Làm mới và thu hồi phiên
+## Session Refresh and Revocation
 
 `POST /api/v1/auth/refresh`
 
@@ -442,9 +468,9 @@ Response `200 OK`:
 { "refreshToken": "<opaque-random-token>" }
 ```
 
-Response `200` có cùng cấu trúc với login. Mỗi lần refresh, token cũ bị thu hồi và thay bằng token mới trong cùng thời
-hạn tuyệt đối ban đầu. Hai request dùng đồng thời cùng một refresh token thì chỉ một request thành công; request còn lại
-nhận `401`.
+The `200` response has the same structure as login.
+On each refresh, the old token is revoked and replaced by a new token within the same original absolute expiration window.
+If two concurrent requests use the same refresh token, only one succeeds; the other receives `401`.
 
 `POST /api/v1/auth/logout`
 
@@ -452,15 +478,15 @@ nhận `401`.
 { "refreshToken": "<opaque-random-token>" }
 ```
 
-Logout trả `204 No Content` và có tính idempotent. Refresh token không tồn tại hoặc đã bị thu hồi vẫn trả `204`.
-Access token đã cấp không bị thu hồi tức thời và tự hết hạn sau tối đa 15 phút.
+Logout returns `204 No Content` and is idempotent.
+Nonexistent or already revoked refresh tokens still return `204`.
+Previously issued access tokens are not revoked immediately and expire naturally after at most 15 minutes.
 
-## Đăng nhập Google
+## Google Sign-In
 
 `POST /api/v1/auth/google`
 
-Frontend dùng Google Identity Services với cùng Web Client ID đã cấu hình cho backend, nhận trường `credential` từ
-Google rồi chuyển nguyên ID token đó qua Next.js BFF:
+The frontend uses Google Identity Services with the same Web Client ID configured on the backend, receives the `credential` field from Google, and forwards that raw ID token through the Next.js BFF:
 
 ```json
 {
@@ -469,68 +495,71 @@ Google rồi chuyển nguyên ID token đó qua Next.js BFF:
 }
 ```
 
-Backend dùng thư viện Google chính thức để kiểm tra chữ ký, `aud`, `iss`, `exp` và yêu cầu email đã được xác minh. Tài
-khoản Google được nhận diện bằng claim `sub`; không dùng email hoặc dữ liệu profile do browser tự gửi làm định danh.
-Response `200` dùng cùng cấu trúc token/session với đăng nhập local.
+The backend uses the official Google library to validate the signature, `aud`, `iss`, and `exp`, and requires a verified email.
+Google accounts are identified by the `sub` claim; do not use browser-submitted email or profile data as the identifier.
+The `200` response uses the same token/session structure as local sign-in.
 
-Khi đăng nhập lần đầu:
+On first sign-in:
 
-- Nếu chưa có email trong hệ thống, backend tạo user không có local password và liên kết `(google, sub)`.
-- Nếu email trùng tài khoản có sẵn và là Gmail hoặc Google Workspace, backend có thể liên kết tự động vì Google có
-  thẩm quyền xác minh email đó.
-- Nếu email Gmail/Workspace trùng một đăng ký local chưa xác minh, backend bỏ local password chưa được xác minh, xóa
-  OTP cũ, kích hoạt tài khoản bằng danh tính Google và liên kết `(google, sub)`. Cách này không để người đã khởi tạo
-  đăng ký pending tiếp tục dùng mật khẩu họ biết.
-- Nếu email trùng nhưng là email bên thứ ba không thuộc Gmail/Workspace, backend trả `409`; người dùng cần đăng nhập
-  local và thực hiện luồng liên kết tài khoản riêng trước. Luồng liên kết từ trang tài khoản chưa thuộc task này.
+- If the email does not exist in the system, the backend creates a user without a local password and links `(google, sub)`.
+- If the email matches an existing account and is a Gmail or Google Workspace address, the backend may auto-link it because Google is authoritative for verifying that email.
+- If a Gmail/Workspace email matches an unverified local registration, the backend discards the unverified local password, deletes old OTPs, activates the account using the Google identity, and links `(google, sub)`.
+  This prevents whoever initiated the pending registration from continuing to use a password they know.
+- If the email matches an existing account with a non-Gmail/Workspace third-party email, the backend returns `409`; the user must sign in locally and perform a separate account-linking flow first.
+  Account linking from the account page is outside the scope of this task.
 
-| Status | Nội dung |
+| Status | Description |
 | --- | --- |
-| `200 OK` | Token pair và thông tin người dùng. |
-| `400 Bad Request` | Thiếu hoặc sai giới hạn `Credential`. |
-| `401 Unauthorized` | Google ID token sai, hết hạn, sai audience hoặc email chưa xác minh. |
-| `409 Conflict` | Không an toàn để tự động liên kết tài khoản đang có cùng email. |
+| `200 OK` | Token pair and user information. |
+| `400 Bad Request` | Missing or invalid-length `Credential`. |
+| `401 Unauthorized` | Invalid or expired Google ID token, wrong audience, or unverified email. |
+| `409 Conflict` | Unsafe to automatically link an existing account with the same email. |
 
-Nếu FE dùng popup/callback rồi gọi Next.js BFF thì BFF gửi JSON như trên. Nếu sau này chuyển sang redirect mode trực tiếp
-từ Google, endpoint callback phải bổ sung kiểm tra CSRF double-submit token theo hướng dẫn Google; không dùng endpoint JSON
-này làm callback redirect trực tiếp.
+If the FE uses popup/callback and then calls the Next.js BFF, the BFF sends JSON as above.
+If switching later to direct redirect mode from Google, the callback endpoint must add double-submit CSRF token validation per Google's guidance; do not use this JSON endpoint as a direct redirect callback.
 
 ---
 
-## Quản trị đề TOEIC Writing & Ngân hàng câu hỏi
+## TOEIC Writing Exam & Question Bank Administration
 
-Các endpoint `/api/v1/admin/writing/*` dùng policy `WritingAdministration` yêu cầu role `Admin`. Xem [Writing Admin API](../features/writing/admin-api.md) để biết cấu trúc dữ liệu, import Excel và ảnh.
+Endpoints under `/api/v1/admin/writing/*` use the `WritingAdministration` policy requiring the `Admin` role.
+See [Writing Admin API](../features/writing/admin-api.md) for data structures, Excel import, and images.
 
-- `/exercises`: danh sách, tạo, sửa và lưu trữ bài tập lẻ; `/exercises/imports/validate` và `/exercises/import` kiểm tra và import Excel theo Part.
-- `/tests`: tạo/sửa/xóa bản nháp, publish đủ 5/2/1, lưu trữ và khôi phục đề đã công bố; `/tests/import-template`, `/tests/imports/validate` và `/tests/import` hỗ trợ import đề Excel. Xóa, lưu trữ và khôi phục yêu cầu phiên bản hiện tại.
-- `/media/images`: upload ảnh Part 1; bài tham khảo `modelAnswer` là tùy chọn nội bộ và không được trả cho học viên.
+- `/exercises`: list, create, edit, and archive standalone exercises; `/exercises/imports/validate` and `/exercises/import` validate and import Excel files by Part.
+- `/tests`: create/edit/delete drafts, publish complete 5/2/1 tests, archive and restore published tests; `/tests/import-template`, `/tests/imports/validate`, and `/tests/import` support Excel test import.
+  Delete, archive, and restore require the current version.
+- `/media/images`: upload Part 1 images; `modelAnswer` reference answers are internal options and are not returned to learners.
 
-## Thi thử & Luyện tập TOEIC Writing
+## TOEIC Writing Mock Test & Practice
 
-Các endpoint `/api/v1/writing` xác định owner qua JWT hoặc header `X-Writing-Anonymous-Session`; attempt của owner khác nhận 404. Xem [Writing Attempt API](../features/writing/attempt-api.md) và [AI Evaluation](../features/writing/ai-evaluation.md).
+Endpoints under `/api/v1/writing` identify the owner via JWT or the `X-Writing-Anonymous-Session` header; attempts belonging to another owner receive `404`.
+See [Writing Attempt API](../features/writing/attempt-api.md) and [AI Evaluation](../features/writing/ai-evaluation.md).
 
-- `GET /exercises?part=1&pageNumber=1&pageSize=20` liệt kê bài lẻ đã công bố; `POST /exercises/{id}/attempts` bắt đầu bài luyện không giới hạn thời gian.
-- `GET /tests`, `GET /tests/{id}` liệt kê đề đã publish; `POST /attempts` với `{ "testId": "uuid", "mode": "FULL" }` bắt đầu đề.
-- `GET /attempts`, `GET /attempts/{id}`, `PUT /attempts/{id}/answers/{position}`, `POST /attempts/{id}/next`, `POST /attempts/{id}/submit` hỗ trợ lịch sử, lưu, chuyển câu và nộp.
-- `POST /attempts/{id}/evaluation-consent` chỉ gửi bài và ảnh cho AI sau khi được đồng ý; FE poll `GET /attempts/{id}`. Trạng thái gồm `CONSENT_REQUIRED`, `QUEUED`, `PROCESSING`, `RETRYING`, `COMPLETED`, `FAILED`; gửi lại consent khi `FAILED` để thử lại.
-- Guest được tạo tối đa một lượt chấm mới trong 24 giờ; retry của cùng attempt không tính quota mới. Bài mẫu không hiển thị cho học viên. Điểm AI chỉ để luyện tập.
+- `GET /exercises?part=1&pageNumber=1&pageSize=20` lists published standalone exercises; `POST /exercises/{id}/attempts` starts an untimed practice attempt.
+- `GET /tests`, `GET /tests/{id}` list published tests; `POST /attempts` with `{ "testId": "uuid", "mode": "FULL" }` starts a test.
+- `GET /attempts`, `GET /attempts/{id}`, `PUT /attempts/{id}/answers/{position}`, `POST /attempts/{id}/next`, and `POST /attempts/{id}/submit` support history, saving, navigating questions, and submitting.
+- `POST /attempts/{id}/evaluation-consent` only sends responses and images to AI after consent is given; the FE polls `GET /attempts/{id}`.
+  Statuses include `CONSENT_REQUIRED`, `QUEUED`, `PROCESSING`, `RETRYING`, `COMPLETED`, and `FAILED`; re-submit consent when `FAILED` to retry.
+- Guests can create at most one new evaluation in 24 hours; retries of the same attempt do not consume new quota.
+  Sample answers are not displayed to learners.
+  AI scores are for practice only.
 
-## Luyện phát âm IPA
+## IPA Pronunciation Practice
 
 ### `POST /api/v1/pronunciation/assessments`
 
-Yêu cầu Bearer JWT hợp lệ và `Content-Type: multipart/form-data`.
-Mỗi API instance áp dụng cửa sổ cố định một phút với tối đa 30 request theo ID người dùng đã xác thực, kể cả khi đổi token.
-Request thiếu token hoặc có token không hợp lệ dùng chung quota theo địa chỉ IP kết nối và nhận `401` khi còn quota.
-Request vượt quota nhận `429` với `Retry-After` là số nguyên chỉ số giây cần chờ.
+Requires a valid Bearer JWT and `Content-Type: multipart/form-data`.
+Each API instance enforces a one-minute fixed window of up to 30 requests per authenticated user ID, even across token rotation.
+Requests missing a token or with an invalid token share a quota by connecting IP address and receive `401` while within quota.
+Requests exceeding quota receive `429` with `Retry-After` as an integer number of seconds to wait.
 
-| Trường | Bắt buộc | Ràng buộc |
+| Field | Required | Constraints |
 | --- | --- | --- |
-| `file` | Có | Bản thu WebM, Ogg, MP4 hoặc WAV được nhận diện theo chữ ký tệp. Tối đa 1 MiB và 10 giây âm thanh sau giải mã. |
-| `referenceText` | Có | 1-40 ký tự sau khi bỏ khoảng trắng đầu và cuối. Chỉ chấp nhận chữ cái tiếng Anh, khoảng trắng, dấu nháy đơn và dấu gạch ngang. |
-| `locale` | Không | `en-US` (mặc định) hoặc `en-GB`. |
+| `file` | Yes | WebM, Ogg, MP4, or WAV recording detected by file signature. Maximum 1 MiB and 10 seconds of audio after decoding. |
+| `referenceText` | Yes | 1-40 characters after trimming leading and trailing whitespace. Accepts only English letters, spaces, apostrophes, and hyphens. |
+| `locale` | No | `en-US` (default) or `en-GB`. |
 
-`200 OK` trả `PronunciationAssessmentDto` dưới dạng `application/json` với cấu trúc sau.
+`200 OK` returns `PronunciationAssessmentDto` as `application/json` with the following structure.
 
 ```json
 {
@@ -557,20 +586,20 @@ Request vượt quota nhận `429` với `Retry-After` là số nguyên chỉ s�
 }
 ```
 
-Điểm nằm trong khoảng 0-100 và được làm tròn đến một chữ số thập phân.
-`recognitionStatus` là `Recognized` hoặc `NoSpeech`.
-Khi `NoSpeech`, tất cả điểm bằng 0, `recognizedText` là `""` và `words` là `[]`.
+Scores range from 0-100 and are rounded to one decimal place.
+`recognitionStatus` is `Recognized` or `NoSpeech`.
+When `NoSpeech`, all scores are 0, `recognizedText` is `""`, and `words` is `[]`.
 
-Lỗi dùng `application/problem+json` với `traceId` và mã `code` khi có.
+Errors use `application/problem+json` with `traceId` and `code` when applicable.
 
-| HTTP | `code` | Khi nào |
+| HTTP | `code` | When |
 | --- | --- | --- |
-| `400` | `INVALID_AUDIO` | Thiếu bản thu, sai định dạng, không giải mã được hoặc dài quá 10 giây. |
-| `400` | Không có | `referenceText` hoặc `locale` không hợp lệ. `ValidationProblemDetails` có trường `errors`. |
-| `401` | Không có | Thiếu Bearer JWT hợp lệ. |
-| `413` | `INVALID_AUDIO` | Bản thu vượt 1 MiB. |
-| `422` | `SPEECH_REJECTED` | Dịch vụ chấm từ chối bản thu. |
-| `429` | Không có | Vượt quota. Phản hồi có header `Retry-After`. |
-| `502` | `SPEECH_PROVIDER_ERROR` | Lỗi mạng, lỗi dịch vụ chấm hoặc phản hồi từ dịch vụ không đọc được. |
-| `503` | `NOT_CONFIGURED` | Dịch vụ chấm chưa cấu hình, xác thực với nhà cung cấp thất bại hoặc máy chủ thiếu `ffmpeg`. |
-| `504` | `SPEECH_TIMEOUT` | Quá thời gian chuyển đổi bản thu hoặc chờ nhà cung cấp chấm. |
+| `400` | `INVALID_AUDIO` | Missing recording, invalid format, undecodable, or longer than 10 seconds. |
+| `400` | None | Invalid `referenceText` or `locale`. `ValidationProblemDetails` includes the `errors` field. |
+| `401` | None | Missing valid Bearer JWT. |
+| `413` | `INVALID_AUDIO` | Recording exceeds 1 MiB. |
+| `422` | `SPEECH_REJECTED` | Scoring service rejected the recording. |
+| `429` | None | Quota exceeded. Response includes `Retry-After` header. |
+| `502` | `SPEECH_PROVIDER_ERROR` | Network error, scoring service error, or unreadable response from the provider. |
+| `503` | `NOT_CONFIGURED` | Scoring service not configured, provider authentication failed, or server is missing `ffmpeg`. |
+| `504` | `SPEECH_TIMEOUT` | Timed out converting the recording or waiting for the scoring provider. |

@@ -21,7 +21,7 @@ public sealed class CreateScoreProfileCommandValidator : AbstractValidator<Creat
         });
         RuleFor(command => command.Conversions).Must(conversions => conversions
             .GroupBy(item => new { item.Skill, item.RawCorrectCount }).All(group => group.Count() == 1))
-            .WithMessage("Mỗi skill chỉ có một mốc cho mỗi số câu đúng.");
+            .WithMessage("Each skill can have only one entry per raw correct count.");
     }
 }
 

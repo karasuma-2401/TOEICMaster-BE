@@ -30,7 +30,7 @@ public sealed class BcryptPasswordHasherTests
     [Fact]
     public void Enhanced_hash_supports_the_frontend_password_limit()
     {
-        var password = string.Concat(Enumerable.Repeat("á", 128));
+        var password = string.Concat(Enumerable.Repeat("ü", 128));
         var hasher = new BcryptPasswordHasher();
 
         var passwordHash = hasher.Hash(password);

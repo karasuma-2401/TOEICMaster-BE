@@ -60,12 +60,12 @@ public sealed class EfAdminUserRepository(ToeicDbContext dbContext) : IAdminUser
             {
                 if (actorUserId == targetUserId)
                     throw new AdminUserOperationConflictException("CANNOT_DEMOTE_SELF",
-                        "Không thể tự hạ quyền tài khoản quản trị của chính mình.");
+                        "Cannot demote your own admin account.");
 
                 if (user.IsActive)
                 {
                     await EnsureAnotherActiveAdminExistsAsync(targetUserId,
-                        "Không thể hạ quyền quản trị viên đang hoạt động cuối cùng.", cancellationToken);
+                        "Cannot demote the last active admin.", cancellationToken);
                 }
 
                 await RevokeActiveSessionsAsync(targetUserId, nowUtc, cancellationToken);
@@ -92,12 +92,12 @@ public sealed class EfAdminUserRepository(ToeicDbContext dbContext) : IAdminUser
 
             if (actorUserId == targetUserId)
                 throw new AdminUserOperationConflictException("CANNOT_DELETE_SELF",
-                    "Không thể tự xóa tài khoản quản trị của chính mình.");
+                    "Cannot delete your own admin account.");
 
             if (user.Role == UserRole.Admin && user.IsActive)
             {
                 await EnsureAnotherActiveAdminExistsAsync(targetUserId,
-                    "Không thể xóa quản trị viên đang hoạt động cuối cùng.", cancellationToken);
+                    "Cannot delete the last active admin.", cancellationToken);
             }
 
             // Clear UserSession self-referencing ReplacedBySessionId FK before cascade-deleting the user's sessions.
@@ -119,7 +119,7 @@ public sealed class EfAdminUserRepository(ToeicDbContext dbContext) : IAdminUser
                 dbContext.ChangeTracker.Clear();
                 await transaction.RollbackAsync(cancellationToken);
                 throw new AdminUserOperationConflictException("USER_HAS_REFERENCED_CONTENT",
-                    "Không thể xóa người dùng đang sở hữu nội dung hoặc dữ liệu tham chiếu.");
+                    "Cannot delete a user who owns content or referenced data.");
             }
 
             await transaction.CommitAsync(cancellationToken);
@@ -140,16 +140,16 @@ public sealed class EfAdminUserRepository(ToeicDbContext dbContext) : IAdminUser
 
             if (actorUserId == targetUserId)
                 throw new AdminUserOperationConflictException("CANNOT_LOCK_SELF",
-                    "Không thể tự khóa tài khoản quản trị của chính mình.");
+                    "Cannot lock your own admin account.");
 
             if (!user.IsActive && user.EmailVerifiedAtUtc is null)
                 throw new AdminUserOperationConflictException("USER_PENDING_VERIFICATION",
-                    "Không thể khóa tài khoản đang chờ xác minh email.");
+                    "Cannot lock an account pending email verification.");
 
             if (user.IsActive && user.Role == UserRole.Admin)
             {
                 await EnsureAnotherActiveAdminExistsAsync(targetUserId,
-                    "Không thể khóa quản trị viên đang hoạt động cuối cùng.", cancellationToken);
+                    "Cannot lock the last active admin.", cancellationToken);
             }
 
             if (user.IsActive)
@@ -174,7 +174,7 @@ public sealed class EfAdminUserRepository(ToeicDbContext dbContext) : IAdminUser
 
         if (!user.IsActive && user.EmailVerifiedAtUtc is null)
             throw new AdminUserOperationConflictException("USER_PENDING_VERIFICATION",
-                "Không thể mở khóa tài khoản đang chờ xác minh email.");
+                "Cannot unlock an account pending email verification.");
 
         if (!user.IsActive)
         {

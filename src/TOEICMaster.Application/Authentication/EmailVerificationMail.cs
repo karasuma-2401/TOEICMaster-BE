@@ -8,8 +8,8 @@ internal static class EmailVerificationMail
     public static MailMessage Create(string email, string code, TimeSpan lifetime)
     {
         var minutes = lifetime.TotalMinutes.ToString("0", CultureInfo.InvariantCulture);
-        return new MailMessage(email, "Mã xác minh tài khoản TOEICMaster",
-            $"Mã xác minh của bạn là: {code}\n\nMã có hiệu lực trong {minutes} phút. " +
-            "Nếu bạn không đăng ký tài khoản TOEICMaster, hãy bỏ qua email này.");
+        return new MailMessage(email, "TOEICMaster account verification code",
+            $"Your verification code is: {code}\n\nThis code is valid for {minutes} minutes. " +
+            "If you did not register for a TOEICMaster account, please ignore this email.");
     }
 }

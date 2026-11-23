@@ -7,11 +7,11 @@ public sealed class ResetPasswordCommandValidator : AbstractValidator<ResetPassw
     public ResetPasswordCommandValidator()
     {
         RuleFor(command => command.ResetToken)
-            .NotEmpty().WithMessage("Reset token là bắt buộc.")
-            .MaximumLength(256).WithMessage("Reset token không hợp lệ.");
+            .NotEmpty().WithMessage("Reset token is required.")
+            .MaximumLength(256).WithMessage("Invalid reset token.");
         RuleFor(command => command.NewPassword)
-            .NotEmpty().WithMessage("Mật khẩu mới là bắt buộc.")
-            .MinimumLength(8).WithMessage("Mật khẩu mới cần từ 8 đến 128 ký tự.")
-            .MaximumLength(128).WithMessage("Mật khẩu mới cần từ 8 đến 128 ký tự.");
+            .NotEmpty().WithMessage("New password is required.")
+            .MinimumLength(8).WithMessage("New password must be between 8 and 128 characters.")
+            .MaximumLength(128).WithMessage("New password must be between 8 and 128 characters.");
     }
 }

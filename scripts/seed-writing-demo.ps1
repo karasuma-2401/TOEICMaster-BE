@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$BaseUrl = 'http://localhost:5287',
     [Parameter(Mandatory = $true)][pscredential]$Credential
 )
@@ -30,7 +30,7 @@ for ($i = 1; $i -le 8; $i++) {
 }
 
 if ($existingTest -and $existingTest.status -eq 'PUBLISHED' -and @($existingExercises.Values | Where-Object { $null -eq $_ }).Count -eq 0) {
-    Write-Host 'Dữ liệu Writing mẫu đã tồn tại; không tạo trùng.'
+    Write-Host 'Sample Writing data already exists; skipping creation.'
     return
 }
 
@@ -108,9 +108,9 @@ for ($i = 1; $i -le 8; $i++) {
     $inputs += $input
     if (-not $existingExercises[$input.code]) {
         $created = Invoke-SeedPost 'exercises' $input
-        Write-Host "Đã tạo bài tập $($created.code)."
+        Write-Host "Created exercise $($created.code)."
     } else {
-        Write-Host "Đã có bài tập $($input.code); giữ nguyên."
+        Write-Host "Exercise $($input.code) already exists; keeping existing."
     }
 }
 
@@ -122,15 +122,15 @@ if (-not $existingTest) {
         @{ part = $content.part; sequenceNumber = $sequence; exerciseId = $null; content = $content }
     }
     $createdTest = Invoke-SeedPost 'tests' @{
-        code = $testCode; title = 'Đề Writing mẫu - Workplace'
-        description = 'Dữ liệu minh họa để kiểm thử; không phải đề thi chính thức.'; questions = @($questions)
+        code = $testCode; title = 'Sample Writing Test - Workplace'
+        description = 'Sample data for testing; not an official exam.'; questions = @($questions)
     }
-    Write-Host "Đã tạo đề nháp $($createdTest.code)."
+    Write-Host "Created draft test $($createdTest.code)."
     $existingTest = $createdTest
 }
 if ($existingTest.status -eq 'DRAFT') {
     $published = Invoke-SeedPost "tests/$($existingTest.id)/publish" @{ version = $existingTest.version }
-    Write-Host "Đã công bố đề $($published.code)."
+    Write-Host "Published test $($published.code)."
 } else {
-    Write-Host "Đã có đề $testCode; giữ nguyên."
+    Write-Host "Test $testCode already exists; keeping existing."
 }

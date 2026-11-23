@@ -38,7 +38,7 @@ public sealed class WritingEvaluationProcessor(IWritingEvaluationRepository repo
         catch (Exception)
         {
             await RecordFailureAsync(work.EvaluationId, new WritingEvaluatorException("UNEXPECTED_ERROR",
-                "Dịch vụ chấm AI đang gặp sự cố. Bài làm của bạn vẫn được lưu.", true), cancellationToken);
+                "The AI evaluation service encountered an error. Your submission is still saved.", true), cancellationToken);
             return true;
         }
 
@@ -86,7 +86,7 @@ public sealed class WritingEvaluationProcessor(IWritingEvaluationRepository repo
                     answer.Position == item.QuestionPosition).Part) ||
                 string.IsNullOrWhiteSpace(item.Feedback) || item.Feedback.Length > 1_500 ||
                 string.IsNullOrWhiteSpace(item.SuggestedRevision) || item.SuggestedRevision.Length > 1_500))
-            throw new WritingEvaluatorException("INVALID_RESPONSE", "Dịch vụ chấm AI trả về kết quả không hợp lệ.", true);
+            throw new WritingEvaluatorException("INVALID_RESPONSE", "The AI evaluation service returned an invalid result.", true);
     }
 
     private static int? ToEstimatedToeicScore(WritingEvaluationWork work, WritingEvaluatorResult result)
@@ -133,6 +133,6 @@ public sealed class WritingEvaluationProcessor(IWritingEvaluationRepository repo
         1 => 3,
         2 => 4,
         3 => 5,
-        _ => throw new WritingEvaluatorException("INVALID_RESPONSE", "Dữ liệu câu hỏi Writing không hợp lệ.", false)
+        _ => throw new WritingEvaluatorException("INVALID_RESPONSE", "Invalid Writing question data.", false)
     };
 }

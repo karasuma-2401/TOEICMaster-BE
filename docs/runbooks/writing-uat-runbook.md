@@ -1,58 +1,55 @@
-# Writing UAT và checklist bàn giao
+# Writing UAT and Handover Checklist
 
-Tài liệu này chốt phạm vi **Writing**: 5 câu Part 1, 2 câu Part 2 và 1 câu Part 3. Speaking không thuộc checklist.
+This document locks the **Writing** scope: 5 Part 1 questions, 2 Part 2 questions, and 1 Part 3 question.
+Speaking is outside this checklist.
 
-## 1. Chuẩn bị an toàn
+## 1. Safe Setup
 
-1. Tạo `.env` từ `.env.example`; không copy key vào source, screenshot hoặc ticket.
-2. Có PostgreSQL/Redis/MinIO hoạt động và chạy migrations sau khi nhóm duyệt:
+1. Create `.env` from `.env.example`; do not copy keys into source code, screenshots, or tickets.
+2. Ensure PostgreSQL/Redis/MinIO are running and apply migrations after team approval:
 
    ```powershell
    dotnet ef database update --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api
    ```
 
-3. Đặt `GEMINI_ENABLED=true` cùng `GEMINI_API_KEY`, model và timeout trong `.env`. Không cần, và không được, đưa key
-   vào `.env.local` của frontend.
-4. Chạy API và frontend theo README của từng repository. Chỉ dùng đề/bài làm thử không chứa thông tin cá nhân khi UAT
-   Gemini Free Tier.
-5. Seed một account có role `ADMIN` theo mục **Seed tài khoản Admin local** trong README, rồi đăng xuất/đăng nhập
-   lại để JWT và session nhận role mới. Không thay bằng header, query string hoặc bypass ở client.
+3. Set `GEMINI_ENABLED=true` along with `GEMINI_API_KEY`, model, and timeout in `.env`. Do not, and never need to, put keys into the frontend `.env.local`.
+4. Start the API and frontend per each repository's README. Use only non-PII sample tests/attempts during Gemini Free Tier UAT.
+5. Seed an account with role `ADMIN` per the **Local Admin account seeding** section in the README, then sign out and sign back in so the JWT and session pick up the new role. Do not substitute with headers, query strings, or client-side bypasses.
 
-## 2. Checklist User
+## 2. User Checklist
 
-| Luồng | Kết quả cần có |
+| Flow | Expected Result |
 |---|---|
-| Thư viện | Chỉ có đề `Published`; search, loading, empty và lỗi có nút thử lại. |
-| Bắt đầu | Chọn Full có 8 câu theo 5/2/1; chọn Part chỉ có đúng Part đó; màn trước khi bắt đầu hiển thị hai thời lượng. |
-| Timer | Part 1 đi từ 30 giây chuẩn bị sang 60 giây làm bài; reload/đổi tab không làm tăng thời gian. |
-| Autosave | Gõ, chờ trạng thái đã lưu; ẩn tab/reload ngay sau khi gõ rồi mở lại, câu trả lời server mới nhất vẫn còn. |
-| Khóa câu | Next hoặc hết giờ khóa câu; không thể sửa/quay lại. Câu cuối tự nộp một lần. |
-| Consent | Nộp bài không tự gửi đến AI; chỉ gửi sau checkbox đồng ý. |
-| AI | Queued/processing/retry poll mỗi 5 giây; có thể rời trang rồi quay lại. Lỗi key/quota không làm mất attempt và có nút chấm lại. |
-| Kết quả | Có nhãn điểm AI ước tính 0–200, không phải ETS; feedback chỉ xuất hiện sau `COMPLETED`; bài mẫu nội bộ không được hiển thị. |
-| Luyện tập | Chọn bài lẻ đã công bố theo Part, làm không giới hạn thời gian, nộp và đồng ý chấm; kết quả hiển thị điểm thô theo Part. |
-| Ảnh Part 1 | Ảnh được gửi đến AI sau consent; xác minh nhận xét đối chiếu ảnh. File ảnh tổng cộng tối đa 12 MiB mỗi evaluation. |
-| Ownership | Guest chỉ thấy attempt từ cookie HttpOnly hiện tại; account chỉ thấy attempt của chính account. |
+| Library | Only `Published` tests appear; search, loading, empty, and error states have a retry button. |
+| Start | Full mode has 8 questions in `5/2/1` order; Part mode has only that Part; pre-start screen displays both durations. |
+| Timer | Part 1 transitions from 30s preparation to 60s writing; reloading or switching tabs does not add extra time. |
+| Autosave | Type, wait for saved status; hide tab or reload right after typing and reopen: latest server answer is preserved. |
+| Question lock | Next or timer expiration locks the question; cannot edit or go back. Last question auto-submits once. |
+| Consent | Submitting does not auto-send to AI; only sends after checking the consent box. |
+| AI | Queued/processing/retry polls every 5 seconds; can leave and return to the page. Key/quota errors do not lose the attempt and show a retry button. |
+| Results | Shows 0-200 AI estimated score label, not ETS; feedback only appears after `COMPLETED`; internal sample answers are never shown. |
+| Practice | Select an individual published question by Part, write untimed, submit and consent to grading; results show the raw Part score. |
+| Part 1 image | Image is sent to AI after consent; verify feedback references the image. Total image files capped at 12 MiB per evaluation. |
+| Ownership | Guests see only attempts from the current HttpOnly cookie; accounts see only their own attempts. |
 
-## 3. Checklist Admin/API
+## 3. Admin/API Checklist
 
-| Luồng | Kết quả cần có |
+| Flow | Expected Result |
 |---|---|
-| Question bank | CRUD Part 1/2/3, validation field errors, ảnh có MIME/magic-byte/size validation. |
-| Import | Excel preview báo đúng dòng/cột lỗi trước khi commit. |
-| Test | Draft không cho User bắt đầu; publish chỉ qua khi đủ 5/2/1 và snapshot không đổi attempt cũ. |
-| Vòng đời đề | Xác nhận trước khi xóa draft; lưu trữ đề công bố ẩn đề với User nhưng giữ attempt/ảnh/lịch sử; khôi phục để đề hiển thị trở lại. Thử phiên bản cũ nhận 409. |
-| Review AI | `GET /api/v1/admin/writing/evaluations/{attemptId}` yêu cầu policy Admin; không trả provider response hoặc API key. |
-| Security | API attempt/history có `Cache-Control: no-store`; responses có `X-Content-Type-Options`, `X-Frame-Options` và `Referrer-Policy`. |
+| Question bank | CRUD for Parts 1/2/3, validation field errors, images enforce MIME/magic-byte/size validation. |
+| Import | Excel preview reports exact row/column errors before committing. |
+| Test | Drafts cannot be started by Users; publish only passes with `5/2/1` slots filled and snapshots do not alter old attempts. |
+| Test lifecycle | Confirmation prompt before deleting a draft; archiving a published test hides it from Users while retaining attempts/images/history; restoring makes it visible again. Submitting a stale version returns `409`. |
+| Review AI | `GET /api/v1/admin/writing/evaluations/{attemptId}` requires Admin policy; never returns raw provider response or API key. |
+| Security | Attempt/history APIs return `Cache-Control: no-store`; responses include `X-Content-Type-Options`, `X-Frame-Options`, and `Referrer-Policy`. |
 
-## 4. Quyết định go/no-go
+## 4. Go/No-Go Decision
 
-Chỉ bật Gemini cho demo khi tất cả dòng User bắt buộc pass, migrations đã áp dụng vào đúng database và một bài calibration
-thử không có PII trả JSON/điểm hợp lệ. Free Tier có quota và không phải scorer ETS; điểm phải luôn giữ nhãn **ước tính
-bởi AI**.
+Only enable Gemini for demos when all mandatory User checklist items pass, migrations are applied to the right database, and a non-PII calibration test returns valid JSON/scores.
+The Free Tier is quota-limited and is not an ETS scorer; scores must always keep the **AI-estimated** label.
 
-Các giới hạn đã chấp nhận:
+Accepted limitations:
 
-- Browser không phân biệt tin cậy clipboard nội bộ/ngoài, nên không chặn paste có thể làm User mất bài.
-- Autosave lúc page lifecycle là best-effort; API/server timer mới là nguồn chân lý.
-- Admin override kèm audit log và việc tự cấp role cho tài khoản Admin là backlog platform, không bypass trong Writing.
+- Browsers cannot reliably distinguish internal vs. external clipboard content, so blocking paste is avoided as it could cause Users to lose work.
+- Page-lifecycle autosave is best-effort; the API/server timer remains the source of truth.
+- Admin overrides with audit logging and self-service Admin role promotion are platform backlog items, not bypassed inside Writing.

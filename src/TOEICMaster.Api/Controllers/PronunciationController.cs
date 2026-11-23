@@ -33,9 +33,9 @@ public sealed class PronunciationController(ISender sender) : ControllerBase
         [FromForm] string? referenceText, [FromForm] string? locale, CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0)
-            return Failure(StatusCodes.Status400BadRequest, "INVALID_AUDIO", "Thiếu bản thu.");
+            return Failure(StatusCodes.Status400BadRequest, "INVALID_AUDIO", "Recording is required.");
         if (file.Length > PronunciationRules.MaxAudioBytes)
-            return Failure(StatusCodes.Status413PayloadTooLarge, "INVALID_AUDIO", "Bản thu vượt quá 1 MiB.");
+            return Failure(StatusCodes.Status413PayloadTooLarge, "INVALID_AUDIO", "Recording exceeds 1 MiB.");
 
         byte[] audio;
         await using (var stream = new MemoryStream())

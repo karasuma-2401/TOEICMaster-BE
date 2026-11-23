@@ -8,8 +8,8 @@ public sealed class RequestPasswordResetCommandValidator : AbstractValidator<Req
     public RequestPasswordResetCommandValidator()
     {
         RuleFor(command => command.Email).Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Email là bắt buộc.")
+            .NotEmpty().WithMessage("Email is required.")
             .Must(email => email.Trim().Length <= 254 && new EmailAddressAttribute().IsValid(email.Trim()))
-            .WithMessage("Email không hợp lệ.");
+            .WithMessage("Invalid email.");
     }
 }

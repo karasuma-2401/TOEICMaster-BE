@@ -109,7 +109,7 @@ public sealed class EfWritingAttemptRepository(ToeicDbContext context) : IWritin
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new WritingAttemptConflictException("Lượt làm bài đã được cập nhật ở một phiên khác. Hãy tải lại trang.");
+            throw new WritingAttemptConflictException("The attempt was updated in another session. Please refresh the page.");
         }
     }
 

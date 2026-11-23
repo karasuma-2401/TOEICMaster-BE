@@ -49,28 +49,28 @@ public sealed class GlobalExceptionHandler(
     {
         // Authentication & Profile
         InvalidProfilePasswordException => Simple(StatusCodes.Status400BadRequest,
-            "Mật khẩu hiện tại không đúng hoặc tài khoản không có mật khẩu.", BadRequestType),
+            "Current password is incorrect or the account does not have a password.", BadRequestType),
         InvalidAvatarException => Simple(StatusCodes.Status400BadRequest,
-            "Ảnh đại diện phải là PNG hoặc JPEG hợp lệ, tối đa 2 MiB.", BadRequestType),
+            "Avatar must be a valid PNG or JPEG image up to 2 MiB.", BadRequestType),
         UnauthorizedAccessException => Simple(StatusCodes.Status401Unauthorized,
-            "Phiên đăng nhập không hợp lệ.", UnauthorizedType),
+            "Invalid login session.", UnauthorizedType),
         InvalidCredentialsException => Simple(StatusCodes.Status401Unauthorized,
-            "Email hoặc mật khẩu không chính xác.", UnauthorizedType),
+            "Email or password is incorrect.", UnauthorizedType),
         InvalidSessionException => Simple(StatusCodes.Status401Unauthorized,
-            "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.", UnauthorizedType),
+            "Invalid or expired login session.", UnauthorizedType),
         InvalidGoogleCredentialException => Simple(StatusCodes.Status401Unauthorized,
-            "Google credential không hợp lệ hoặc đã hết hạn.", UnauthorizedType),
+            "Google credential is invalid or has expired.", UnauthorizedType),
         ExternalAccountLinkRequiredException => Simple(StatusCodes.Status409Conflict,
-            "Email này đã thuộc một tài khoản khác. Hãy xác minh email, đăng nhập bằng mật khẩu rồi liên kết Google.",
+            "This email already belongs to another account. Please verify your email, sign in with your password, and then link Google.",
             ConflictType),
         InvalidEmailVerificationException => Simple(StatusCodes.Status400BadRequest,
-            "Mã xác minh không chính xác, đã hết hạn hoặc đã vượt quá số lần thử.", BadRequestType),
+            "Verification code is incorrect, expired, or has exceeded the maximum number of attempts.", BadRequestType),
         InvalidPasswordResetCodeException => Simple(StatusCodes.Status400BadRequest,
-            "Mã đặt lại mật khẩu không chính xác, đã hết hạn hoặc đã vượt quá số lần thử.", BadRequestType),
+            "Password reset code is incorrect, expired, or has exceeded the maximum number of attempts.", BadRequestType),
         InvalidPasswordResetTokenException => Simple(StatusCodes.Status400BadRequest,
-            "Yêu cầu đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.", BadRequestType),
+            "Password reset request is invalid or has expired.", BadRequestType),
         DuplicateEmailException => Simple(StatusCodes.Status409Conflict,
-            "Email này đã được sử dụng.", ConflictType),
+            "This email is already in use.", ConflictType),
 
         // AdminUsers
         AdminUserNotFoundException notFound => Simple(StatusCodes.Status404NotFound, notFound.Message, NotFoundType),
@@ -83,38 +83,38 @@ public sealed class GlobalExceptionHandler(
         ExamAttemptNotFoundException notFound => new ProblemDetails
         {
             Status = StatusCodes.Status404NotFound,
-            Title = "Không tìm thấy dữ liệu yêu cầu",
+            Title = "Requested data not found",
             Detail = notFound.Message,
             Type = NotFoundType
         },
         ExamAttemptConflictException conflict => new ProblemDetails
         {
             Status = StatusCodes.Status409Conflict,
-            Title = "Xung đột trạng thái bài thi",
+            Title = "Exam attempt state conflict",
             Detail = conflict.Message,
             Type = ConflictType
         },
         ExamAttemptValidationException validation => new ProblemDetails
         {
             Status = StatusCodes.Status400BadRequest,
-            Title = "Yêu cầu không hợp lệ",
+            Title = "Invalid request",
             Detail = validation.Message,
             Type = BadRequestType
         },
 
         // Exams
         ExamNotFoundException => Simple(StatusCodes.Status404NotFound,
-            "Không tìm thấy đề thi, revision hoặc barem yêu cầu.", NotFoundType),
+            "Requested exam, revision, or scoring rubric not found.", NotFoundType),
         ExamConflictException => Simple(StatusCodes.Status409Conflict,
-            "Mã đề thi đã tồn tại.", ConflictType),
+            "Exam code already exists.", ConflictType),
         ExamPublicationException publication => Validation(StatusCodes.Status400BadRequest,
-            "Đề thi chưa đạt điều kiện xuất bản.", BadRequestType,
+            "Exam does not meet publication requirements.", BadRequestType,
             new Dictionary<string, string[]> { ["exam"] = publication.Errors.ToArray() }),
         ExamWorkbookFormatException workbook => Validation(StatusCodes.Status400BadRequest,
-            "Workbook import không hợp lệ.", BadRequestType,
+            "Invalid import workbook.", BadRequestType,
             new Dictionary<string, string[]> { ["workbook"] = workbook.Errors.ToArray() }),
         InvalidExamMediaException => Simple(StatusCodes.Status400BadRequest,
-            "Tệp media không hợp lệ hoặc vượt quá giới hạn cho phép.", BadRequestType),
+            "Media file is invalid or exceeds the allowed limit.", BadRequestType),
         ExamMediaUploadIntentConflictException conflict => Simple(StatusCodes.Status409Conflict,
             conflict.Message, ConflictType),
 
@@ -157,21 +157,21 @@ public sealed class GlobalExceptionHandler(
 
         // Writing
         WritingResourceNotFoundException => Simple(StatusCodes.Status404NotFound,
-            "Không tìm thấy tài nguyên Writing.", NotFoundType),
+            "Writing resource not found.", NotFoundType),
         WritingConflictException conflict => Simple(StatusCodes.Status409Conflict, conflict.Message, ConflictType),
         InvalidWritingImageException => Simple(StatusCodes.Status400BadRequest,
-            "Ảnh đề bài phải là PNG hoặc JPEG hợp lệ, tối đa 5 MiB.", BadRequestType),
+            "Prompt image must be a valid PNG or JPEG up to 5 MiB.", BadRequestType),
         InvalidWritingImportException import => Simple(StatusCodes.Status400BadRequest, import.Message, BadRequestType),
         WritingAttemptNotFoundException => Simple(StatusCodes.Status404NotFound,
-            "Không tìm thấy lượt làm Writing.", NotFoundType),
+            "Writing attempt not found.", NotFoundType),
         WritingAttemptConflictException conflict => Simple(StatusCodes.Status409Conflict, conflict.Message,
             ConflictType),
 
         // Storage & Database Infrastructure Faults
         ObjectNotFoundException or BucketNotFoundException or FileNotFoundException => Simple(
-            StatusCodes.Status404NotFound, "Không tìm thấy tài nguyên yêu cầu.", NotFoundType),
+            StatusCodes.Status404NotFound, "Requested resource not found.", NotFoundType),
         DbUpdateConcurrencyException => Simple(StatusCodes.Status409Conflict,
-            "Dữ liệu đã được cập nhật bởi một thao tác khác.", ConflictType),
+            "The data has been updated by another operation.", ConflictType),
         DbUpdateException { InnerException: PostgresException pg } => MapPostgresException(pg),
         PostgresException pg => MapPostgresException(pg),
 
@@ -181,11 +181,11 @@ public sealed class GlobalExceptionHandler(
     private static ProblemDetails? MapPostgresException(PostgresException pg) => pg.SqlState switch
     {
         PostgresErrorCodes.UniqueViolation => Simple(StatusCodes.Status409Conflict,
-            "Dữ liệu bị trùng lặp với bản ghi hiện có.", ConflictType),
+            "Data duplicates an existing record.", ConflictType),
         PostgresErrorCodes.StringDataRightTruncation => Simple(StatusCodes.Status400BadRequest,
-            "Giá trị nhập vượt quá độ dài cho phép.", BadRequestType),
+            "Input value exceeds the allowed length.", BadRequestType),
         PostgresErrorCodes.ForeignKeyViolation => Simple(StatusCodes.Status409Conflict,
-            "Dữ liệu đang được tham chiếu hoặc liên kết không hợp lệ.", ConflictType),
+            "Data is being referenced or has an invalid association.", ConflictType),
         _ => null
     };
 

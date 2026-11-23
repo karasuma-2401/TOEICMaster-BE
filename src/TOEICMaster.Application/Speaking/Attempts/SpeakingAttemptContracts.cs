@@ -20,7 +20,7 @@ public sealed class SpeakingAttemptOwnerValidator : AbstractValidator<SpeakingAt
 {
     public SpeakingAttemptOwnerValidator() => RuleFor(owner => owner).Must(owner =>
             (owner.UserId is not null) != !string.IsNullOrWhiteSpace(owner.AnonymousSessionHash))
-        .OverridePropertyName("Owner").WithMessage("Lượt làm cần đúng một chủ sở hữu.");
+        .OverridePropertyName("Owner").WithMessage("An attempt must have exactly one owner.");
 }
 
 /// <summary>Starts from a published test (with a mode) or practises one published exercise on its own.</summary>
@@ -191,7 +191,7 @@ public static class SpeakingAttemptMapping
         exercise.UpdatedAtUtc);
 
     public static SpeakingTestHeader ToHeader(this SpeakingExercise exercise) =>
-        new(exercise.Code, $"Luyện Part {exercise.Part} · {exercise.Topic}");
+        new(exercise.Code, $"Part {exercise.Part} Practice · {exercise.Topic}");
 
     private static void AddQuestions(List<SpeakingAttemptQuestion> questions, Guid attemptId, int part,
         Guid? exerciseId, SpeakingContentDto content, string rubricNotes, string modelAnswer)

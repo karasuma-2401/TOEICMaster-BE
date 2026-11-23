@@ -1,158 +1,159 @@
 # Execution Checklist: TOEIC Speaking Module
 
-> **Tài liệu đặc tả:** [spec.md](./spec.md)  
-> **Trạng thái:** Các AC CNPMCS-51 đã triển khai ngày 2026-11-21. UAT thiết bị, dữ liệu thực và calibration còn mở; xem [báo cáo Sprint 3](../../runbooks/sprint3-review.md).
+> **Specification:** [spec.md](./spec.md)  
+> **Status:** CNPMCS-51 ACs implemented on 2026-11-21. Device UAT, real data, and calibration remain open; see [Sprint 3 report](../../runbooks/sprint3-review.md).
 
-## Thứ tự làm
+## Execution Order
 
-Làm theo các đợt dưới đây, không theo thứ tự chữ cái. Lý do nằm ở [báo cáo mục 0](../../runbooks/speaking-audit-report.md#0-kết-quả-kiểm-tra-lại-2026-11-03).
+Follow the batches below, not alphabetical order.
+Rationale is in [report section 0](../../runbooks/speaking-audit-report.md#0-re-verification-results-2026-11-03).
 
-| Đợt | Việc | Thuộc |
+| Batch | Tasks | Belongs To |
 | :--- | :--- | :--- |
-| 1 | UI-02, UI-03, UI-04, UI-07; MIC-06, MIC-11; DUP-04; luật 3 câu hỏi khác nhau (DUP-01) | C, B, A |
-| 2 | Phiên micro: B "Ưu tiên 1", thêm nút bật lại micro, đo ma trận trình duyệt | B |
-| 3 | Chặn trùng ở server, sửa bộ mẫu test, rà dữ liệu. **Không** làm `publish-check` | A |
-| 4 | B "Ưu tiên 2" phần còn lại | B |
-| 5 | Phần còn lại của C, liên kết lịch sử lượt làm (FLOW-02) | C |
-| Song song | Chuyển `ffmpeg` và biến môi trường vào file dùng chung (OPS-01) | Phase 6 |
-| Để sau | `publish-check`, cảnh báo gần giống, `usedInTestCount`, D | A, C, D |
+| 1 | UI-02, UI-03, UI-04, UI-07; MIC-06, MIC-11; DUP-04; distinct 3-question rule (DUP-01) | C, B, A |
+| 2 | Microphone session: B "Priority 1", add re-enable mic button, measure browser matrix | B |
+| 3 | Server-side duplicate blocking, fix sample seed set, audit data. **Do not** implement `publish-check` | A |
+| 4 | Remaining items in B "Priority 2" | B |
+| 5 | Remaining items in C, attempt history links (FLOW-02) | C |
+| Parallel | Move `ffmpeg` and environment variables into shared files (OPS-01) | Phase 6 |
+| Deferred | `publish-check`, near-duplicate warnings, `usedInTestCount`, D | A, C, D |
 
 ---
 
-## Nguyên tắc thực thi cho AI
-1. Chỉ sửa code Speaking: BE là các file `Speaking*`; FE là `src/features/speaking` và `src/app/speaking`. Điểm chạm file dùng chung phải tối thiểu.
-2. Không sửa migration đã áp dụng. Không chạy `database update` lên Neon nếu chưa được đồng ý. Không thêm package nếu chưa được yêu cầu.
-3. Hoàn thành theo thứ tự `Domain` → `Application` → `Infrastructure` → `Api` → `Tests`, rồi tới FE. Sau mỗi phase, chạy kiểm tra và đánh dấu `[x]`.
-4. Kiểm tra BE: bốn lệnh trong `AGENTS.md`. Kiểm tra FE: `npm run check`.
-5. Trước khi làm Work Package A, B hoặc D, xác nhận các quyết định D1–D5 trong [báo cáo rà soát](../../runbooks/speaking-audit-report.md#7-quyết-định-chờ-chủ-tính-năng) đã được duyệt.
+## Execution Principles for AI
+1. Only edit Speaking code: on BE, `Speaking*` files; on FE, `src/features/speaking` and `src/app/speaking`. Touchpoints in shared files must be minimal.
+2. Do not modify applied migrations. Do not run `database update` against Neon without approval. Do not add packages unless requested.
+3. Implement in order `Domain` → `Application` → `Infrastructure` → `Api` → `Tests`, then FE. After each phase, run checks and mark `[x]`.
+4. BE checks: the four commands in `AGENTS.md`. FE checks: `npm run check`.
+5. Before starting Work Package A, B, or D, confirm that decisions D1–D5 in the [audit report](../../runbooks/speaking-audit-report.md#7-decisions-awaiting-feature-owner) have been approved.
 
 ---
 
-## Đã hoàn thành
+## Completed
 
 ### Phase 1: Domain & Entities
 - [x] `SpeakingExercise`, `SpeakingTest`, `SpeakingTestExercise`, `SpeakingMediaAsset`.
-- [x] `SpeakingAttempt` với máy trạng thái theo pha; `SpeakingEvaluation`.
-- [x] `SpeakingTiming` cố định theo format ETS.
+- [x] `SpeakingAttempt` with phase state machine; `SpeakingEvaluation`.
+- [x] `SpeakingTiming` fixed to the ETS format.
 
 ### Phase 2: Application (CQRS & Business Logic)
-- [x] Command và query cho bài tập, đề, lượt làm, bản ghi, chấm AI.
-- [x] Điều kiện công bố báo từng lỗi; snapshot khi công bố.
-- [x] Công thức điểm trong `SpeakingEvaluationScoring`.
+- [x] Commands and queries for exercises, tests, attempts, recordings, and AI grading.
+- [x] Publish requirements reporting per-field errors; snapshot on publish.
+- [x] Scoring formula in `SpeakingEvaluationScoring`.
 
 ### Phase 3: Infrastructure (Persistence & External Services)
-- [x] Mapping EF Core và các migration Speaking.
-- [x] `MinioSpeakingMediaStore`; worker xóa bản ghi của khách.
-- [x] Azure Speech, Gemini, chuyển đổi audio bằng `ffmpeg`, worker chấm.
+- [x] EF Core mappings and Speaking migrations.
+- [x] `MinioSpeakingMediaStore`; worker to delete guest recordings.
+- [x] Azure Speech, Gemini, audio conversion via `ffmpeg`, and grading worker.
 
 ### Phase 4: API Presentation
-- [x] `AdminSpeakingController`, `SpeakingAttemptsController`, giới hạn tải bản ghi.
-- [x] Luyện từng bài và `evaluation-availability`.
+- [x] `AdminSpeakingController`, `SpeakingAttemptsController`, recording upload rate limits.
+- [x] Individual exercise practice and `evaluation-availability`.
 
 ### Phase 5: Verification & Testing
-- [x] Test Domain, Application, API, nhà cung cấp AI (xem `tests/TOEICMaster.Tests`).
-- [ ] Gọi thử Azure Speech và Gemini bằng key thật. `notespeaking.md` ghi chưa kiểm tra được; cần xác nhận lại.
-- [ ] Hoàn thành [UAT runbook](../../runbooks/speaking-uat-runbook.md).
+- [x] Domain, Application, API, and AI provider tests (see `tests/TOEICMaster.Tests`).
+- [ ] Smoke-test Azure Speech and Gemini with real keys. `notespeaking.md` notes this was not tested yet; needs re-verification.
+- [ ] Complete the [UAT runbook](../../runbooks/speaking-uat-runbook.md).
 
 ### Phase 6: Handoff & Review
-- [x] Thêm mục Speaking vào `contracts/api-contract.md` (file dùng chung, cần thống nhất với nhóm).
-- [ ] Chuyển `ffmpeg` và biến Azure/Gemini từ `docker-compose.override.yml` (không nằm trong git) vào `Dockerfile`, `docker-compose.yml`, `.env.example` (báo cáo OPS-01; file dùng chung, cần thống nhất với nhóm).
+- [x] Add Speaking section to `contracts/api-contract.md` (shared file, requires team agreement).
+- [ ] Move `ffmpeg` and Azure/Gemini variables from `docker-compose.override.yml` (untracked in git) into `Dockerfile`, `docker-compose.yml`, and `.env.example` (report OPS-01; shared files, requires team agreement).
 
 ---
 
-## Work Package A: Không trùng nội dung ([ADR-002](../../decisions/002-speaking-test-content-uniqueness.md))
+## Work Package A: No Duplicate Content ([ADR-002](../../decisions/002-speaking-test-content-uniqueness.md))
 
-**Domain:** không đổi.
+**Domain:** no changes.
 
 **Application**
-- [x] Tạo `Speaking/Admin/SpeakingTestContentRules.cs`: chuẩn hóa văn bản, tạo đơn vị so sánh, trả danh sách vấn đề kèm mã, mức, vị trí câu.
-- [x] `SpeakingExerciseInputValidator`: 3 câu hỏi Part 3–4 phải khác nhau sau chuẩn hóa.
-- [x] `PublishRequirements`: thêm khóa `Content` cho lỗi mức chặn. Lấy `sha256` của ảnh bằng `FindMediaAssetAsync`.
-- [ ] (Để sau) Thêm query `CheckSpeakingTestPublishQuery`, truyền `CancellationToken` đầy đủ.
+- [x] Create `Speaking/Admin/SpeakingTestContentRules.cs`: normalize text, extract comparison units, return issue list with code, severity, and question positions.
+- [x] `SpeakingExerciseInputValidator`: the 3 questions in Parts 3–4 must differ after normalization.
+- [x] `PublishRequirements`: add `Content` key for blocking-level errors. Retrieve image `sha256` via `FindMediaAssetAsync`.
+- [ ] (Deferred) Add `CheckSpeakingTestPublishQuery`, passing `CancellationToken` throughout.
 
-**Infrastructure:** không cần migration ở phase này.
+**Infrastructure:** no migration needed in this phase.
 
 **Api**
-- [ ] (Để sau) `POST /api/v1/admin/speaking/tests/publish-check` trong `AdminSpeakingController`, gọi qua `ISender.Send`.
+- [ ] (Deferred) `POST /api/v1/admin/speaking/tests/publish-check` in `AdminSpeakingController`, dispatched via `ISender.Send`.
 
 **Tests**
-- [x] Sửa bộ mẫu: `SpeakingSamples` có đoạn văn thứ hai và ảnh khác byte; sửa `FullTestAsync`, `Admin_and_learner_contract_matches_the_frontend`, `Published_images_are_served_only_through_a_published_snapshot`. Lưu ý `DetectImage` kiểm tra đuôi PNG, nên đổi byte ở giữa file thay vì nối thêm vào cuối.
-- [x] Chuẩn hóa: hoa thường, dấu câu, khoảng trắng, Unicode.
-- [x] Trùng trong một bài; giữa 2 bài Part 1; giữa Part 3 và Part 4; cùng asset; khác asset cùng `sha256`.
-- [ ] Gần giống ở ngưỡng 0,79 và 0,8 chỉ khác nhau ở cảnh báo; cảnh báo không chặn công bố.
-- [ ] `publish-check` không ghi dữ liệu và chấp nhận đề chưa đủ bài.
-- [x] Đề đã công bố và lượt làm cũ không đổi.
+- [x] Fix sample fixtures: `SpeakingSamples` includes a second passage and byte-distinct image; update `FullTestAsync`, `Admin_and_learner_contract_matches_the_frontend`, `Published_images_are_served_only_through_a_published_snapshot`. Note that `DetectImage` checks the PNG trailer, so modify bytes in the middle of the file rather than appending to the end.
+- [x] Normalization: casing, punctuation, whitespace, Unicode.
+- [x] Duplicates within an exercise; across two Part 1 exercises; across Part 3 and Part 4; same asset; different assets with the same `sha256`.
+- [ ] Similarity around thresholds 0.79 and 0.8 differs only by warning; warnings do not block publishing.
+- [ ] `publish-check` writes no data and accepts incomplete tests.
+- [x] Already-published tests and existing attempts remain unchanged.
 
-**Trước khi bật:** chạy truy vấn chỉ đọc ở [mục 5 của UAT](../../runbooks/speaking-uat-runbook.md#5-rà-soát-dữ-liệu-hiện-có).
+**Before enabling:** run the read-only query in [section 5 of UAT](../../runbooks/speaking-uat-runbook.md#5-existing-data-review).
 
 ---
 
-## Work Package B: Phiên micro ([ADR-003](../../decisions/003-speaking-microphone-session.md))
+## Work Package B: Microphone Session ([ADR-003](../../decisions/003-speaking-microphone-session.md))
 
-Chỉ sửa FE.
+FE changes only.
 
-**Ưu tiên 1: sửa lỗi xin quyền**
-- [x] Tạo `src/app/speaking/layout.tsx` và `src/features/speaking/mic/mic-session-provider.tsx`.
-- [x] Chuyển `getUserMedia`, `AudioContext` và phần đo âm lượng vào provider. Đảm bảo `acquire` idempotent, kể cả với StrictMode.
-- [x] `useVoiceRecorder` chỉ dùng stream của provider.
-- [x] `SpeakingAttemptRun`: bỏ effect xin quyền khi mount. Không đụng micro khi `SUBMITTED`. `release()` khi nộp xong.
-- [x] Giải phóng stream khi rời luồng làm bài.
-- [x] `SpeakingSession`: chỉ `POST /attempts` khi micro sẵn sàng.
-- [x] Khôi phục sau tải lại theo kết quả `permissions.query`, bọc `try/catch`.
-- [x] Màn làm bài có nút bật lại micro khi trạng thái là `idle`, kèm thông báo đồng hồ vẫn chạy.
-- [ ] Trên trình duyệt thật: xác nhận layout giữ stream khi chuyển route, và bản ghi của câu cuối vẫn đủ dữ liệu.
+**Priority 1: fix permission prompt bugs**
+- [x] Create `src/app/speaking/layout.tsx` and `src/features/speaking/mic/mic-session-provider.tsx`.
+- [x] Move `getUserMedia`, `AudioContext`, and volume metering into the provider. Ensure `acquire` is idempotent, including under StrictMode.
+- [x] `useVoiceRecorder` uses only the provider's stream.
+- [x] `SpeakingAttemptRun`: remove the mount-time permission request effect. Do not touch the microphone when `SUBMITTED`. Call `release()` upon submission.
+- [x] Release the stream when leaving the attempt flow.
+- [x] `SpeakingSession`: call `POST /attempts` only when the microphone is ready.
+- [x] Recover after reload based on `permissions.query`, wrapped in `try/catch`.
+- [x] Attempt screen includes a re-enable microphone button when status is `idle`, along with a notice that the timer is still running.
+- [ ] On a real browser: verify that the layout preserves the stream across route transitions, and that the final question's recording retains full data.
 
-**Ưu tiên 2: đúng PRD**
-- [x] Tách lỗi: `denied`, `no-device`, `busy`, `insecure`, `unsupported`, kèm hướng dẫn riêng.
-- [x] Kiểm tra thiết bị 3 bước: cấp quyền, nói thử 5 giây, nghe lại. Thêm chọn micro.
-- [x] Chính sách theo chế độ (D1).
-- [x] Tiếng beep bằng `OscillatorNode`; ghi âm bắt đầu sau beep.
-- [x] Phát hiện `track.ended`, `recorder.onerror`; cảnh báo `beforeunload` trong pha trả lời.
-- [x] Sửa nội dung ở `speaking-test-overview.tsx:113` về việc lưu bản ghi.
-- [x] Ẩn nút bỏ qua pha ở đề đầy đủ (D2).
+**Priority 2: match PRD**
+- [x] Distinguish errors: `denied`, `no-device`, `busy`, `insecure`, `unsupported`, with specific guidance for each.
+- [x] 3-step device check: grant permission, 5-second test recording, playback. Add microphone selector.
+- [x] Mode-based policy (D1).
+- [x] Beep sound using `OscillatorNode`; recording starts after the beep.
+- [x] Detect `track.ended` and `recorder.onerror`; `beforeunload` warning during the response phase.
+- [x] Update the copy in `speaking-test-overview.tsx:113` regarding recording storage.
+- [x] Hide phase skip button in full tests (D2).
 
 **Tests**
-- [x] Mock `getUserMedia`: đúng 1 lần gọi qua kiểm tra, tạo lượt làm và chuyển route.
-- [x] Bài `SUBMITTED`: 0 lần gọi.
-- [x] Không có `POST /attempts` khi chưa có quyền ở chế độ `FULL`.
-- [x] Mỗi loại lỗi cho đúng trạng thái.
-- [x] Rời luồng thì track bị dừng.
-- [ ] Đo thực tế theo [ma trận trình duyệt](../../runbooks/speaking-uat-runbook.md#3-ma-trận-quyền-micro).
+- [x] Mock `getUserMedia`: called exactly once across device check, attempt creation, and route transitions.
+- [x] `SUBMITTED` attempts: 0 calls.
+- [x] No `POST /attempts` sent without permission in `FULL` mode.
+- [x] Each error type produces the expected state.
+- [x] Leaving the flow stops all tracks.
+- [ ] Measure on real browsers per the [browser matrix](../../runbooks/speaking-uat-runbook.md#3-microphone-permission-matrix).
 
 ---
 
-## Work Package C: Test Builder ([thiết kế](./admin-test-builder.md))
+## Work Package C: Test Builder ([design](./admin-test-builder.md))
 
-**FE, không cần đổi BE (làm trước)**
-- [x] UI-02: giữ đúng vị trí khi lưu và khi tải lại.
-- [x] UI-01, DUP-04: bộ chọn có tìm kiếm phía server; khóa bài đã dùng và ghi rõ đang dùng ở câu nào.
-- [x] UI-03, UI-07: hiện đủ lỗi, đúng tiêu đề.
-- [x] UI-05, UI-06: hỏi khi đóng; lưu nháp không đóng builder.
+**FE, no BE changes needed (do first)**
+- [x] UI-02: preserve positions when saving and reloading.
+- [x] UI-01, DUP-04: picker with server-side search; lock already-used exercises and show which question uses them.
+- [x] UI-03, UI-07: display full errors with accurate titles.
+- [x] UI-05, UI-06: confirm on close; saving a draft does not close the builder.
 - [ ] UI-10, UI-11, UI-13.
-- [ ] FLOW-02: gọi `GET /attempts` và thêm danh sách lượt làm có liên kết đến `/speaking/attempts/{id}`. Trang `/history` không thuộc Speaking, nên đặt ở trang Speaking trừ khi nhóm thống nhất khác.
+- [ ] FLOW-02: call `GET /attempts` and add an attempt list linking to `/speaking/attempts/{id}`. The `/history` page does not belong to Speaking, so place it on the Speaking page unless the team agrees otherwise.
 
-**Cần BE**
-- [ ] UI-08: banner lỗi và sơ đồ 11 câu theo `publish-check` (cần Work Package A).
-- [x] UI-04: thêm `code` vào ProblemDetails của `409`.
+**Needs BE**
+- [ ] UI-08: error banner and 11-question map driven by `publish-check` (requires Work Package A).
+- [x] UI-04: add `code` to `409` ProblemDetails.
 - [x] UI-09: `DELETE /tests/{id}?version=`.
 - [x] UI-09: `POST /tests/{id}/clone`.
-- [ ] UI-12, DUP-05: thêm `usedInTestCount`.
+- [ ] UI-12, DUP-05: add `usedInTestCount`.
 
-**Tests:** các scenario trong [admin-test-builder.md](./admin-test-builder.md#5-tiêu-chí-nghiệm-thu).
+**Tests:** the scenarios in [admin-test-builder.md](./admin-test-builder.md#5-acceptance-criteria).
 
 ---
 
-## Work Package D: Làm sau, cần quyết định
+## Work Package D: Deferred, Needs Decision
 
-- [ ] Gỡ đề đã công bố: cần migration mới cho `ck_speaking_tests_status` (D4).
-- [ ] Audio câu hỏi Part 3–4 (D5).
-- [ ] Cột `content_fingerprint` để cảnh báo trùng toàn ngân hàng.
+- [ ] Unpublish a published test: requires a new migration for `ck_speaking_tests_status` (D4).
+- [ ] Question audio for Parts 3–4 (D5).
+- [ ] `content_fingerprint` column for bank-wide duplicate warnings.
 
 ---
 
 ## Handoff
 
-- [x] Cập nhật `admin-api.md`, `attempt-api.md`: chuyển phần đề xuất sang phần đã triển khai.
-- [x] Đổi trạng thái ADR-002 và ADR-003 khi được duyệt hoặc triển khai.
-- [ ] Đánh dấu các dòng đã sửa trong báo cáo rà soát.
-- [ ] Báo các file dùng chung cần cập nhật (báo cáo mục 8).
+- [x] Update `admin-api.md` and `attempt-api.md`: move proposed sections to implemented sections.
+- [x] Update ADR-002 and ADR-003 statuses when approved or implemented.
+- [ ] Mark resolved items in the audit report.
+- [ ] Report shared files that need updating (report section 8).

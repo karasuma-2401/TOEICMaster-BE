@@ -122,7 +122,7 @@ public sealed class SpeakingAdministrationTests
         var error = await Assert.ThrowsAsync<SpeakingPublishRequirementsException>(() => Publish(test.Id, test.Version));
 
         Assert.Equal(["Exercises", "Part1", "Part2", "Part3", "Part4"], error.Errors.Keys.Order());
-        Assert.Contains(error.Errors["Exercises"], message => message.Contains("chưa được công bố"));
+        Assert.Contains(error.Errors["Exercises"], message => message.Contains("is not published yet"));
         Assert.Equal(SpeakingTestStatus.Draft, _store.Tests.Single().Status);
     }
 
@@ -137,8 +137,8 @@ public sealed class SpeakingAdministrationTests
 
         await Assert.ThrowsAsync<SpeakingConflictException>(() => Publish(test.Id, test.Version + 1));
         var error = await Assert.ThrowsAsync<SpeakingPublishRequirementsException>(() => Publish(test.Id, test.Version));
-        Assert.Contains(error.Errors["Exercises"], message => message.Contains("không được lặp lại"));
-        Assert.Contains(error.Errors["Exercises"], message => message.Contains("thuộc Part 5"));
+        Assert.Contains(error.Errors["Exercises"], message => message.Contains("cannot be repeated"));
+        Assert.Contains(error.Errors["Exercises"], message => message.Contains("belongs to Part 5"));
     }
 
     [Fact]
@@ -360,7 +360,7 @@ public sealed class SpeakingAdministrationTests
                 slots.Add(new SpeakingTestSlotInput(exercise.Id, part, sequence));
             }
         return await new CreateSpeakingTestCommandHandler(_store, _clock).Handle(new CreateSpeakingTestCommand(Admin,
-            new SpeakingTestInput("SPK-01", "TOEIC Speaking Practice Test 01", "Đề đủ 11 câu.", slots)),
+            new SpeakingTestInput("SPK-01", "TOEIC Speaking Practice Test 01", "Full 11-question test.", slots)),
             CancellationToken.None);
     }
 

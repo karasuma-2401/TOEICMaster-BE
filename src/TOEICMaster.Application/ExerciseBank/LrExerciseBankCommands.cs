@@ -65,7 +65,7 @@ public sealed class CreateLrExerciseItemCommandHandler(ILrExerciseBankRepository
     public async Task<LrExerciseItemDto> Handle(CreateLrExerciseItemCommand request, CancellationToken cancellationToken)
     {
         if (await repository.ItemCodeExistsAsync(request.Input.Code.Trim(), cancellationToken))
-            throw new LrExerciseBankConflictException("Mã cụm bài tập đã tồn tại.");
+            throw new LrExerciseBankConflictException("Exercise item code already exists.");
         LrExerciseBankItem item;
         try
         {
@@ -90,14 +90,14 @@ public sealed class ImportLrExerciseItemsCommandHandler(ILrExerciseBankRepositor
     {
         var inputs = parser.Parse(request.Part, request.FileName, request.Content);
         if (inputs.Count == 0)
-            throw new LrExerciseBankImportException("Workbook chưa có dòng dữ liệu để import.");
+            throw new LrExerciseBankImportException("Workbook has no data rows to import.");
         var duplicateCodes = inputs.GroupBy(input => input.Code.Trim(), StringComparer.OrdinalIgnoreCase)
             .Where(group => group.Count() > 1).Select(group => group.Key).ToArray();
         if (duplicateCodes.Length > 0)
-            throw new LrExerciseBankImportException($"Trùng mã cụm trong workbook: {string.Join(", ", duplicateCodes)}.");
+            throw new LrExerciseBankImportException($"Duplicate item codes in workbook: {string.Join(", ", duplicateCodes)}.");
         foreach (var input in inputs)
             if (await repository.ItemCodeExistsAsync(input.Code.Trim(), cancellationToken))
-                throw new LrExerciseBankConflictException($"Mã cụm bài tập '{input.Code.Trim()}' đã tồn tại.");
+                throw new LrExerciseBankConflictException($"Exercise item code '{input.Code.Trim()}' already exists.");
 
         var now = timeProvider.GetUtcNow();
         LrExerciseBankItem[] items;

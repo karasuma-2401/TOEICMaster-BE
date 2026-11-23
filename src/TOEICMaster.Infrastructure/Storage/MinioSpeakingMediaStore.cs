@@ -26,7 +26,7 @@ public sealed class MinioSpeakingMediaStore(IMinioClient client) : ISpeakingMedi
             await client.GetObjectAsync(new GetObjectArgs().WithBucket(Bucket(kind)).WithObject(objectKey)
                 .WithCallbackStream(stream => stream.CopyTo(output)), cancellationToken);
             return output.ToArray();
-        }, _ => new SpeakingNotFoundException("Không tìm thấy tệp media Speaking."));
+        }, _ => new SpeakingNotFoundException("Speaking media file not found."));
 
     public Task DeleteAsync(SpeakingMediaKind kind, string objectKey, CancellationToken cancellationToken) =>
         client.RemoveObjectAsync(new RemoveObjectArgs().WithBucket(Bucket(kind)).WithObject(objectKey),
