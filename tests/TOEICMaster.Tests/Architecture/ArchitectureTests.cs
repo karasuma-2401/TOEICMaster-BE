@@ -288,6 +288,36 @@ public sealed class ArchitectureTests
     }
 
     [Fact]
+    public void Infrastructure_and_Api_must_use_SafeXmlLoader_instead_of_XDocument_Load()
+    {
+        var root = FindRepoRoot();
+        var srcDir = Path.Combine(root.FullName, "src");
+        var files = Directory.GetFiles(srcDir, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !Path.GetFileName(path).Equals("SafeXmlLoader.cs", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        Assert.NotEmpty(files);
+
+        var forbidden = new Regex(@"\b(?:XDocument|XmlDocument)\.Load\b|\bXmlReader\.Create\b", RegexOptions.Compiled);
+        var violations = new List<string>();
+
+        foreach (var file in files)
+        {
+            var lines = File.ReadAllLines(file);
+            for (var index = 0; index < lines.Length; index++)
+            {
+                if (forbidden.IsMatch(lines[index]))
+                {
+                    var relative = Path.GetRelativePath(root.FullName, file).Replace('\\', '/');
+                    violations.Add($"{relative}:{index + 1}: {lines[index].Trim()}");
+                }
+            }
+        }
+
+        Assert.True(violations.Count == 0,
+            $"XML parsers must use SafeXmlLoader.Load to prohibit DTD processing and prevent XXE attacks.{Environment.NewLine}{string.Join(Environment.NewLine, violations)}");
+    }
+
+    [Fact]
     public void Global_json_options_use_PascalCase_string_enums_and_no_incompatible_dto_converters()
     {
         using var factory = new OpenApiSnapshotFactory();
