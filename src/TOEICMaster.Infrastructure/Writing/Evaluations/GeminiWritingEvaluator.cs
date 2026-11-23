@@ -15,7 +15,7 @@ public sealed class GeminiWritingEvaluator(HttpClient httpClient, IOptions<Gemin
     : IWritingEvaluator
 {
     private const string SystemInstruction = """
-        You are a careful TOEIC Writing practice evaluator. Return only English feedback for a learner.
+        You are a careful TOEIC Writing practice evaluator. Return only Vietnamese feedback for a learner.
         Evaluate each response independently. Give specific, observable feedback before assigning its criterion score.
         Score every answer using its supplied criterion scale. The server converts
         those raw scores to a TOEIC Writing 0-200 estimate; it is never an official ETS result. Evaluate only the

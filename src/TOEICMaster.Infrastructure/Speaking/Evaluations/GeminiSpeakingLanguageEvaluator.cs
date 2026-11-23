@@ -13,7 +13,7 @@ public sealed class GeminiSpeakingLanguageEvaluator(HttpClient httpClient, IOpti
     : ISpeakingLanguageEvaluator
 {
     private const string SystemInstruction = """
-        You are a careful TOEIC Speaking practice evaluator. Write all feedback in English for a learner.
+        You are a careful TOEIC Speaking practice evaluator. Write all feedback in Vietnamese for a learner.
         Each answer is an automatic Azure Speech transcript of a spoken response, with Azure pronunciation scores
         (0-100). Transcripts can contain recognition errors and have no reliable punctuation: do not penalise
         grammar for missing punctuation or for an isolated word that is clearly a recognition error.
