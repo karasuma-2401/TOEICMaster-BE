@@ -214,6 +214,16 @@ public sealed class GlobalExceptionHandler(
 
 internal static class ProblemDetailsResponseWriter
 {
+    public static ObjectResult CreateResult(HttpContext httpContext, ProblemDetails problem)
+    {
+        Prepare(httpContext, problem);
+        return new ObjectResult(problem)
+        {
+            StatusCode = problem.Status,
+            ContentTypes = { "application/problem+json" }
+        };
+    }
+
     public static async Task WriteAsync(
         IProblemDetailsService problemDetailsService,
         HttpContext httpContext,
@@ -221,12 +231,8 @@ internal static class ProblemDetailsResponseWriter
         ProblemDetails problem,
         CancellationToken cancellationToken)
     {
-        var status = problem.Status ?? StatusCodes.Status500InternalServerError;
-        problem.Status = status;
-        if (!problem.Extensions.TryGetValue("traceId", out var traceId) || traceId is null)
-            problem.Extensions["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier;
-
-        httpContext.Response.StatusCode = status;
+        Prepare(httpContext, problem);
+        httpContext.Response.StatusCode = problem.Status!.Value;
         if (!await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
         {
             HttpContext = httpContext,
@@ -241,5 +247,12 @@ internal static class ProblemDetailsResponseWriter
                 contentType: "application/problem+json",
                 cancellationToken: cancellationToken);
         }
+    }
+
+    private static void Prepare(HttpContext httpContext, ProblemDetails problem)
+    {
+        problem.Status ??= StatusCodes.Status500InternalServerError;
+        if (!problem.Extensions.TryGetValue("traceId", out var traceId) || traceId is null)
+            problem.Extensions["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier;
     }
 }

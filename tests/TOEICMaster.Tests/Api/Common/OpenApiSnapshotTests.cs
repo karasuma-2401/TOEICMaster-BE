@@ -75,6 +75,30 @@ public sealed class OpenApiSnapshotTests
     }
 
     [Fact]
+    public async Task Writing_import_has_a_named_response_schema_with_integer_importedCount()
+    {
+        using var factory = new OpenApiSnapshotFactory();
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/openapi/v1.json");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var schema = document.RootElement.GetProperty("paths")
+            .GetProperty("/api/v1/admin/writing/exercises/import").GetProperty("post")
+            .GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema");
+        Assert.Equal("#/components/schemas/ImportWritingItemsResponse", schema.GetProperty("$ref").GetString());
+        var count = document.RootElement.GetProperty("components").GetProperty("schemas")
+            .GetProperty("ImportWritingItemsResponse").GetProperty("properties").GetProperty("importedCount");
+        var type = count.GetProperty("type");
+        var types = type.ValueKind == JsonValueKind.Array
+            ? type.EnumerateArray().Select(value => value.GetString()).ToArray()
+            : [type.GetString()];
+        Assert.Contains("integer", types);
+        Assert.DoesNotContain("null", types);
+        Assert.Equal("int32", count.GetProperty("format").GetString());
+    }
+
+    [Fact]
     public async Task OpenApi_v1_snapshot_matches_live_endpoint_and_includes_admin_users_and_string_enums()
     {
         using var factory = new OpenApiSnapshotFactory();

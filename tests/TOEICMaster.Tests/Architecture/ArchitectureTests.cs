@@ -135,6 +135,32 @@ public sealed class ArchitectureTests
     }
 
     [Fact]
+    public void Controllers_do_not_instantiate_raw_ProblemDetails_or_anonymous_ok_objects()
+    {
+        var root = FindRepoRoot();
+        var controllersDir = Path.Combine(root.FullName, "src", "TOEICMaster.Api", "Controllers");
+        var files = Directory.GetFiles(controllersDir, "*.cs", SearchOption.AllDirectories);
+        Assert.NotEmpty(files);
+
+        var forbidden = new Regex(@"\bnew\s+(?:\w+\.)*ProblemDetails\b|\bOk\s*\(\s*new\s*\{|\bCreated\s*\([^;]*?,\s*new\s*\{",
+            RegexOptions.Compiled);
+        var violations = new List<string>();
+        foreach (var file in files)
+        {
+            var content = File.ReadAllText(file);
+            foreach (Match match in forbidden.Matches(content))
+            {
+                var line = content[..match.Index].Count(character => character == '\n') + 1;
+                violations.Add($"{Path.GetRelativePath(root.FullName, file)}:{line}: {match.Value}");
+            }
+        }
+
+        Assert.True(violations.Count == 0,
+            "Use ControllerProblemExtensions.BadRequestProblem or ProblemResponse for errors and a typed response " +
+            $"record such as ImportWritingItemsResponse for payloads.{Environment.NewLine}{string.Join(Environment.NewLine, violations)}");
+    }
+
+    [Fact]
     public void MediatR_commands_have_validators_unless_explicitly_allowlisted()
     {
         var appAssembly = typeof(TOEICMaster.Application.DependencyInjection).Assembly;

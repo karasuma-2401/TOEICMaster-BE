@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TOEICMaster.Api.Contracts;
 using TOEICMaster.Api.Extensions;
 using TOEICMaster.Application.Writing.Admin;
 using TOEICMaster.Application.Writing.Attempts;
@@ -43,11 +44,12 @@ public sealed class AdminWritingController(ISender sender) : ControllerBase
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024 + 64 * 1024)]
     [ProducesResponseType<WritingExerciseImportPreviewDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<WritingExerciseImportPreviewDto>> PreviewImport([FromQuery] int part,
         [FromForm] IFormFile? file, CancellationToken cancellationToken)
     {
         if (file is null || file.Length is <= 0 or > 10 * 1024 * 1024)
-            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid import file." });
+            return this.BadRequestProblem("Invalid import file.");
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         return Ok(await sender.Send(new PreviewWritingExerciseImportCommand(part, file.FileName, stream.ToArray()),
@@ -57,16 +59,18 @@ public sealed class AdminWritingController(ISender sender) : ControllerBase
     [HttpPost("exercises/import")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024 + 64 * 1024)]
-    public async Task<ActionResult<object>> ImportExercises([FromQuery] int part, [FromForm] IFormFile? file,
+    [ProducesResponseType<ImportWritingItemsResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ImportWritingItemsResponse>> ImportExercises([FromQuery] int part, [FromForm] IFormFile? file,
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length is <= 0 or > 10 * 1024 * 1024)
-            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid import file." });
+            return this.BadRequestProblem("Invalid import file.");
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         var count = await sender.Send(new ImportWritingExercisesCommand(CurrentUserId(), part, file.FileName,
             stream.ToArray()), cancellationToken);
-        return Ok(new { importedCount = count });
+        return Ok(new ImportWritingItemsResponse(count));
     }
 
     [HttpPut("exercises/{exerciseId:guid}")]
@@ -89,11 +93,12 @@ public sealed class AdminWritingController(ISender sender) : ControllerBase
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(UploadWritingImageCommandHandler.MaxBytes + 64 * 1024)]
     [ProducesResponseType<WritingMediaAssetDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<WritingMediaAssetDto>> UploadImage([FromForm] IFormFile? file,
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length is <= 0 or > UploadWritingImageCommandHandler.MaxBytes)
-            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid prompt image." });
+            return this.BadRequestProblem("Invalid prompt image.");
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         var created = await sender.Send(new UploadWritingImageCommand(CurrentUserId(), stream.ToArray(),
@@ -132,12 +137,14 @@ public sealed class AdminWritingController(ISender sender) : ControllerBase
     [HttpPost("tests/imports/validate")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024 + 64 * 1024)]
+    [ProducesResponseType<WritingTestImportPreviewDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<WritingTestImportPreviewDto>> PreviewTestImport([FromForm] IFormFile? file,
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length is <= 0 or > 10 * 1024 * 1024 ||
             !file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid import file." });
+            return this.BadRequestProblem("Invalid import file.");
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         return Ok(await sender.Send(new PreviewWritingTestImportQuery(stream.ToArray()), cancellationToken));
@@ -146,17 +153,19 @@ public sealed class AdminWritingController(ISender sender) : ControllerBase
     [HttpPost("tests/import")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024 + 64 * 1024)]
+    [ProducesResponseType<WritingTestDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<WritingTestDto>> ImportTest([FromForm] IFormFile? file,
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length is <= 0 or > 10 * 1024 * 1024 ||
             !file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid import file." });
+            return this.BadRequestProblem("Invalid import file.");
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         var preview = await sender.Send(new PreviewWritingTestImportQuery(stream.ToArray()), cancellationToken);
         if (!preview.IsValid || preview.Test is null)
-            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]> { ["file"] = preview.Errors.ToArray() }));
+            return this.ValidationProblemResponse(new Dictionary<string, string[]> { ["file"] = preview.Errors.ToArray() });
         var created = await sender.Send(new CreateWritingTestCommand(CurrentUserId(), preview.Test), cancellationToken);
         return CreatedAtAction(nameof(GetTest), new { testId = created.Id }, created);
     }
