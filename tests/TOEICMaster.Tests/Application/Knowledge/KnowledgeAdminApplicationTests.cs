@@ -16,6 +16,7 @@ public sealed class KnowledgeAdminApplicationTests
         Assert.Equal("toeic-reading-tips", KnowledgeSlug.Generate("TOEIC Reading Tips!!!", 120));
         Assert.Equal("listening-strategy-100", KnowledgeSlug.Generate("  Listening   Strategy 100%  ", 120));
         Assert.Equal("cafe-resume", KnowledgeSlug.Generate("Caf\u00e9 & R\u00e9sum\u00e9", 120));
+        Assert.Equal("meo-doc-hieu", KnowledgeSlug.Generate("M\u1eb9o \u0111\u1ecdc hi\u1ec3u", 120));
         Assert.True(KnowledgeSlug.IsValid("reading-tips-2026", 120));
         Assert.False(KnowledgeSlug.IsValid("Invalid Slug!", 120));
     }

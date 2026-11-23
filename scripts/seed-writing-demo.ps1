@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$BaseUrl = 'http://localhost:5287',
     [Parameter(Mandatory = $true)][pscredential]$Credential
 )

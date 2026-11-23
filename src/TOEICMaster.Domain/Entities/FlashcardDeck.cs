@@ -241,7 +241,7 @@ public sealed class FlashcardDeck
         }
 
         var result = builder.ToString().Trim('-');
-        return string.IsNullOrEmpty(result) ? "bo-the-ca-nhan" : result;
+        return string.IsNullOrEmpty(result) ? "custom-deck" : result;
     }
 }
 
