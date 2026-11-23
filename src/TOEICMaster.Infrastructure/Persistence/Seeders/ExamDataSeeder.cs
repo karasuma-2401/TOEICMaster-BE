@@ -58,8 +58,8 @@ public static class ExamDataSeeder
             OptionC: "(C) A woman is standing by the window.",
             OptionD: "(D) A woman is writing on a whiteboard.",
             CorrectKey: "A",
-            Translation: "(A) A woman is typing on a laptop.",
-            Explanation: "In the picture, a woman is sitting at work and typing on a laptop.",
+            Translation: "(A) Một phụ nữ đang gõ bàn phím trên máy tính xách tay.",
+            Explanation: "Trong hình là người phụ nữ đang ngồi làm việc và gõ phím trên laptop.",
             ImageAssetId: null
         ));
 
@@ -71,8 +71,8 @@ public static class ExamDataSeeder
             OptionC: "(C) The door is being opened.",
             OptionD: "(D) A worker is sweeping the floor.",
             CorrectKey: "B",
-            Translation: "(B) Some boxes are stacked on a bookshelf/shelf.",
-            Explanation: "The boxes are stacked neatly on the display shelf.",
+            Translation: "(B) Một số hộp được xếp trên giá sách/kệ.",
+            Explanation: "Các thùng hàng được xếp chồng gọn gàng trên kệ trưng bày.",
             ImageAssetId: null
         ));
 
@@ -86,8 +86,8 @@ public static class ExamDataSeeder
             OptionC: "(C) At 9:00 AM sharp.",
             OptionD: null,
             CorrectKey: "A",
-            Translation: "Where is the marketing conference being held this year? - (A) In Toronto, Canada.",
-            Explanation: "A 'Where' question asks about a location, so the best answer is (A).",
+            Translation: "Hội nghị tiếp thị năm nay được tổ chức ở đâu? - (A) Tại Toronto, Canada.",
+            Explanation: "Câu hỏi Where hỏi về địa điểm, đáp án phù hợp nhất là (A).",
             ImageAssetId: null
         ));
 
@@ -101,8 +101,8 @@ public static class ExamDataSeeder
             OptionC: "prior",
             OptionD: "ahead",
             CorrectKey: "A",
-            Translation: "Ms. Tanaka requested that the financial report be submitted before Friday morning.",
-            Explanation: "A time preposition is needed before the noun phrase 'Friday morning'. Choose 'before'.",
+            Translation: "Bà Tanaka đã yêu cầu báo cáo tài chính phải được nộp trước sáng thứ Sáu.",
+            Explanation: "Cần một giới từ chỉ thời gian đứng trước danh từ Friday morning. Chọn before.",
             ImageAssetId: null
         ));
 
@@ -114,8 +114,8 @@ public static class ExamDataSeeder
             OptionC: "quietness",
             OptionD: "quietest",
             CorrectKey: "B",
-            Translation: "The new ventilation system operates much more quietly than the previous model.",
-            Explanation: "The action verb 'operates' is modified by the adverb 'quietly'.",
+            Translation: "Hệ thống thông gió mới hoạt động êm ái hơn nhiều so với mẫu trước đây.",
+            Explanation: "Động từ thường operates đi cùng trạng từ quietly để bổ nghĩa.",
             ImageAssetId: null
         ));
 
@@ -137,8 +137,8 @@ public static class ExamDataSeeder
             OptionC: "(C) To request volunteers for an inspection",
             OptionD: "(D) To introduce a new facility manager",
             CorrectKey: "B",
-            Translation: "What is the purpose of the memorandum? - (B) To inform staff about elevator maintenance.",
-            Explanation: "The passage states that Elevator Maintenance will take place on Thursday.",
+            Translation: "Mục đích của thông báo là gì? - (B) Thông báo về việc bảo trì thang máy.",
+            Explanation: "Đoạn văn thông báo Elevator Maintenance sẽ diễn ra vào thứ Năm.",
             ImageAssetId: null
         ));
 
@@ -150,8 +150,8 @@ public static class ExamDataSeeder
             OptionC: "(C) Use the stairs or service elevator",
             OptionD: "(D) Park at the rear entrance",
             CorrectKey: "C",
-            Translation: "What are employees advised to do? - (C) Use the stairs or the service elevator.",
-            Explanation: "The last sentence of the passage clearly states: 'please use the stairs or the service elevator.'",
+            Translation: "Nhân viên được khuyên làm gì? - (C) Dùng cầu thang bộ hoặc thang máy dịch vụ.",
+            Explanation: "Câu cuối đoạn văn nêu rõ: please use the stairs or the service elevator.",
             ImageAssetId: null
         ));
 
