@@ -13,7 +13,7 @@ public sealed class GeminiSpeakingLanguageEvaluator(HttpClient httpClient, IOpti
     : ISpeakingLanguageEvaluator
 {
     private const string SystemInstruction = """
-        You are a careful TOEIC Speaking practice evaluator. Write all feedback in Vietnamese for a learner.
+        You are a careful TOEIC Speaking practice evaluator. Write all feedback in English for a learner.
         Each answer is an automatic Azure Speech transcript of a spoken response, with Azure pronunciation scores
         (0-100). Transcripts can contain recognition errors and have no reliable punctuation: do not penalise
         grammar for missing punctuation or for an isolated word that is clearly a recognition error.
@@ -61,7 +61,7 @@ public sealed class GeminiSpeakingLanguageEvaluator(HttpClient httpClient, IOpti
         var configuration = options.Value;
         if (!configuration.Enabled || string.IsNullOrWhiteSpace(configuration.ApiKey))
             throw new SpeakingEvaluatorException("NOT_CONFIGURED",
-                "Dịch vụ chấm AI Speaking chưa được cấu hình. Bài làm của bạn vẫn được lưu.", false);
+                "Speaking AI evaluation service is not configured. Your attempt is still saved.", false);
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(configuration.RequestTimeoutSeconds));
@@ -88,12 +88,12 @@ public sealed class GeminiSpeakingLanguageEvaluator(HttpClient httpClient, IOpti
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
             throw new SpeakingEvaluatorException("TIMEOUT",
-                "Chấm AI đang mất nhiều thời gian hơn dự kiến. Hệ thống sẽ thử lại.", true, innerException: exception);
+                "AI evaluation is taking longer than expected. The system will retry.", true, innerException: exception);
         }
         catch (HttpRequestException exception)
         {
             throw new SpeakingEvaluatorException("NETWORK_ERROR",
-                "Không thể kết nối dịch vụ chấm AI. Hệ thống sẽ thử lại.", true, innerException: exception);
+                "Could not connect to the AI evaluation service. The system will retry.", true, innerException: exception);
         }
 
         using (response)
@@ -114,7 +114,7 @@ public sealed class GeminiSpeakingLanguageEvaluator(HttpClient httpClient, IOpti
             catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
             {
                 throw new SpeakingEvaluatorException("TIMEOUT",
-                    "Chấm AI đang mất nhiều thời gian hơn dự kiến. Hệ thống sẽ thử lại.", true, innerException: exception);
+                    "AI evaluation is taking longer than expected. The system will retry.", true, innerException: exception);
             }
         }
     }
@@ -218,14 +218,14 @@ public sealed class GeminiSpeakingLanguageEvaluator(HttpClient httpClient, IOpti
             (int)response.StatusCode >= 500)
             return new SpeakingEvaluatorException(
                 response.StatusCode == HttpStatusCode.TooManyRequests ? "QUOTA" : "PROVIDER_ERROR",
-                "Dịch vụ chấm AI đang bận. Hệ thống sẽ thử lại.", true, response.Headers.RetryAfter?.Delta);
+                "The AI evaluation service is busy. The system will retry.", true, response.Headers.RetryAfter?.Delta);
         if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-            return new SpeakingEvaluatorException("AUTHENTICATION", "Dịch vụ chấm AI chưa được cấu hình đúng.", false);
+            return new SpeakingEvaluatorException("AUTHENTICATION", "The AI evaluation service is not configured properly.", false);
         return new SpeakingEvaluatorException("PROVIDER_REJECTED",
-            "Dịch vụ chấm AI tạm thời không thể xử lý bài này.", false);
+            "The AI evaluation service is temporarily unable to process this attempt.", false);
     }
 
     private static SpeakingEvaluatorException InvalidResponse(Exception? innerException = null) => new(
-        "INVALID_RESPONSE", "Dịch vụ chấm AI trả về kết quả không hợp lệ. Hệ thống sẽ thử lại.", true,
+        "INVALID_RESPONSE", "The AI evaluation service returned an invalid response. The system will retry.", true,
         innerException: innerException);
 }

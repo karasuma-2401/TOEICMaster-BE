@@ -51,13 +51,13 @@ public static class SpeakingTestContentRules
         for (var left = 0; left < texts.Count; left++)
             for (var right = left + 1; right < texts.Count; right++)
                 if (texts[left].Text.Length > 0 && texts[left].Text == texts[right].Text)
-                    errors.Add($"Câu {texts[left].Position} và Câu {texts[right].Position} trùng nội dung văn bản.");
+                    errors.Add($"Question {texts[left].Position} and Question {texts[right].Position} have duplicate text content.");
         for (var left = 0; left < pictures.Count; left++)
             for (var right = left + 1; right < pictures.Count; right++)
                 if (pictures[left].Id == pictures[right].Id ||
                     !string.IsNullOrEmpty(pictures[left].Hash) && string.Equals(pictures[left].Hash,
                         pictures[right].Hash, StringComparison.OrdinalIgnoreCase))
-                    errors.Add($"Câu {pictures[left].Position} và Câu {pictures[right].Position} dùng cùng một ảnh.");
+                    errors.Add($"Question {pictures[left].Position} and Question {pictures[right].Position} use the same image.");
         return errors;
     }
 

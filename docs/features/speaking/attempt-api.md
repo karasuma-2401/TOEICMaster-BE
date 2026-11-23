@@ -1,26 +1,31 @@
-# Speaking attempt API
+# Speaking Attempt API
 
-Các endpoint dùng prefix `/api/v1/speaking`, mở cho cả người dùng chưa đăng nhập. Mọi response có `Cache-Control: no-store`. Browser gọi qua BFF same-origin `/api/speaking/*`.
+All endpoints use the `/api/v1/speaking` prefix and are open to unauthenticated users as well.
+Every response includes `Cache-Control: no-store`.
+The browser calls them through the same-origin BFF `/api/speaking/*`.
 
-## Chủ sở hữu lượt làm
+## Attempt Ownership
 
-Request có JWT hợp lệ gắn lượt làm với `sub`. Nếu chưa đăng nhập, cần gửi UUID trong header `X-Speaking-Anonymous-Session`; backend chỉ lưu SHA-256 của giá trị này. Một lượt làm thuộc đúng một loại chủ sở hữu. Người khác nhận `404`.
+Requests with a valid JWT bind the attempt to `sub`.
+If unauthenticated, a UUID must be sent in the `X-Speaking-Anonymous-Session` header; the backend stores only the SHA-256 hash of this value.
+Each attempt belongs to exactly one owner type.
+Any other caller receives `404`.
 
-## Đề và bài luyện
+## Tests and Practice Exercises
 
-Các response này không chứa rubric hay bài mẫu.
+These responses do not include rubrics or sample answers.
 
-- `GET /tests?query=&pageNumber=1&pageSize=20`: chỉ đề đã công bố.
-- `GET /tests/{testId}`: gồm `parts: [{ part, questionCount, durationSeconds }]`.
-- `GET /exercises?part=1&pageNumber=1&pageSize=20`: bài `PUBLISHED` để luyện lẻ.
+- `GET /tests?query=&pageNumber=1&pageSize=20`: published tests only.
+- `GET /tests/{testId}`: includes `parts: [{ part, questionCount, durationSeconds }]`.
+- `GET /exercises?part=1&pageNumber=1&pageSize=20`: `PUBLISHED` exercises for individual practice.
 - `GET /exercises/{exerciseId}`: `{ id, code, part, topic, difficulty, questionCount, durationSeconds, updatedAtUtc }`.
-- `GET /media/{assetId}`: chỉ ảnh của bài hoặc đề đã công bố.
+- `GET /media/{assetId}`: images belonging to published exercises or tests only.
 
-Giá trị `durationSeconds` chuẩn theo Part: P1 180, P2 150, P3 69, P4 114, P5 105.
+Standard `durationSeconds` values by Part: P1 180, P2 150, P3 69, P4 114, P5 105.
 
-## Bắt đầu lượt làm
+## Starting an Attempt
 
-`POST /attempts` nhận đúng một trong hai dạng:
+`POST /attempts` accepts exactly one of two shapes:
 
 ```json
 { "testId": "uuid", "mode": "FULL" }
@@ -30,61 +35,70 @@ Giá trị `durationSeconds` chuẩn theo Part: P1 180, P2 150, P3 69, P4 114, P
 { "exerciseId": "uuid" }
 ```
 
-`mode` là `FULL` hoặc `PART_1` đến `PART_5`. Với bài luyện lẻ, mode lấy theo Part của bài. Các câu được đánh số lại từ 1 và nội dung được snapshot lúc tạo.
+`mode` is `FULL` or `PART_1` through `PART_5`.
+For individual exercise practice, the mode is taken from the exercise's Part.
+Questions are renumbered starting from 1 and their content is snapshotted at creation time.
 
-> **Thời điểm gọi:** đồng hồ bắt đầu ngay khi request này thành công. Theo [ADR-003](../../decisions/003-speaking-microphone-session.md), FE phải có micro sẵn sàng **trước** khi gọi.
+> **When to call:** the timer starts as soon as this request succeeds. Per [ADR-003](../../decisions/003-speaking-microphone-session.md), FE must have the microphone ready **before** calling.
 
-## Làm bài và đồng hồ
+## Taking the Test and Timers
 
-- `GET /attempts`: lịch sử của chủ sở hữu hiện tại; có `recordedCount`, `evaluationStatus`, `estimatedScore`.
-- `GET /attempts/{attemptId}`: tải hoặc tiếp tục. Tự chuyển qua mọi pha đã quá hạn.
-- `POST /attempts/{attemptId}/next`: kết thúc pha hiện tại. Ở pha trả lời của câu cuối, request này nộp bài.
-- `POST /attempts/{attemptId}/submit`: nộp bài, idempotent.
+- `GET /attempts`: history for the current owner; includes `recordedCount`, `evaluationStatus`, `estimatedScore`.
+- `GET /attempts/{attemptId}`: load or resume. Automatically advances past any expired phases.
+- `POST /attempts/{attemptId}/next`: ends the current phase. On the response phase of the last question, this request submits the attempt.
+- `POST /attempts/{attemptId}/submit`: submits the attempt, idempotent.
 
-Thứ tự pha của từng câu:
+Phase order for each question:
 
 ```text
-READING (nếu có) → PREPARING (nếu có) → RESPONDING → khóa câu → câu kế tiếp
-Sau câu cuối: status = SUBMITTED; currentQuestionPosition, currentPhase, phaseEndsAtUtc = null
+READING (if any) → PREPARING (if any) → RESPONDING → lock question → next question
+After the last question: status = SUBMITTED; currentQuestionPosition, currentPhase, phaseEndsAtUtc = null
 ```
 
-FE đếm ngược từ `phaseEndsAtUtc`, có tính độ lệch theo `serverNowUtc`. Backend là nguồn thời gian. Hết hạn thì FE gọi `GET` để lấy trạng thái mới.
+FE counts down from `phaseEndsAtUtc`, accounting for clock skew using `serverNowUtc`.
+The backend is the source of truth for time.
+When a phase expires, FE calls `GET` to retrieve the new state.
 
-Với Part 3 và 4, phần tử chưa tới lượt trong `content.questions` là `null`. Part 4 cũng trả `null` cho câu hiện tại khi đang `READING`.
+For Parts 3 and 4, upcoming entries in `content.questions` are `null`.
+Part 4 also returns `null` for the current question while in `READING`.
 
-Các trường của response: `id`, `testId`, `exerciseId`, `testCode`, `testTitle`, `mode`, `status`, `currentQuestionPosition`, `currentPhase`, `phaseEndsAtUtc`, `serverNowUtc`, `createdAtUtc`, `submittedAtUtc`, `questions`, `reviewQuestions`, `evaluation`.
+Response fields: `id`, `testId`, `exerciseId`, `testCode`, `testTitle`, `mode`, `status`, `currentQuestionPosition`, `currentPhase`, `phaseEndsAtUtc`, `serverNowUtc`, `createdAtUtc`, `submittedAtUtc`, `questions`, `reviewQuestions`, `evaluation`.
 
-Với lượt luyện lẻ, `testId` là `null`, `testCode` là mã bài, và `testTitle` có dạng `Luyện Part n · <chủ đề>`.
+For individual practice attempts, `testId` is `null`, `testCode` is the exercise code, and `testTitle` follows the format `Practice Part n · <topic>`.
 
-**Đích (D2):** ẩn nút bỏ qua ở pha đọc và chuẩn bị của đề `FULL`. Việc này chỉ cần sửa FE; nếu muốn chặn ở server thì cần thêm kiểm tra mode trong `Next`.
+**Target (D2):** hide the skip button during the reading and preparation phases of `FULL` tests.
+This only requires an FE change; if server-side enforcement is desired, a mode check must be added in `Next`.
 
-## Bản ghi
+## Recordings
 
-`PUT /attempts/{attemptId}/recordings/{position}`: `multipart/form-data`, gồm `file` và `durationSeconds`.
+`PUT /attempts/{attemptId}/recordings/{position}`: `multipart/form-data`, containing `file` and `durationSeconds`.
 
-- Định dạng: WebM, Ogg hoặc MP4, kiểm tra theo nội dung file.
-- Dung lượng tối đa của mỗi câu: `min(4 MiB, responseSeconds × 32 KiB + 256 KiB)`.
-- Chỉ nhận trong pha trả lời của câu đó, hoặc trong 15 giây sau khi câu bị khóa.
-- Tải lại cho cùng câu trong thời gian này sẽ thay bản ghi cũ.
-- Giới hạn 30 request mỗi phút theo phiên ẩn danh, token hoặc địa chỉ IP.
+- Format: WebM, Ogg, or MP4, validated by file contents.
+- Maximum size per question: `min(4 MiB, responseSeconds × 32 KiB + 256 KiB)`.
+- Accepted only during that question's response phase, or within 15 seconds after the question is locked.
+- Re-uploading for the same question within this window replaces the previous recording.
+- Rate limit: 30 requests per minute per anonymous session, token, or IP address.
 
-`GET /attempts/{attemptId}/recordings/{position}`: chỉ chủ lượt làm mới nghe được.
+`GET /attempts/{attemptId}/recordings/{position}`: only the attempt owner can listen to it.
 
-Bản ghi của khách bị xóa sau 30 ngày. Bản ghi được giữ trên server, không chỉ trong tab; phải thông báo đúng điều này trên UI (MIC-11).
+Guest recordings are deleted after 30 days.
+Recordings are stored on the server, not only in the browser tab; the UI must communicate this accurately (MIC-11).
 
-## Sau khi nộp
+## After Submission
 
-`reviewQuestions` chứa rubric và bài mẫu theo câu. Xem [AI Evaluation](./ai-evaluation.md) cho phần chấm điểm.
+`reviewQuestions` contains the rubric and sample answer per question.
+See [AI Evaluation](./ai-evaluation.md) for grading.
 
-Route FE `/speaking/attempts/{id}` dùng chung cho làm bài và xem lại. Khi `status = SUBMITTED`, FE không được xin quyền micro.
+The FE route `/speaking/attempts/{id}` is shared between taking the test and reviewing it.
+When `status = SUBMITTED`, FE must not request microphone permission.
 
-## Lỗi
+## Errors
 
-| Mã | Khi nào |
+| Code | When |
 | --- | --- |
-| `400` | Body sai, bản ghi rỗng hoặc sai định dạng |
-| `401` | Thiếu cả JWT lẫn UUID phiên ẩn danh hợp lệ |
-| `404` | Không tìm thấy hoặc không phải chủ lượt làm |
-| `409` | Đề chưa sẵn sàng; hết thời gian tải bản ghi |
-| `413` | Bản ghi quá dung lượng |
-| `429` | Tải bản ghi quá nhanh |
+| `400` | Invalid body, empty recording, or invalid format |
+| `401` | Missing both a valid JWT and a valid anonymous session UUID |
+| `404` | Not found or caller is not the attempt owner |
+| `409` | Test is not ready; recording upload window has expired |
+| `413` | Recording exceeds maximum size |
+| `429` | Uploading recordings too frequently |

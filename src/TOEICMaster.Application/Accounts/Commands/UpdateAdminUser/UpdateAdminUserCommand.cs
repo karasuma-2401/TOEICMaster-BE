@@ -15,7 +15,7 @@ public sealed class UpdateAdminUserCommandValidator : AbstractValidator<UpdateAd
         RuleFor(command => command.TargetUserId).NotEmpty();
         RuleFor(command => command.Role)
             .Must(role => role is AdminUserValues.RoleUser or AdminUserValues.RoleAdmin)
-            .WithMessage("Vai trò phải là USER hoặc ADMIN.");
+            .WithMessage("Role must be USER or ADMIN.");
     }
 }
 

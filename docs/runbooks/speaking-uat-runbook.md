@@ -1,68 +1,72 @@
-# Speaking UAT và checklist bàn giao
+# Speaking UAT and Handover Checklist
 
-Tài liệu này chốt phạm vi **Speaking**: 11 câu, 5 Part, đề đầy đủ và luyện theo Part. Writing và L&R không thuộc checklist này.
+This document locks the **Speaking** scope: 11 questions, 5 Parts, full tests and Part practice.
+Writing and L&R are outside this checklist.
 
-Các dòng ghi **(Đích)** chỉ pass được sau khi triển khai ADR-002, ADR-003 hoặc [Test Builder](../features/speaking/admin-test-builder.md). Khi chạy trên phiên bản hiện tại, các dòng đó dự kiến **fail** và là bằng chứng cho [báo cáo rà soát](./speaking-audit-report.md).
+Rows marked **(Target)** only pass after implementing ADR-002, ADR-003, or [Test Builder](../features/speaking/admin-test-builder.md).
+When run against the current version, those rows are expected to **fail** and serve as evidence for the [audit report](./speaking-audit-report.md).
 
-## 1. Chuẩn bị an toàn
+## 1. Safe Setup
 
-1. Tạo `.env` từ `.env.example`. Không đưa key vào source, ảnh chụp màn hình hay ticket.
-2. Có PostgreSQL, Redis và MinIO hoạt động. Chỉ chạy migration lên database dùng chung khi nhóm đã duyệt.
-3. Để chấm AI: bật Azure Speech và Gemini theo [AI Evaluation](../features/speaking/ai-evaluation.md), và image có `ffmpeg`.
-4. Dùng HTTPS hoặc `localhost`. Trang HTTP thường không dùng được micro.
-5. Có tài khoản Admin. Không bypass bằng header hay query string.
-6. Khi thử Azure hoặc Gemini, chỉ dùng bản ghi không chứa thông tin cá nhân.
-7. Có ít nhất 2 bài cho mỗi Part 1, 2 và 1 bài cho mỗi Part 3, 4, 5. Dữ liệu mẫu có tiền tố `SAMPLE-`. Ảnh của bài mẫu Part 2 có thể không có trong MinIO máy khác, khi đó cần tải lại ảnh.
+1. Create `.env` from `.env.example`. Do not put keys into source code, screenshots, or tickets.
+2. Ensure PostgreSQL, Redis, and MinIO are running. Only run migrations on the shared database once the team approves.
+3. For AI grading: enable Azure Speech and Gemini per [AI Evaluation](../features/speaking/ai-evaluation.md), and ensure the image has `ffmpeg`.
+4. Use HTTPS or `localhost`. Plain HTTP pages usually cannot access the microphone.
+5. Have an Admin account ready. Do not bypass auth via headers or query strings.
+6. When testing Azure or Gemini, use only recordings that contain no PII.
+7. Have at least 2 exercises for each of Part 1 and Part 2, and 1 exercise for each of Part 3, 4, and 5. Sample data uses the `SAMPLE-` prefix. Images for Part 2 sample exercises might not exist in MinIO on another machine, in which case re-upload the images.
 
-## 2. Checklist Học viên
+## 2. Learner Checklist
 
-| Luồng | Kết quả cần có |
+| Flow | Expected Result |
 |---|---|
-| Thư viện | Chỉ có đề `PUBLISHED`. Thẻ Part dẫn đến danh sách bài. |
-| Đề đầy đủ | Đúng 11 câu theo 2/2/3/3/1. |
-| Theo Part | Chỉ có câu của Part đó, đánh số lại từ 1. |
-| Đồng hồ | Đúng thời gian trong `spec.md`. Tải lại không làm tăng thời gian. |
-| Part 4 | 45 giây đọc, câu hỏi chưa lộ. Sau đó từng câu mới hiện. |
-| Vắng lâu | Đóng tab rồi mở lại sau khi hết giờ: bài đã được chuyển pha hoặc nộp. |
-| Ghi âm | Bản ghi tải lên sau mỗi câu. Có thể nghe lại khi xem bài. |
-| Tải lỗi | Tắt mạng khi tải: có trạng thái lỗi và nút thử lại. |
-| Consent | Nộp bài không tự gửi đến AI, chỉ gửi sau khi đồng ý. |
-| AI | Đang xử lý thì cập nhật mỗi 5 giây. Rời trang rồi quay lại vẫn đúng. Lỗi không làm mất bài và có nút chấm lại. |
-| Kết quả | Có nhãn điểm ước tính 0–200, có chi tiết từng câu. |
-| Quyền sở hữu | Khách chỉ thấy lượt của phiên mình. Tài khoản chỉ thấy lượt của mình. Người khác nhận `404`. |
-| **(Đích)** Beep | Có tiếng beep trước khi ghi. Tiếng beep không nằm trong bản ghi. |
-| **(Đích)** Kiểm tra thiết bị | Đủ 3 bước. Micro tắt tiếng không qua được bước nói thử. |
-| **(Đích)** Bỏ qua pha | Đề `FULL` không có nút bỏ qua pha đọc và chuẩn bị. |
+| Library | Shows only `PUBLISHED` tests. Part cards navigate to the exercise list. |
+| Full test | Exactly 11 questions in `2/2/3/3/1` order. |
+| Part practice | Contains only questions from that Part, renumbered starting from 1. |
+| Timer | Matches timings in `spec.md`. Reloading does not add extra time. |
+| Part 4 | 45s reading phase with questions hidden. Questions then reveal one by one. |
+| Long absence | Close tab and reopen after time expires: attempt has already advanced or submitted. |
+| Recording | Recording uploads after each question. Can be played back on review. |
+| Upload failure | Turn off network during upload: shows error state and a retry button. |
+| Consent | Submitting does not auto-send to AI; only sends after explicit consent. |
+| AI | Polls every 5 seconds while processing. Leaving and returning keeps accurate state. Failures do not lose the attempt and show a retry grading button. |
+| Results | Displays 0-200 estimated score label and per-question breakdown. |
+| Ownership | Guests see only their session's attempts. Accounts see only their own attempts. Others receive `404`. |
+| **(Target)** Beep | Plays a beep before recording starts. The beep is not captured in the recording. |
+| **(Target)** Device check | All 3 steps present. A muted microphone cannot pass the test-recording step. |
+| **(Target)** Skip phase | `FULL` tests have no skip button during reading and preparation phases. |
 
-## 3. Ma trận quyền micro
+## 3. Microphone Permission Matrix
 
-Chạy cả ma trận trên HTTPS, **dùng cửa sổ riêng tư hoặc đã xóa quyền của site**. Điền số hộp thoại thực tế vào bảng. Đây là cách duy nhất để xác nhận hành vi từng trình duyệt, vì các nguồn công khai về Safari đã cũ.
+Run the entire matrix over HTTPS, **using an incognito/private window or after clearing site permissions**.
+Fill in the actual prompt count in each cell.
+This is the only way to confirm per-browser behavior, since public sources on Safari are outdated.
 
-| Kịch bản | Chrome: Allow | Chrome: This time | Edge | Firefox | Safari macOS | Safari iOS |
+| Scenario | Chrome: Allow | Chrome: This time | Edge | Firefox | Safari macOS | Safari iOS |
 |---|---|---|---|---|---|---|
-| A. Cấp quyền, bắt đầu, làm hết 11 câu | | | | | | |
-| B. Như A, tải lại ở câu 3 | | | | | | |
-| C. Mở lại bài đã nộp | | | | | | |
-| D. Từ chối quyền, thử bắt đầu `FULL` | | | | | | |
-| E. Từ chối quyền, luyện Part | | | | | | |
-| F. Không có micro | | | | | | |
-| G. Micro đang bị ứng dụng khác chiếm | | | | | | |
-| H. Rút micro ở câu 5 | | | | | | |
+| A. Grant permission, start, finish all 11 questions | | | | | | |
+| B. Same as A, reload on Question 3 | | | | | | |
+| C. Open a submitted attempt | | | | | | |
+| D. Deny permission, try starting `FULL` | | | | | | |
+| E. Deny permission, Part practice | | | | | | |
+| F. No microphone connected | | | | | | |
+| G. Microphone held by another app | | | | | | |
+| H. Unplug microphone on Question 5 | | | | | | |
 
-**Kết quả cần có sau khi triển khai ADR-003 (Đích):**
+**Expected results after implementing ADR-003 (Target):**
 
-| Kịch bản | Kết quả |
+| Scenario | Expected Result |
 |---|---|
-| A | Đúng **1** hộp thoại, trước khi lượt làm được tạo. `getUserMedia` được gọi 1 lần. |
-| B | Không có hộp thoại tự xuất hiện. Nếu trình duyệt đã quên quyền: thông báo đồng hồ vẫn chạy, kèm nút bật lại. |
-| C | **0** hộp thoại. Không có biểu tượng micro trên tab. |
-| D | Nút bắt đầu bị khóa. Không có `POST /attempts`. Hướng dẫn mở cài đặt site. |
-| E | Có nút "Luyện không ghi âm". |
-| F | Thông báo không tìm thấy micro, không nhắc đến cấp quyền. |
-| G | Thông báo micro đang bận. |
-| H | Cảnh báo ngay. Đồng hồ không dừng. Câu thiếu bản ghi được báo khi xem bài. |
+| A | Exactly **1** prompt, before the attempt is created. `getUserMedia` is called once. |
+| B | No automatic prompt appears. If the browser forgot permission: banner warns that the timer is still running, with a re-enable button. |
+| C | **0** prompts. No microphone indicator on the browser tab. |
+| D | Start button is disabled. No `POST /attempts`. Instructions to open site settings are shown. |
+| E | "Practice without recording" button is available. |
+| F | Message says no microphone was found, without mentioning granting permission. |
+| G | Message says the microphone is busy. |
+| H | Immediate warning. Timer keeps running. Missing question recording is flagged on the review screen. |
 
-Cách đếm số lần gọi: dán đoạn này vào Console trước khi bắt đầu, rồi đọc `window.__gum` khi xong.
+How to count calls: paste this snippet into the Console before starting, then inspect `window.__gum` when finished.
 
 ```js
 window.__gum = 0;
@@ -74,37 +78,40 @@ navigator.mediaDevices.getUserMedia = (constraints) => {
 };
 ```
 
-Đoạn này mất tác dụng sau khi tải lại trang, nên kịch bản B phải dán lại.
+This snippet does not persist across page reloads, so in Scenario B it must be pasted again after reload.
 
-Điền thêm vào ma trận: phiên bản trình duyệt và hệ điều hành. Đừng coi kết quả trên một phiên bản là đúng cho mọi phiên bản.
+Also record in the matrix: browser version and OS.
+Do not assume results on one version hold for every version.
 
-## 4. Checklist Admin/API
+## 4. Admin/API Checklist
 
-| Luồng | Kết quả cần có |
+| Flow | Expected Result |
 |---|---|
-| Ngân hàng bài | CRUD đủ 5 Part. Lỗi hiện đúng trường. Ảnh có kiểm tra định dạng và dung lượng. |
-| Đề nháp | Lưu được khi thiếu bài. Học viên không thấy đề nháp. |
-| Công bố | Chỉ qua khi đủ 2/2/1/1/1 và mọi bài `PUBLISHED`. |
-| Snapshot | Sửa bài sau khi công bố không đổi đề và lượt làm đã có. |
-| Đồng thời | Hai tab cùng sửa: tab sau nhận `409`. |
-| Trùng ID | Cùng một bài ở hai vị trí bị từ chối. |
-| Bảo mật | Không có quyền Admin thì không gọi được. API học viên không trả rubric hay bài mẫu khi đang làm bài. |
-| **(Đích)** Trùng trong bài | Part 3 có 2 câu giống nhau, chỉ khác hoa thường: `400`. |
-| **(Đích)** Trùng giữa bài | 2 bài Part 1 khác mã, cùng đoạn văn: `422`, báo Câu 1 và Câu 2. |
-| **(Đích)** Trùng giữa Part | Câu Part 3 trùng câu Part 4: `422`. |
-| **(Đích)** Trùng ảnh | Tải cùng ảnh hai lần cho 2 bài Part 2: `422`. |
-| **(Đích)** Gần giống | Chỉ cảnh báo, vẫn công bố được sau khi xác nhận. |
-| **(Đích)** Bộ chọn | Tìm được bài ngoài 100 bài mới nhất. Bài đã dùng bị khóa và ghi rõ vị trí. |
-| **(Đích)** Vị trí | Chọn Bài 2, để trống Bài 1, lưu rồi mở lại: vẫn đúng vị trí. |
-| **(Đích)** Không mất dữ liệu | Đóng khi có thay đổi: có hỏi xác nhận. Lưu nháp không đóng builder. |
-| **(Đích)** Nhân bản | Đề công bố nhân bản được thành nháp. Đề gốc không đổi. |
+| Exercise bank | Full CRUD across all 5 Parts. Field-level errors display properly. Images validate format and size. |
+| Draft test | Saves even with missing slots. Learners cannot see draft tests. |
+| Publish | Only passes with `2/2/1/1/1` slots filled and every exercise `PUBLISHED`. |
+| Snapshot | Editing an exercise after publish does not alter existing tests or attempts. |
+| Concurrency | Two tabs editing the same item: the second receives `409`. |
+| Duplicate ID | Same exercise in two slots is rejected. |
+| Security | Non-Admin callers are rejected. Learner API does not expose rubrics or sample answers during an active attempt. |
+| **(Target)** In-exercise duplicate | Part 3 with 2 identical questions differing only in case: `400`. |
+| **(Target)** Cross-exercise duplicate | 2 Part 1 exercises with different codes and the same passage: `422`, naming Question 1 and Question 2. |
+| **(Target)** Cross-Part duplicate | Part 3 question matching a Part 4 question: `422`. |
+| **(Target)** Duplicate image | Uploading the same image twice for 2 Part 2 exercises: `422`. |
+| **(Target)** Near-duplicate | Warning only, still publishable after confirmation. |
+| **(Target)** Picker | Can search exercises beyond the latest 100. Already-used exercises are disabled and state which slot uses them. |
+| **(Target)** Slots | Fill Slot 2, leave Slot 1 empty, save and reopen: slots stay in exact positions. |
+| **(Target)** No data loss | Closing with unsaved edits asks for confirmation. Saving a draft does not close the builder. |
+| **(Target)** Clone | Published test can be cloned into a draft. Original test is unchanged. |
 
-## 5. Rà soát dữ liệu hiện có
+## 5. Existing Data Audit
 
-Chạy trước khi bật ADR-002 để biết bài nào cần sửa. Các truy vấn **chỉ đọc**, nhưng vẫn cần được nhóm đồng ý nếu chạy trên database dùng chung. Chuẩn hóa ở đây là gần đúng so với quy tắc trong ADR.
+Run before enabling ADR-002 to identify exercises that need cleanup.
+These queries are **read-only**, yet still require team approval if run on a shared database.
+Normalization here approximates the rules in the ADR.
 
 ```sql
--- Bài Part 3, 4 có câu hỏi trùng nhau
+-- Part 3 and 4 exercises with duplicate questions
 SELECT e.code, e.part, q.normalized, count(*) AS occurrences
 FROM speaking_exercises e
 CROSS JOIN LATERAL (
@@ -115,7 +122,7 @@ WHERE e.part IN (3, 4)
 GROUP BY e.code, e.part, q.normalized
 HAVING count(*) > 1;
 
--- Các bài khác nhau có cùng đoạn văn hoặc đề bài
+-- Different exercises with the same passage or prompt
 SELECT e.part, array_agg(e.code) AS codes
 FROM speaking_exercises e
 WHERE e.part IN (1, 5) AND e.status <> 'ARCHIVED'
@@ -124,7 +131,7 @@ GROUP BY e.part, trim(regexp_replace(
   '[^[:alnum:]]+', ' ', 'g'))
 HAVING count(*) > 1;
 
--- Các ảnh giống nhau đang được bài Part 2 sử dụng
+-- Identical images currently used by Part 2 exercises
 SELECT a.sha256, array_agg(e.code) AS codes
 FROM speaking_exercises e
 JOIN speaking_media_assets a ON a.id = e.image_asset_id
@@ -133,15 +140,16 @@ GROUP BY a.sha256
 HAVING count(*) > 1;
 ```
 
-Tên khóa `questions`, `passage`, `prompt` theo dạng camelCase của `SpeakingJson`. Các truy vấn này **chưa được chạy** trên PostgreSQL, nên hãy thử trên database cục bộ trước.
+The JSON keys `questions`, `passage`, and `prompt` follow `SpeakingJson` camelCase naming.
+These queries have **not yet been run** on PostgreSQL, so test them on a local database first.
 
-## 6. Quyết định go/no-go
+## 6. Go/No-Go Decision
 
-Chỉ coi là xong khi: mọi dòng không ghi (Đích) đều pass; các dòng (Đích) đã triển khai đều pass; ma trận micro đã điền cho ít nhất Chrome, Edge và một trình duyệt Safari; và một bài thử không có thông tin cá nhân trả điểm hợp lệ từ Azure và Gemini.
+Consider done only when: all non-(Target) rows pass; all implemented (Target) rows pass; the microphone matrix is filled for at least Chrome, Edge, and one Safari browser; and one non-PII test attempt returns valid scores from Azure and Gemini.
 
-Các giới hạn đã chấp nhận:
+Accepted limitations:
 
-- Không thể cam kết không bao giờ hỏi lại quyền sau khi tải trang, vì quyền thuộc về trình duyệt.
-- Biểu tượng micro của trình duyệt sáng suốt lượt làm, kể cả trong pha chuẩn bị. Không có âm thanh nào được ghi ngoài pha trả lời.
-- Điểm AI không phải điểm ETS. Trọng số chưa được hiệu chỉnh.
-- Chỉ phát hiện trùng chính xác và gần giống theo từ. Không phát hiện cùng ý khác lời hoặc ảnh đã chỉnh sửa.
+- Cannot guarantee zero permission re-prompts after page reload, as permission lifecycle belongs to the browser.
+- The browser microphone indicator stays lit throughout the attempt, including preparation phases. No audio is recorded outside response phases.
+- AI scores are not ETS scores. Weights have not been calibrated.
+- Only exact and lexical near-duplicates are detected. Paraphrases with identical meaning or edited images are not detected.

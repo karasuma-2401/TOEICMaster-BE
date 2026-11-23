@@ -25,7 +25,7 @@ public sealed class PasswordResetApplicationTests
         var message = Assert.Single(mail.Messages);
         Assert.Equal("learner@example.com", message.To);
         Assert.Contains("123456", message.TextBody);
-        Assert.Contains("đặt lại mật khẩu", message.Subject, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("password reset", message.Subject, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

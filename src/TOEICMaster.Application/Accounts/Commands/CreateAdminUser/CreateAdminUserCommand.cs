@@ -23,16 +23,16 @@ public sealed class CreateAdminUserCommandValidator : AbstractValidator<CreateAd
     public CreateAdminUserCommandValidator()
     {
         RuleFor(command => command.FullName).Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Họ tên là bắt buộc.")
+            .NotEmpty().WithMessage("Full name is required.")
             .Must(name => name.Trim().Length <= 100)
-            .WithMessage("Họ tên không được vượt quá 100 ký tự.");
+            .WithMessage("Full name must not exceed 100 characters.");
         RuleFor(command => command.Email).Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Email là bắt buộc.")
-            .Must(email => email.Trim().Length <= 254).WithMessage("Email không hợp lệ.")
-            .Must(email => new EmailAddressAttribute().IsValid(email.Trim())).WithMessage("Email không hợp lệ.");
+            .NotEmpty().WithMessage("Email is required.")
+            .Must(email => email.Trim().Length <= 254).WithMessage("Invalid email.")
+            .Must(email => new EmailAddressAttribute().IsValid(email.Trim())).WithMessage("Invalid email.");
         RuleFor(command => command.Role)
             .Must(role => role is AdminUserValues.RoleUser or AdminUserValues.RoleAdmin)
-            .WithMessage("Vai trò phải là USER hoặc ADMIN.");
+            .WithMessage("Role must be USER or ADMIN.");
     }
 }
 

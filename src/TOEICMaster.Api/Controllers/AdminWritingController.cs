@@ -47,7 +47,7 @@ public sealed class AdminWritingController(ISender sender) : ControllerBase
         [FromForm] IFormFile? file, CancellationToken cancellationToken)
     {
         if (file is null || file.Length is <= 0 or > 10 * 1024 * 1024)
-            return BadRequest(new ProblemDetails { Status = 400, Title = "File import không hợp lệ." });
+            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid import file." });
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         return Ok(await sender.Send(new PreviewWritingExerciseImportCommand(part, file.FileName, stream.ToArray()),
@@ -61,7 +61,7 @@ public sealed class AdminWritingController(ISender sender) : ControllerBase
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length is <= 0 or > 10 * 1024 * 1024)
-            return BadRequest(new ProblemDetails { Status = 400, Title = "File import không hợp lệ." });
+            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid import file." });
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         var count = await sender.Send(new ImportWritingExercisesCommand(CurrentUserId(), part, file.FileName,
@@ -93,7 +93,7 @@ public sealed class AdminWritingController(ISender sender) : ControllerBase
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length is <= 0 or > UploadWritingImageCommandHandler.MaxBytes)
-            return BadRequest(new ProblemDetails { Status = 400, Title = "Ảnh đề bài không hợp lệ." });
+            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid prompt image." });
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         var created = await sender.Send(new UploadWritingImageCommand(CurrentUserId(), stream.ToArray(),
@@ -137,7 +137,7 @@ public sealed class AdminWritingController(ISender sender) : ControllerBase
     {
         if (file is null || file.Length is <= 0 or > 10 * 1024 * 1024 ||
             !file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new ProblemDetails { Status = 400, Title = "File import không hợp lệ." });
+            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid import file." });
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         return Ok(await sender.Send(new PreviewWritingTestImportQuery(stream.ToArray()), cancellationToken));
@@ -151,7 +151,7 @@ public sealed class AdminWritingController(ISender sender) : ControllerBase
     {
         if (file is null || file.Length is <= 0 or > 10 * 1024 * 1024 ||
             !file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new ProblemDetails { Status = 400, Title = "File import không hợp lệ." });
+            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid import file." });
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         var preview = await sender.Send(new PreviewWritingTestImportQuery(stream.ToArray()), cancellationToken);

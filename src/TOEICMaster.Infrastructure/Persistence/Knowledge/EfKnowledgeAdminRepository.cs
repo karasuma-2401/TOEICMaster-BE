@@ -332,15 +332,15 @@ public sealed class EfKnowledgeAdminRepository(ToeicDbContext context) : IKnowle
         }
         catch (DbUpdateConcurrencyException)
         {
-            throw new KnowledgeConflictException("Dữ liệu đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
+            throw new KnowledgeConflictException("Data was updated by another user. Please reload the data.");
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg)
         {
             if (pg.SqlState == PostgresErrorCodes.UniqueViolation)
-                throw new KnowledgeConflictException("Dữ liệu bị trùng khóa duy nhất (slug hoặc tệp media).");
+                throw new KnowledgeConflictException("Duplicate unique key (slug or media file).");
             if (pg.SqlState == PostgresErrorCodes.ForeignKeyViolation)
                 throw new KnowledgeConflictException(
-                    "Không thể thực hiện thao tác do vẫn còn dữ liệu bài viết hoặc media liên quan.");
+                    "Cannot complete the operation because related article or media data still exists.");
             throw;
         }
     }

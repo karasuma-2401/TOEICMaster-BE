@@ -18,7 +18,7 @@ public sealed class AdminBootstrapSeeder(
     {
         var email = options.Value.Email.Trim();
         if (email.Length is 0 or > 254 || !new EmailAddressAttribute().IsValid(email))
-            throw new InvalidOperationException("ADMIN_SEED_EMAIL phải là một email hợp lệ.");
+            throw new InvalidOperationException("ADMIN_SEED_EMAIL must be a valid email.");
 
         var normalizedEmail = email.ToUpperInvariant();
         var user = await dbContext.Users.SingleOrDefaultAsync(candidate => candidate.NormalizedEmail == normalizedEmail,
@@ -28,7 +28,7 @@ public sealed class AdminBootstrapSeeder(
             if (!user.IsActive)
             {
                 throw new InvalidOperationException(
-                    "ADMIN_SEED_EMAIL đã thuộc một tài khoản chưa xác minh. Hãy xác minh tài khoản đó hoặc dùng email seed mới.");
+                    "ADMIN_SEED_EMAIL already belongs to an unverified account. Please verify that account or use a new seed email.");
             }
 
             if (user.Role == UserRole.Admin)
@@ -41,11 +41,11 @@ public sealed class AdminBootstrapSeeder(
 
         var displayName = options.Value.DisplayName.Trim();
         if (displayName.Length is 0 or > 100)
-            throw new InvalidOperationException("ADMIN_SEED_DISPLAY_NAME phải có từ 1 đến 100 ký tự.");
+            throw new InvalidOperationException("ADMIN_SEED_DISPLAY_NAME must be between 1 and 100 characters.");
 
         var password = options.Value.Password;
         if (password.Length is < 8 or > 128)
-            throw new InvalidOperationException("ADMIN_SEED_PASSWORD phải có từ 8 đến 128 ký tự.");
+            throw new InvalidOperationException("ADMIN_SEED_PASSWORD must be between 8 and 128 characters.");
 
         var nowUtc = timeProvider.GetUtcNow();
         user = User.CreateLocal(displayName, email, normalizedEmail, passwordHasher.Hash(password), nowUtc);

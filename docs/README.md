@@ -1,71 +1,73 @@
-# Bản đồ Tài liệu & Kiến trúc Ngữ cảnh (Documentation & Context Map)
+# Documentation & Context Map
 
-Tài liệu trong thư mục `docs/` được tổ chức theo mô hình **Hierarchical Context Architecture** (Phân tầng ngữ cảnh) nhằm tối ưu hóa việc đọc hiểu cho lập trình viên và các AI Coding Agents (Cursor, Claude Code, Gemini, Copilot).
+Documentation in `docs/` is organized using a **Hierarchical Context Architecture** to optimize comprehension for developers and AI Coding Agents (Cursor, Claude Code, Gemini, Copilot).
 
 ---
 
-## 1. Bản đồ cấu trúc thư mục
+## 1. Directory Structure Map
 
 ```text
 docs/
-├── README.md                      # [Tầng 0] Bản đồ tài liệu tổng quan (file này)
+├── README.md                      # [Layer 0] Overview documentation map (this file)
+├── jira.md                        # Project Jira workspace information (Project CNPMCS, Board, Sprints, Issues)
 │
-├── foundations/                   # [Tầng 1] Nền tảng kiến trúc, quy chuẩn & guardrails
+├── foundations/                   # [Layer 1] Architecture foundations, standards & guardrails
 │   ├── README.md
-│   ├── architecture.md            # Kiến trúc Clean Architecture, CQRS, MediatR, Layering
-│   └── feature-development.md     # Hướng dẫn quy trình phát triển tính năng chuẩn & testing
+│   ├── architecture.md            # Clean Architecture, CQRS, MediatR, and Layering
+│   └── feature-development.md     # Standard feature development & testing workflow guide
 │
-├── contracts/                     # [Tầng 2] Giao ước dữ liệu (Single Source of Truth)
+├── contracts/                     # [Layer 2] Data contracts (Single Source of Truth)
 │   ├── README.md
-│   └── api-contract.md            # Danh sách API endpoints, Request/Response payload, HTTP status
+│   └── api-contract.md            # API endpoints list, Request/Response payloads, HTTP statuses
 │
-├── features/                      # [Tầng 3] Đặc tả nghiệp vụ tinh gọn & Kế hoạch theo tính năng (High SNR)
+├── features/                      # [Layer 3] Lean feature specs & implementation plans (High SNR)
 │   ├── README.md
-│   ├── _template/                 # Mẫu chuẩn spec.template.md & tasks.template.md
-│   ├── auth-profile/spec.md       # Phân hệ Xác thực, Google OAuth & Hồ sơ cá nhân
-│   ├── listening-reading/spec.md  # Phân hệ đề thi TOEIC L&R 200 câu, 103 blocks, Barem 990
-│   ├── speaking/spec.md           # Phân hệ bài thi Speaking 11 câu, 2-phase timer, chấm AI
-│   ├── writing/                   # Phân hệ bài thi Writing 8 câu, Anonymous session & chấm AI
+│   ├── _template/                 # Standard templates spec.template.md & tasks.template.md
+│   ├── auth-profile/spec.md       # Auth, Google OAuth & Profile module
+│   ├── listening-reading/spec.md  # TOEIC L&R 200-question exam, 103 blocks, 990 score scale module
+│   ├── speaking/spec.md           # Speaking test 11-question, 2-phase timer, AI grading module
+│   ├── writing/                   # Writing test 8-question, Anonymous session & AI grading module
 │   │   ├── spec.md, tasks.md, admin-api.md, attempt-api.md, ai-evaluation.md
-│   └── admin-portal/spec.md       # Phân hệ Dashboard, Score Profiles & Media Assets
+│   └── admin-portal/spec.md       # Dashboard, Score Profiles & Media Assets module
 │
-├── ui-ux/                         # [Tham chiếu UI] Hệ thống Design Tokens & Màn hình Figma
+├── ui-ux/                         # [UI Reference] Design Tokens system & Figma screens
 │   ├── README.md
-│   ├── design-tokens.md           # Bảng màu, typography, Category theming cho 3 bài thi
-│   └── screens-inventory.md       # Bảng tra cứu 44 màn hình Figma theo route & Frame ID
+│   ├── design-tokens.md           # Color palette, typography, and category theming for 3 test modules
+│   └── screens-inventory.md       # Lookup table of 44 Figma screens by route & Frame ID
 │
-├── specs/                         # [Master Documents] Tài liệu đặc tả gốc toàn hệ thống
+├── specs/                         # [Master Documents] System-wide master specification documents
 │   ├── README.md
-│   ├── prd-mvp.md                 # Product Requirements Document (PRD/SRS) toàn diện
-│   └── figma-screens-master.md    # Đặc tả chi tiết tương tác 44 màn hình Figma
+│   ├── prd-mvp.md                 # Comprehensive Product Requirements Document (PRD/SRS)
+│   └── figma-screens-master.md    # Detailed interaction spec for 44 Figma screens
 │
-├── decisions/                     # [Tầng 4] Quyết định kiến trúc (Architecture Decision Records - ADR)
+├── decisions/                     # [Layer 4] Architecture Decision Records (ADR)
 │   └── 001-admin-lr-exam-revisions.md
 │
-└── runbooks/                      # [Tầng 5] Vận hành, kịch bản kiểm thử & báo cáo
+└── runbooks/                      # [Layer 5] Operations, test scenarios & reports
     ├── README.md
-    └── writing-uat-runbook.md     # Kịch bản kiểm thử UAT và checklist bàn giao module Writing
+    └── writing-uat-runbook.md     # UAT test scenarios and Writing module handoff checklist
 ```
 
 ---
 
-## 2. Hướng dẫn nạp ngữ cảnh cho AI (Context Routing Guide)
+## 2. AI Context Routing Guide
 
-Khi yêu cầu AI thực hiện một nhiệm vụ, **tuyệt đối không nạp toàn bộ thư mục `docs/`**. Hãy cung cấp ngữ cảnh chọn lọc theo đúng tầng:
+When asking AI to perform a task, **never load the entire `docs/` directory**.
+Provide selective context according to the appropriate layer:
 
-| Loại công việc | Tài liệu AI cần đọc trước |
+| Task Type | Docs for AI to Read First |
 | :--- | :--- |
-| **Bắt đầu tính năng mới** | `features/<feature-name>/spec.md` + `contracts/api-contract.md` + `foundations/architecture.md` |
-| **Viết API hoặc sửa contract** | `contracts/api-contract.md` + `foundations/feature-development.md` |
-| **Sửa lỗi kiến trúc / Refactor** | `foundations/architecture.md` + `decisions/` liên quan |
-| **Kiểm thử / UAT** | `features/<feature-name>/tasks.md` + `runbooks/` liên quan |
-| **Đối chiếu giao diện Figma** | `ui-ux/screens-inventory.md` + `features/<feature-name>/spec.md` |
+| **Start a new feature** | `features/<feature-name>/spec.md` + `contracts/api-contract.md` + `foundations/architecture.md` |
+| **Write API or update contract** | `contracts/api-contract.md` + `foundations/feature-development.md` |
+| **Fix architecture / Refactor** | `foundations/architecture.md` + relevant `decisions/` |
+| **Testing / UAT** | `features/<feature-name>/tasks.md` + relevant `runbooks/` |
+| **Cross-check Figma UI** | `ui-ux/screens-inventory.md` + `features/<feature-name>/spec.md` |
 
 ---
 
-## 3. Quy trình phát triển tính năng (Spec-Driven Workflow)
+## 3. Feature Development Process (Spec-Driven Workflow)
 
-1. **Khởi tạo:** Sao chép `docs/features/_template/` thành `docs/features/<ten-tinh-nang>/`.
-2. **Soạn thảo Spec (`spec.md`):** Trích xuất yêu cầu từ `specs/prd-mvp.md`, định nghĩa rõ **In-scope**, **Out-of-scope**, và **Acceptance Criteria**.
-3. **Lập Checklist (`tasks.md`):** Liệt kê các phase (Domain -> Application -> Infrastructure -> Api -> Tests).
-4. **Triển khai cùng AI:** Yêu cầu AI làm việc từng task, tick `[x]` khi hoàn tất và chạy test xác nhận trước khi chuyển task kế tiếp.
+1. **Initialize:** Copy `docs/features/_template/` to `docs/features/<feature-name>/`.
+2. **Draft Spec (`spec.md`):** Extract requirements from `specs/prd-mvp.md`, and clearly define **In-scope**, **Out-of-scope**, and **Acceptance Criteria**.
+3. **Create Checklist (`tasks.md`):** List phases (Domain -> Application -> Infrastructure -> Api -> Tests).
+4. **Implement with AI:** Have AI work through one task at a time, check `[x]` upon completion, and run verification tests before moving to the next task.

@@ -105,7 +105,7 @@ public sealed class EfSpeakingEvaluationRepository(ToeicDbContext context) : ISp
             SqlState: PostgresErrorCodes.UniqueViolation
         })
         {
-            throw new SpeakingConflictException("Yêu cầu chấm AI cho lượt làm này đã được gửi.");
+            throw new SpeakingConflictException("An AI evaluation request for this attempt has already been submitted.");
         }
     }
 }

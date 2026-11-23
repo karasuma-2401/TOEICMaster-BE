@@ -1,17 +1,17 @@
-# Checklist module TOEIC Writing
+# TOEIC Writing Module Checklist
 
-Tham chiếu: [đặc tả](spec.md), [Admin API](admin-api.md), [Attempt API](attempt-api.md) và [AI Evaluation](ai-evaluation.md).
+References: [specification](spec.md), [Admin API](admin-api.md), [Attempt API](attempt-api.md), and [AI Evaluation](ai-evaluation.md).
 
-## Phạm vi trong source
+## Scope in Source
 
-- Đề nhập trực tiếp độc lập hoặc import Excel; giữ khả năng đọc đề cũ tham chiếu ngân hàng.
-- Ngân hàng bài tập lẻ CRUD, import Excel và luyện theo Part không giới hạn thời gian.
-- `modelAnswer` tùy chọn, chỉ dùng nội bộ; AI chỉ nhận bài tham khảo khi cấu hình cho phép sau calibration.
-- Chấm AI sau consent, ảnh Part 1 được gửi cùng đề, có giới hạn tổng dung lượng ảnh.
-- Migration `AddWritingIndependentTestsAndPractice` được thêm trong source; chưa áp dụng lên môi trường dùng chung.
+- Standalone directly entered tests or Excel import; preserves support for reading legacy tests referencing the bank.
+- Standalone exercise bank CRUD, Excel import, and untimed Part-based practice.
+- Optional `modelAnswer`, internal use only; AI only receives reference answers when configuration allows after calibration.
+- AI grading after consent, Part 1 images sent along with prompts, with a total image size limit.
+- The `AddWritingIndependentTestsAndPractice` migration is added in source; it has not been applied to shared environments yet.
 
-## Còn cần xác nhận trước khi sử dụng thực tế
+## Still Needs Confirmation Before Real-World Usage
 
-- Chạy migration và UAT trên môi trường do nhóm cho phép theo [runbook](../../runbooks/writing-uat-runbook.md).
-- Calibration AI với bài được giảng viên chấm, so sánh rubric với trường hợp có bài tham khảo; chỉ bật bài tham khảo sau khi đánh giá.
-- Kiểm thử live đầy đủ MinIO, database, quyền Admin/User/guest và Gemini theo cấu hình môi trường.
+- Run migrations and UAT on a team-approved environment per the [runbook](../../runbooks/writing-uat-runbook.md).
+- Calibrate AI against instructor-graded submissions, comparing the rubric against cases with reference answers; only enable reference answers after evaluation.
+- Perform full live testing of MinIO, database, Admin/User/guest permissions, and Gemini according to environment configuration.

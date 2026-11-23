@@ -25,7 +25,7 @@ public sealed class SpeakingPartPracticeTests
         var page = await ExercisesAsync(3);
 
         var exercise = Assert.Single(page.Items);
-        Assert.Equal((published.Id, "SP3-PUB", 3, "Công việc", "MEDIUM", 3, 69), (exercise.Id, exercise.Code,
+        Assert.Equal((published.Id, "SP3-PUB", 3, "Work", "MEDIUM", 3, 69), (exercise.Id, exercise.Code,
             exercise.Part, exercise.Topic, exercise.Difficulty, exercise.QuestionCount, exercise.DurationSeconds));
         Assert.Equal(2, (await ExercisesAsync(null)).TotalCount);
         var json = JsonSerializer.Serialize(page, SpeakingJson.Options);
@@ -44,7 +44,7 @@ public sealed class SpeakingPartPracticeTests
 
         Assert.Equal(((Guid?)null, (Guid?)exercise.Id, "PART_4", "IN_PROGRESS", "READING"), (attempt.TestId,
             attempt.ExerciseId, attempt.Mode, attempt.Status, attempt.CurrentPhase));
-        Assert.Equal(("SP4-PRACTICE", "Luyện Part 4 · Công việc"), (attempt.TestCode, attempt.TestTitle));
+        Assert.Equal(("SP4-PRACTICE", "Part 4 Practice · Work"), (attempt.TestCode, attempt.TestTitle));
         Assert.Equal([1, 2, 3], attempt.Questions.Select(question => question.Position));
         Assert.All(attempt.Questions, question => Assert.Equal(4, question.Part));
         Assert.Equal([null, null, null], attempt.Questions[0].Content.Questions!);
@@ -52,7 +52,7 @@ public sealed class SpeakingPartPracticeTests
         var history = await new GetSpeakingAttemptsQueryHandler(_store, new InMemorySpeakingEvaluations(_store))
             .Handle(new GetSpeakingAttemptsQuery(Learner), CancellationToken.None);
         var item = Assert.Single(history.Items);
-        Assert.Equal((exercise.Id, "Luyện Part 4 · Công việc", 3), (item.ExerciseId!.Value, item.TestTitle,
+        Assert.Equal((exercise.Id, "Part 4 Practice · Work", 3), (item.ExerciseId!.Value, item.TestTitle,
             item.QuestionCount));
     }
 

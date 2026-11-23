@@ -20,18 +20,18 @@ public static partial class KnowledgeContentProcessor
     public static ProcessedKnowledgeContent Process(JsonElement content)
     {
         if (content.ValueKind != JsonValueKind.Object)
-            throw InvalidContent("Nội dung bài viết phải là đối tượng JSON hợp lệ (Tiptap document).");
+            throw InvalidContent("Article content must be a valid JSON object (Tiptap document).");
 
         if (!content.TryGetProperty("type", out var typeProp) ||
             typeProp.ValueKind != JsonValueKind.String ||
             !string.Equals(typeProp.GetString(), "doc", StringComparison.Ordinal))
         {
-            throw InvalidContent("Nội dung bài viết phải có nút gốc với type = \"doc\".");
+            throw InvalidContent("Article content must have a root node with type = \"doc\".");
         }
 
         var rawJson = content.GetRawText();
         if (Encoding.UTF8.GetByteCount(rawJson) > MaxContentBytes)
-            throw InvalidContent("Nội dung bài viết vượt quá dung lượng tối đa 512 KiB.");
+            throw InvalidContent("Article content exceeds the maximum size of 512 KiB.");
 
         var toc = new List<KnowledgeTocItemDto>();
         var usedHeadingIds = new HashSet<string>(StringComparer.Ordinal);
@@ -64,7 +64,7 @@ public static partial class KnowledgeContentProcessor
         HashSet<Guid> embeddedMediaIds, ref int wordCount, int depth)
     {
         if (depth > 32)
-            throw InvalidContent("Cấu trúc nội dung lồng nhau quá sâu.");
+            throw InvalidContent("Content structure is nested too deeply.");
         if (node.ValueKind != JsonValueKind.Object)
             return;
 
@@ -125,7 +125,7 @@ public static partial class KnowledgeContentProcessor
         if (!element.TryGetProperty("type", out var type))
             return null;
         if (type.ValueKind != JsonValueKind.String)
-            throw InvalidContent("Thuộc tính type trong nội dung bài viết phải là chuỗi.");
+            throw InvalidContent("The type property in article content must be a string.");
 
         return type.GetString();
     }
@@ -153,7 +153,7 @@ public static partial class KnowledgeContentProcessor
                          href.StartsWith("/", StringComparison.Ordinal) ||
                          href.StartsWith("#", StringComparison.Ordinal);
             if (!isSafe)
-                throw InvalidContent("Liên kết trong bài viết chỉ chấp nhận http, https, mailto hoặc đường dẫn nội bộ.");
+                throw InvalidContent("Links in articles only accept http, https, mailto, or internal paths.");
         }
     }
 

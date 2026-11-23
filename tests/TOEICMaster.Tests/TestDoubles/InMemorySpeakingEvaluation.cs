@@ -51,7 +51,7 @@ public sealed class InMemorySpeakingEvaluations(InMemorySpeaking speaking) : ISp
                 Evaluations.Add(ConcurrentEvaluation);
             ConcurrentEvaluation = null;
             if (Evaluations.Any(existing => existing.AttemptId == evaluation.AttemptId))
-                throw new SpeakingConflictException("Yêu cầu chấm AI cho lượt làm này đã được gửi.");
+                throw new SpeakingConflictException("An AI evaluation request for this attempt has already been submitted.");
             Evaluations.Add(evaluation);
         }
     }
@@ -135,9 +135,9 @@ public sealed class FakeLanguageEvaluator : ISpeakingLanguageEvaluator
         Calls.Add(work);
         if (Failure is not null)
             return Task.FromException<SpeakingLanguageResult>(Failure);
-        return Task.FromResult(Override?.Invoke(work) ?? new SpeakingLanguageResult("Bài nói khá tốt.",
-            ["Phát âm rõ."], ["Mở rộng ý."], work.Items.Select(item => new SpeakingLanguageItemResult(item.Position,
-                Score, Score, Relevance, $"Nhận xét câu {item.Position}.", item.Part == 1 ? "" : "Better answer."))
+        return Task.FromResult(Override?.Invoke(work) ?? new SpeakingLanguageResult("Good speaking performance.",
+            ["Clear pronunciation."], ["Expand on your ideas."], work.Items.Select(item => new SpeakingLanguageItemResult(item.Position,
+                Score, Score, Relevance, $"Feedback for question {item.Position}.", item.Part == 1 ? "" : "Better answer."))
                 .ToArray()));
     }
 }

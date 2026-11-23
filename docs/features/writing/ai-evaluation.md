@@ -1,24 +1,24 @@
-# AI evaluation cho TOEIC Writing
+# AI Evaluation for TOEIC Writing
 
-CP6 đánh giá Writing theo hàng đợi bền vững. Bài nộp và câu trả lời vẫn được lưu trước; lỗi provider, quota hoặc timeout không làm mất attempt.
+CP6 evaluates Writing using a durable queue. Submissions and answers are saved first; provider errors, quota limits, or timeouts do not cause an attempt to be lost.
 
-## Luồng sử dụng
+## Usage Flow
 
-1. User nộp bài. Server tạo một evaluation ở trạng thái `CONSENT_REQUIRED`.
-2. User đọc thông báo dữ liệu được gửi tới AI và bấm đồng ý. Chỉ lúc đó job chuyển sang `QUEUED`.
-3. Background worker lấy job, gọi Gemini ở server và lưu JSON feedback đã kiểm tra.
-4. FE tự tải lại trạng thái mỗi 5 giây khi job `QUEUED`, `PROCESSING` hoặc `RETRYING`.
-5. Khi xong, UI gọi điểm bài thi là **điểm TOEIC Writing ước tính bởi AI (0–200, bước 10)**, không phải điểm ETS chính thức. Bài tập lẻ hiển thị điểm thô theo Part; bài mẫu không trả cho học viên.
+1. The user submits the attempt. The server creates an evaluation in the `CONSENT_REQUIRED` state.
+2. The user reads the notice that data is sent to AI and clicks consent. Only then does the job transition to `QUEUED`.
+3. The background worker picks up the job, calls Gemini on the server, and saves the validated JSON feedback.
+4. The FE automatically refreshes the status every 5 seconds while the job is `QUEUED`, `PROCESSING`, or `RETRYING`.
+5. When completed, the UI labels the test score as **AI-estimated TOEIC Writing score (0-200, step 10)**, not an official ETS score. Standalone exercises display raw scores per Part; model answers are not returned to learners.
 
-`FAILED` có thể được User gửi chấm lại. Consent đã lưu được dùng lại; lần chấm lại dùng model và rubric đang cấu hình. Browser không tự gửi bài ra provider nếu chưa có consent lần đầu.
+A `FAILED` job can be resubmitted for grading by the User. The saved consent is reused; the retry uses the currently configured model and rubric. The browser never automatically sends a submission to the provider without initial consent.
 
-Để bảo vệ Free Tier, guest/anonymous session chỉ được bắt đầu một evaluation AI mới trong mỗi cửa sổ 24 giờ. Retry của **cùng attempt** không bị tính lại; User đăng nhập chưa bị áp quota trong checkpoint này.
+To protect the Free Tier, a guest/anonymous session may only start one new AI evaluation per 24-hour window. Retries of the **same attempt** are not counted again; signed-in Users do not have quota enforced in this checkpoint.
 
-Admin có JWT role `Admin` có thể review an toàn một evaluation tại `GET /api/v1/admin/writing/evaluations/{attemptId}`. Endpoint trả attempt snapshot cùng trạng thái/model/rubric/feedback đã lưu; không trả raw provider response hoặc key. Luồng override có audit log được để riêng cho hardening, không được dùng để thay đổi ngầm điểm AI gốc.
+An Admin with JWT role `Admin` can safely review an evaluation at `GET /api/v1/admin/writing/evaluations/{attemptId}`. The endpoint returns the attempt snapshot along with the saved status/model/rubric/feedback; it does not return the raw provider response or key. An override flow with audit logging is reserved for hardening and must not be used to silently alter the original AI score.
 
-## Cấu hình Gemini
+## Gemini Configuration
 
-Không commit API key. Chép các biến dưới đây vào `.env` local hoặc secret của môi trường deploy:
+Do not commit API keys. Copy the variables below into your local `.env` or deployment environment secrets:
 
 ```dotenv
 GEMINI_ENABLED=true
@@ -29,77 +29,77 @@ GEMINI_RUBRIC_VERSION=toeic-writing-v2
 GEMINI_USE_WRITING_REFERENCE_ANSWERS=false
 ```
 
-`GEMINI_ENABLED=false` là mặc định an toàn. Với cấu hình này, UI và consent flow vẫn test được nhưng job sẽ chuyển `FAILED` với thông báo dịch vụ chưa được cấu hình. API key không được trả về API User, log hay Next.js browser bundle.
+`GEMINI_ENABLED=false` is the safe default. With this configuration, the UI and consent flow can still be tested, but jobs will transition to `FAILED` with a message that the service is not configured. The API key must never be returned to User APIs, logs, or the Next.js browser bundle.
 
-Tạo database schema (không chạy lệnh này lên database dùng chung nếu chưa được nhóm duyệt):
+Create the database schema (do not run this command against the shared database without team approval):
 
 ```powershell
 dotnet ef database update --project src/TOEICMaster.Infrastructure --startup-project src/TOEICMaster.Api
 ```
 
-Migration của checkpoint là `AddWritingEvaluations` và `AddWritingAttemptReviewSnapshots`; chúng thêm
-`writing_evaluations`, `writing_evaluation_feedback`, review snapshot bất biến của attempt và điểm rubric thô.
+The checkpoint migrations are `AddWritingEvaluations` and `AddWritingAttemptReviewSnapshots`; they add
+`writing_evaluations`, `writing_evaluation_feedback`, immutable attempt review snapshots, and raw rubric scores.
 
-## Rubric, bài mẫu và quy đổi điểm
+## Rubric, Model Answers, and Score Conversion
 
-Worker yêu cầu Gemini trả một điểm thô cho từng câu theo Part: Part 1 là **0–3**, Part 2 là **0–4**,
-Part 3 là **0–5**. Server kiểm tra vị trí câu, biên điểm và toàn bộ JSON trước khi lưu; response sai sẽ không
-được hiển thị như kết quả hợp lệ.
+The worker instructs Gemini to return a raw score for each question by Part: Part 1 is **0-3**, Part 2 is **0-4**,
+Part 3 is **0-5**. The server validates question positions, score bounds, and the entire JSON before saving; invalid responses will not
+be displayed as valid results.
 
-Chỉ lượt `FULL` có đủ 5/2/1 câu và không phải practice mới lưu `EstimatedScore` 0–200, làm tròn theo bước 10:
+Only `FULL` attempts with all 5/2/1 questions and non-practice mode save `EstimatedScore` 0-200, rounded to increments of 10:
 
 ```text
-round((tổng điểm thô / tổng điểm tối đa của attempt) × 20) × 10
+round((total raw score / maximum possible raw score of attempt) * 20) * 10
 ```
 
-Đây là quy đổi luyện tập minh bạch, không phải bảng quy đổi ETS độc quyền. Model answer tùy chọn và rubric được snapshot
-khi tạo attempt; API học viên không trả hai dữ liệu này. Theo mặc định AI chỉ nhận rubric; chỉ bật
-`GEMINI_USE_WRITING_REFERENCE_ANSWERS` sau khi nhóm đã calibration. Khi bật, bài mẫu là tham khảo, không phải đáp án duy nhất.
-Thay `GEMINI_RUBRIC_VERSION` khi thay đổi cách dùng bài tham khảo để phân biệt kết quả giữa các cấu hình.
-Ảnh Part 1 được gửi tới Gemini sau consent; tổng dữ liệu ảnh tối đa 12 MiB mỗi evaluation, vượt giới hạn sẽ báo lỗi an toàn.
+This is a transparent practice conversion, not a proprietary ETS conversion table. Optional model answers and rubrics are snapshotted
+when creating the attempt; the learner API does not return these two pieces of data. By default, the AI only receives the rubric; only enable
+`GEMINI_USE_WRITING_REFERENCE_ANSWERS` after the team has performed calibration. When enabled, the model answer is a reference, not the sole acceptable answer.
+Change `GEMINI_RUBRIC_VERSION` whenever changing how reference answers are used so results can be distinguished across configurations.
+Part 1 images are sent to Gemini after consent; total image data is capped at 12 MiB per evaluation, and exceeding the limit reports a safe error.
 
-Lượt `PART_1`, `PART_2`, `PART_3` và practice lưu `EstimatedScore = null`. Điểm từng câu vẫn được lưu trong
-`writing_evaluation_feedback`; API dẫn xuất thêm `rawScore`, `maxRawScore`, `scorePercentage`. API cũng ẩn điểm
-0–200 của lượt partial cũ để không trộn với full test; chưa chạy backfill trên dữ liệu đã có.
+`PART_1`, `PART_2`, `PART_3`, and practice attempts save `EstimatedScore = null`. Per-question scores are still saved in
+`writing_evaluation_feedback`; the API additionally derives `rawScore`, `maxRawScore`, and `scorePercentage`. The API also hides
+0-200 scores of old partial attempts so they are not mixed with full tests; no backfill has been run on existing data.
 
-Prompt v2 bổ sung tiêu chí theo từng Part, chấp nhận biến thể từ khóa, kiểm tra đủ yêu cầu email, không coi số từ
-là ngưỡng điểm tự động, và chống chỉ dẫn chèn trong bài làm. Schema đặt feedback từng câu trước điểm và tổng kết;
-đây là thay đổi thứ tự output để thử nghiệm, không phải bảo đảm suy luận hay độ chính xác. Bài bỏ trắng được xử lý
-0 điểm tại server, không gọi Gemini hoặc tải ảnh. Text feedback vượt giới hạn được cắt ở ranh giới câu nếu có,
-giữ cặp Unicode; điểm vượt biên hoặc thiếu/trùng vị trí vẫn bị từ chối và retry, không tự sửa điểm.
+Prompt v2 adds criteria per Part, accepts keyword variations, checks all email requirements, does not treat word count
+as an automatic score threshold, and resists prompt-injection instructions embedded in submissions. The schema places per-question feedback before scores and summary;
+this is an experimental output ordering change, not a guarantee of reasoning or accuracy. Blank answers are handled
+as 0 points on the server without calling Gemini or downloading images. Feedback text exceeding the limit is truncated at sentence boundaries when available,
+preserving Unicode surrogate pairs; out-of-bounds scores or missing/duplicate positions are still rejected and retried, without auto-correcting scores.
 
-Khi dùng `.env` cũ, đặt `GEMINI_RUBRIC_VERSION=toeic-writing-v2` để phân biệt với kết quả trước thay đổi.
+When using an older `.env`, set `GEMINI_RUBRIC_VERSION=toeic-writing-v2` to distinguish results from before the change.
 
-Editor tắt `spellcheck` và autosave debounce **800ms** sau lần gõ cuối. Browser không có API đáng tin cậy để biết
-chính xác nội dung paste đến từ chính editor hay một nguồn ngoài, nên không triển khai cơ chế chặn paste có thể làm
-mất dữ liệu; server vẫn lưu/kiểm soát attempt, timer và ownership.
+The editor disables `spellcheck` and debounces autosave for **800ms** after the last keystroke. Browsers have no reliable API to know
+for sure whether pasted content came from the editor itself or an external source, so paste-blocking mechanisms that could cause
+data loss are not implemented; the server still persists/controls the attempt, timer, and ownership.
 
-## Retry và dữ liệu lưu
+## Retries and Stored Data
 
-- Timeout, mạng, HTTP 429 và HTTP 5xx: retry tối đa 3 lần với backoff 1, 3, 9 phút; nếu provider gửi `Retry-After` lớn hơn thì tôn trọng giá trị đó.
-- Lỗi key/configuration, request bị từ chối hoặc JSON không hợp lệ sau retry: trạng thái `FAILED`, bài nộp vẫn giữ nguyên.
-- Worker có lease 2 phút và optimistic concurrency (`Version`) để một job không bị hoàn thành hai lần khi có nhiều instance API.
-- Chỉ lưu điểm, feedback đã chuẩn hóa, model/rubric version và mã lỗi an toàn. Không lưu raw response của provider hoặc API key.
+- Timeout, network errors, HTTP 429, and HTTP 5xx: retry up to 3 times with backoff of 1, 3, and 9 minutes; if the provider sends a larger `Retry-After`, that value is respected.
+- Key/configuration errors, rejected requests, or invalid JSON after retries: status `FAILED`, while the submission remains preserved.
+- The worker uses a 2-minute lease and optimistic concurrency (`Version`) so a single job cannot be completed twice across multiple API instances.
+- Only scores, normalized feedback, model/rubric versions, and safe error codes are saved. Raw provider responses and API keys are never stored.
 
-## Calibration trước demo chính thức
+## Calibration Before Official Demo
 
-Gemini là công cụ phản hồi học tập, không phải scorer ETS. Trước khi bật cho User thật, tạo bộ 30–50 bài đã được giảng viên/nguồn đáng tin chấm, gồm đủ Part 1/2/3 và các mức điểm. Với mỗi version rubric/model, ghi:
+Gemini is a learning feedback tool, not an ETS scorer. Before enabling it for real Users, create a set of 30-50 submissions graded by instructors/trusted sources, covering all of Part 1/2/3 and various score levels. For each rubric/model version, record:
 
-| Trường | Ví dụ |
+| Field | Example |
 |---|---|
-| `attemptId` hoặc fixture id | `calibration-p2-07` |
+| `attemptId` or fixture id | `calibration-p2-07` |
 | Part/mode | `PART_2` |
-| Điểm kỳ vọng | `140` |
-| Điểm AI | `150` |
-| Chênh lệch | `+10` |
-| Nhận xét reviewer | `quá ưu tiên từ vựng hơn đáp ứng yêu cầu` |
+| Expected score | `140` |
+| AI score | `150` |
+| Difference | `+10` |
+| Reviewer notes | `over-prioritized vocabulary over task completion` |
 
-Chỉ nâng `GEMINI_RUBRIC_VERSION` sau khi review chênh lệch; lịch sử evaluation đã hoàn thành giữ model và rubric version cũ để audit.
+Only bump `GEMINI_RUBRIC_VERSION` after reviewing discrepancies; completed evaluation history retains the old model and rubric version for auditing.
 
-Nhóm chưa có bài tham chiếu do giáo viên chấm tại ngày 2026-11-21, nên chưa có MAE/QWK hoặc kết luận độ chính xác.
-Công cụ offline và quy trình đo 3 lần/bài nằm trong [báo cáo Sprint 3](../../runbooks/sprint3-review.md).
+The team has no instructor-graded reference submissions as of 2026-11-21, so there are no MAE/QWK metrics or accuracy conclusions yet.
+Offline tools and the 3-runs-per-submission measurement procedure are in the [Sprint 3 report](../../runbooks/sprint3-review.md).
 
-## UAT và bật demo
+## UAT and Enabling Demo
 
-Xem [Writing UAT runbook](../../runbooks/writing-uat-runbook.md) trước khi chạy migration hoặc gửi một bài test đến Gemini. Runbook
-liệt kê luồng User/Admin, điều kiện an toàn cho Free Tier và các giới hạn đã được chấp nhận.
+See the [Writing UAT runbook](../../runbooks/writing-uat-runbook.md) before running migrations or sending a test submission to Gemini. The runbook
+lists User/Admin flows, Free Tier safety conditions, and accepted limits.

@@ -1,8 +1,9 @@
-# ADR-002: Không trùng nội dung giữa các câu trong đề Speaking
+# ADR-002: Content Uniqueness Across Questions in a Speaking Test
 
 ## Status
 
-Implemented bước 1 ngày 2026-11-21. Bước 2 (publish-check và cảnh báo gần giống) còn ở backlog.
+Step 1 implemented on 2026-11-21.
+Step 2 (publish-check and similarity warnings) remains in the backlog.
 
 ## Date
 
@@ -10,116 +11,132 @@ Implemented bước 1 ngày 2026-11-21. Bước 2 (publish-check và cảnh báo
 
 ## Context
 
-Một đề Speaking có 11 câu, lắp từ 7 bài tập trong ngân hàng: Part 1 và Part 2 mỗi Part 2 bài (mỗi bài 1 câu), Part 3 và Part 4 mỗi Part 1 bài (mỗi bài 3 câu), Part 5 có 1 bài (1 câu).
+A Speaking test has 11 questions, assembled from 7 exercises in the bank: Part 1 and Part 2 each have 2 exercises (1 question each), Part 3 and Part 4 each have 1 exercise (3 questions each), and Part 5 has 1 exercise (1 question).
 
-Cập nhật: hệ thống hỗ trợ cả nội dung nhập trực tiếp thuộc đề. Luật chặn trùng được chạy khi công bố ở cả hai chế độ.
+Update: the system also supports inline content entered directly on the test.
+Duplicate-blocking rules run at publish time in both modes.
 
-Hiện tại hệ thống chỉ bảo đảm một `ExerciseId` không lặp lại trong đề. Cơ chế này không phát hiện các trường hợp sau:
+Currently, the system only guarantees that an `ExerciseId` is not repeated in a test.
+This mechanism does not detect the following cases:
 
-- 3 câu hỏi giống nhau trong cùng một bài Part 3 hoặc Part 4 (DUP-01).
-- Hai bài khác mã nhưng cùng đoạn văn hoặc cùng câu hỏi (DUP-02).
-- Cùng một ảnh được tải lên hai lần, nên có hai asset khác nhau (DUP-03).
+- 3 identical questions within the same Part 3 or Part 4 exercise (DUP-01).
+- Two exercises with different IDs but the same passage or the same question (DUP-02).
+- The same image uploaded twice, resulting in two different assets (DUP-03).
 
-Moodle cũng gặp đúng giới hạn này: một câu không xuất hiện hai lần, nhưng [hai bản sao của cùng câu vẫn lọt](https://moodle.org/mod/forum/discuss.php?d=251833). Ngành khảo thí còn có khái niệm [enemy items](https://assess.com/enemy-items/): hai câu không nên ở cùng một đề, kể cả khi không trùng chữ.
+Moodle shares this exact limitation: a single question does not appear twice, yet [two copies of the same question still slip through](https://moodle.org/mod/forum/discuss.php?d=251833).
+The assessment industry also has the concept of [enemy items](https://assess.com/enemy-items/): two questions that should not appear on the same test, even if their wording differs.
 
-Chi tiết và bằng chứng nằm trong [báo cáo rà soát](../runbooks/speaking-audit-report.md).
+Details and evidence are in the [audit report](../runbooks/speaking-audit-report.md).
 
 ## Decision
 
-### 1. Định nghĩa "trùng" theo từng mức
+### 1. Definition of "duplicate" by severity level
 
-| Mã | Mức | Điều kiện | Áp dụng khi |
+| Code | Level | Condition | Applied When |
 | :--- | :--- | :--- | :--- |
-| `DUPLICATE_EXERCISE` | Chặn | Cùng `ExerciseId` ở hai vị trí. | Đã có, giữ nguyên |
-| `DUPLICATE_QUESTION_IN_EXERCISE` | Chặn | Hai câu của một bài Part 3 hoặc Part 4 giống nhau sau chuẩn hóa. | Lưu bài tập; kiểm tra lại khi công bố |
-| `DUPLICATE_PROMPT_TEXT` | Chặn | Hai đơn vị văn bản trong đề giống nhau sau chuẩn hóa. | Công bố |
-| `DUPLICATE_IMAGE` | Chặn | Hai bài Part 2 có cùng `ImageAssetId` hoặc cùng `sha256`. | Công bố |
-| `SIMILAR_CONTENT` | Cảnh báo | Hai đơn vị văn bản có độ giống Jaccard theo từ ≥ 0,8. | Trước khi công bố |
-| `SAME_TOPIC_IN_PART` | Cảnh báo | Hai bài cùng Part có `Topic` giống nhau sau chuẩn hóa. | Trước khi công bố |
+| `DUPLICATE_EXERCISE` | Block | Same `ExerciseId` in two slots. | Existing, unchanged |
+| `DUPLICATE_QUESTION_IN_EXERCISE` | Block | Two questions in a Part 3 or Part 4 exercise are identical after normalization. | Saving exercise; re-checked at publish |
+| `DUPLICATE_PROMPT_TEXT` | Block | Two text units in a test are identical after normalization. | Publishing |
+| `DUPLICATE_IMAGE` | Block | Two Part 2 exercises have the same `ImageAssetId` or the same `sha256`. | Publishing |
+| `SIMILAR_CONTENT` | Warning | Two text units have a word-level Jaccard similarity >= 0.8. | Pre-publish |
+| `SAME_TOPIC_IN_PART` | Warning | Two exercises in the same Part have the same `Topic` after normalization. | Pre-publish |
 
-Cảnh báo không chặn công bố. Admin vẫn có quyền quyết định vì hai đoạn thông báo có thể giống nhau về khuôn mà vẫn hợp lệ.
+Warnings do not block publishing.
+Admins retain final discretion because two announcements may share a template while remaining valid.
 
-**Dùng lại một bài ở đề khác thì được phép.** Các lượt làm đã có snapshot riêng, và ngân hàng bài của dự án còn nhỏ. UI chỉ cần cho thấy bài đang được dùng ở bao nhiêu đề.
+**Reusing an exercise across different tests is allowed.**
+Existing attempts already keep their own snapshots, and the project's exercise bank is still small.
+The UI only needs to display how many tests currently use the exercise.
 
-### 2. Đơn vị so sánh
+### 2. Comparison units
 
-| Part | Vị trí câu | Đơn vị |
+| Part | Question Position | Unit |
 | :--- | :--- | :--- |
-| 1 | 1–2 | `passage` |
-| 2 | 3–4 | Ảnh, so sánh bằng asset id và `sha256` |
-| 3 | 5–7 | Từng phần tử trong `questions` |
-| 4 | 8–10 | Từng phần tử trong `questions` |
+| 1 | 1-2 | `passage` |
+| 2 | 3-4 | Image, compared by asset id and `sha256` |
+| 3 | 5-7 | Each item in `questions` |
+| 4 | 8-10 | Each item in `questions` |
 | 5 | 11 | `prompt` |
 
-Mọi đơn vị văn bản được so sánh với nhau, kể cả khác Part. Ví dụ một câu của Part 3 trùng với câu của Part 4 vẫn bị chặn. Đề có tối đa 11 đơn vị, nên so sánh từng cặp là đủ nhanh.
+All text units are compared against one another, even across different Parts.
+For example, a Part 3 question that duplicates a Part 4 question is still blocked.
+A test has at most 11 units, so pairwise comparison is fast enough.
 
-### 3. Quy tắc chuẩn hóa
+### 3. Normalization rules
 
-Áp dụng theo đúng thứ tự:
+Apply in exact order:
 
 1. Unicode NFKC.
-2. Chuyển chữ thường bằng `ToLowerInvariant`.
-3. Thay mọi ký tự không phải chữ hoặc số bằng khoảng trắng.
-4. Gộp khoảng trắng liên tiếp và cắt hai đầu.
+2. Lowercase using `ToLowerInvariant`.
+3. Replace every non-alphanumeric character with a space.
+4. Collapse consecutive spaces and trim both ends.
 
-Như vậy `"What time is it?"` và `"what  time is it"` được coi là trùng.
+Thus `"What time is it?"` and `"what  time is it"` are treated as duplicates.
 
-### 4. Đặt logic ở đâu
+### 4. Where to place the logic
 
-- Tạo `Application/Speaking/Admin/SpeakingTestContentRules.cs`, chứa hàm thuần, không I/O: nhận các bài tập và dữ liệu ảnh, trả danh sách vấn đề.
-- `SpeakingExerciseInputValidator`: thêm luật 3 câu hỏi khác nhau. Trả `400` với khóa `Questions`.
-- `PublishSpeakingTestCommandHandler.Handle`: sau `PublishRequirements`, lấy hash ảnh rồi gọi hàm trên. Lỗi mức chặn trả `422` với khóa mới `Content`; `Exercises` và các khóa khác giữ nguyên. `PublishRequirements` giữ nguyên là hàm đồng bộ, vì việc đọc asset là I/O.
-- Lấy `sha256` qua `FindMediaAssetAsync` có sẵn, tối đa 2 lần gọi cho Part 2. **Không cần đổi interface repository.**
-- FE phải sửa UI-03 cùng lúc. `http.ts` hiện chỉ giữ lỗi đầu tiên của mỗi khóa, nên nếu không sửa, Admin chỉ thấy một cặp trùng mỗi lần công bố.
-- **Không cần migration.** Dữ liệu cần so sánh đã có trong `content_json` và `speaking_media_assets.sha256`.
+- Create `Application/Speaking/Admin/SpeakingTestContentRules.cs` containing pure, I/O-free functions: takes exercises and image data, returns a list of issues.
+- `SpeakingExerciseInputValidator`: add rule requiring 3 distinct questions. Returns `400` with key `Questions`.
+- `PublishSpeakingTestCommandHandler.Handle`: after `PublishRequirements`, fetch image hashes and call the function above. Blocking-level errors return `422` with the new key `Content`; `Exercises` and other keys remain unchanged. `PublishRequirements` remains synchronous because reading assets performs I/O.
+- Fetch `sha256` via the existing `FindMediaAssetAsync`, at most 2 calls for Part 2. **No repository interface change required.**
+- FE must fix UI-03 at the same time. `http.ts` currently keeps only the first error per key, so without this fix, Admins only see one duplicate pair per publish attempt.
+- **No migration required.** The data needed for comparison already exists in `content_json` and `speaking_media_assets.sha256`.
 
-### 5. Triển khai theo hai bước
+### 5. Two-step rollout
 
-**Bước 1 (làm trước):** chỉ các mã mức chặn, kiểm tra khi lưu bài và khi công bố. Không có API mới. Lỗi hiện sau khi bấm công bố. Việc khóa bài đã chọn trong ô chọn FE tự làm được.
+**Step 1 (first):** blocking-level codes only, checked when saving an exercise and when publishing.
+No new API.
+Errors appear after clicking publish.
+Disabling already-selected exercises in the dropdown can be handled directly by FE.
 
-**Bước 2 (khi cần):** các mã mức cảnh báo, cùng endpoint `POST /api/v1/admin/speaking/tests/publish-check`. Endpoint nhận cùng body với `POST /tests`, không ghi dữ liệu và chấp nhận đề chưa đủ bài. Cảnh báo không chặn nên cần kênh riêng này. Hợp đồng nằm ở [admin-api.md](../features/speaking/admin-api.md#kiểm-tra-trước-khi-công-bố-đề-xuất).
+**Step 2 (when needed):** warning-level codes, plus endpoint `POST /api/v1/admin/speaking/tests/publish-check`.
+The endpoint accepts the same body as `POST /tests`, performs no writes, and accepts incomplete tests.
+Warnings are non-blocking, so they require this dedicated channel.
+The contract is defined in [admin-api.md](../features/speaking/admin-api.md#pre-publish-check-proposed).
 
-Server giữ một nguồn logic duy nhất, nên FE không phải viết lại luật chuẩn hóa.
+The server maintains a single source of logic, so FE does not need to duplicate normalization rules.
 
 ## Alternatives considered
 
-### Unique index trên hash nội dung ở cấp ngân hàng
+### Unique index on content hash at the bank level
 
-- Ưu điểm: database bảo đảm tuyệt đối.
-- Nhược điểm: chặn cả trường hợp hợp lệ, cần migration, và không xử lý được trùng giữa các Part.
-- Không chọn. Quy tắc này là ràng buộc theo từng đề, không phải theo toàn bộ ngân hàng.
+- Pros: strictly enforced by the database.
+- Cons: blocks valid cases, requires a migration, and cannot handle duplicates across Parts.
+- Rejected. This rule is a per-test constraint, not a bank-wide constraint.
 
-### Chỉ kiểm tra ở FE
+### Client-side validation on FE only
 
-- Ưu điểm: nhanh, không đổi backend.
-- Nhược điểm: gọi API trực tiếp vẫn lọt; dữ liệu có thể đổi giữa lúc kiểm tra và lúc công bố.
-- Không chọn. Server phải là nơi quyết định cuối cùng, như các điều kiện công bố hiện có.
+- Pros: fast, no backend changes.
+- Cons: direct API calls bypass it; data can change between check time and publish time.
+- Rejected. The server must be the final authority, consistent with existing publish requirements.
 
-### Chặn luôn khi gần giống
+### Block on near-similar content as well
 
-- Ưu điểm: đề chặt chẽ hơn.
-- Nhược điểm: ngưỡng chưa được hiệu chỉnh nên dễ chặn nhầm, và Admin không có cách vượt qua.
-- Không chọn ở giai đoạn này.
+- Pros: stricter test quality.
+- Cons: thresholds are not yet calibrated so false positives are likely, and Admins would have no override.
+- Rejected for this stage.
 
-### So sánh ảnh theo độ giống về hình (perceptual hash)
+### Visual image similarity comparison (perceptual hash)
 
-- Ưu điểm: phát hiện ảnh đã đổi cỡ hoặc nén lại.
-- Nhược điểm: cần thêm thư viện xử lý ảnh, trong khi dự án không thêm package nếu không có yêu cầu.
-- Để sau. `sha256` chỉ bắt được ảnh giống từng byte; đây là giới hạn đã chấp nhận.
+- Pros: detects resized or re-compressed images.
+- Cons: requires adding an image-processing library, while the project avoids adding packages unless required.
+- Deferred. `sha256` only catches byte-for-byte identical images; this is an accepted limitation.
 
-### Danh sách enemy khai báo tay
+### Manually curated enemy item list
 
-- Ưu điểm: bắt được các cặp câu gợi ý đáp án cho nhau.
-- Nhược điểm: tốn công nhập liệu, cần bảng mới.
-- Để sau, khi ngân hàng đủ lớn.
+- Pros: catches question pairs that give away answers to each other.
+- Cons: high data-entry overhead, requires a new table.
+- Deferred until the bank grows large enough.
 
 ## Consequences
 
-- Prototype đã kiểm chứng bước 1: 1 file mới 61 dòng, chặn đúng các kịch bản trùng (xem [báo cáo mục 0](../runbooks/speaking-audit-report.md#0-kết-quả-kiểm-tra-lại-2026-11-03)).
-- **Bộ mẫu test phải sửa cùng lúc.** `FullTestAsync` dùng chung một đoạn văn cho hai bài Part 1 và một ảnh cho hai bài Part 2, nên có 22 test đỏ. Thêm vào `SpeakingSamples` một đoạn văn thứ hai và một ảnh PNG khác byte, sửa `FullTestAsync`, thì còn 2 test (`Admin_and_learner_contract_matches_the_frontend`, `Published_images_are_served_only_through_a_published_snapshot`). Không được nới luật để test xanh.
-- Bài `SAMPLE-` trên Neon có thể đang dùng chung ảnh hoặc nội dung. Đề `SAMPLE-FULL-01` không bị ảnh hưởng, nhưng tạo đề mới từ các bài đó có thể bị chặn.
-- Đề đã công bố không bị ảnh hưởng vì dùng snapshot; không cần sửa dữ liệu cũ.
-- Bài tập cũ có câu hỏi trùng sẽ nhận `400` ở lần sửa tiếp theo, và đề dùng bài đó sẽ không công bố được cho tới khi sửa. Lượt làm và luyện Part đang có không bị ảnh hưởng.
-- Trước khi triển khai, cần chạy truy vấn chỉ đọc trong [UAT runbook](../runbooks/speaking-uat-runbook.md#5-rà-soát-dữ-liệu-hiện-có) để biết có bao nhiêu bài phải sửa.
-- Giới hạn còn lại: diễn đạt khác nhau cùng ý nghĩa không bị phát hiện; ảnh đã chỉnh sửa không bị phát hiện; giữa lúc kiểm tra và lúc lưu vẫn có khoảng ngắn dữ liệu có thể đổi, mức rủi ro này được chấp nhận với số ít Admin.
-- Phase sau có thể thêm cột `content_fingerprint` bằng migration mới để cảnh báo trùng trên toàn ngân hàng ngay khi tạo bài.
+- The prototype verified Step 1: 1 new file of 61 lines, blocking all duplicate scenarios as expected (see [report section 0](../runbooks/speaking-audit-report.md#0-re-verification-results-2026-11-03)).
+- **Test fixtures must be updated at the same time.** `FullTestAsync` reuses one passage for two Part 1 exercises and one image for two Part 2 exercises, causing 22 red tests. Add a second passage and a byte-distinct PNG image to `SpeakingSamples`, and update `FullTestAsync`, leaving 2 tests (`Admin_and_learner_contract_matches_the_frontend`, `Published_images_are_served_only_through_a_published_snapshot`). Do not relax the rules just to make tests green.
+- `SAMPLE-` exercises on Neon may share images or content.
+Test `SAMPLE-FULL-01` is unaffected, though creating new tests from those exercises may be blocked.
+- Already-published tests are unaffected because they use snapshots; no legacy data cleanup is needed.
+- Legacy exercises with duplicate questions will receive `400` on their next edit, and tests using them cannot be published until fixed.
+Existing attempts and Part practices are unaffected.
+- Before rollout, run the read-only query in the [UAT runbook](../runbooks/speaking-uat-runbook.md#5-existing-data-audit) to see how many exercises need fixing.
+- Remaining limitations: paraphrased content with the same meaning is not detected; edited images are not detected; a brief window exists between check time and save time where data could change, an accepted risk given the small number of Admins.
+- A future phase may add a `content_fingerprint` column via a new migration to warn about bank-wide duplicates at exercise creation time.

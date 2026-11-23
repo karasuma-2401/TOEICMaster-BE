@@ -73,9 +73,9 @@ public sealed class AdminSpeakingController(ISender sender) : ControllerBase
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0)
-            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Cần chọn một ảnh JPEG hoặc PNG.");
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Please select a JPEG or PNG image.");
         if (file.Length > SpeakingMediaRules.MaxImageBytes)
-            return Problem(statusCode: StatusCodes.Status413PayloadTooLarge, title: "Ảnh không được vượt quá 5 MiB.");
+            return Problem(statusCode: StatusCodes.Status413PayloadTooLarge, title: "Image must not exceed 5 MiB.");
         var created = await sender.Send(new UploadSpeakingImageCommand(CurrentUserId(),
             await ReadAsync(file, cancellationToken), file.ContentType), cancellationToken);
         return CreatedAtAction(nameof(GetImage), new { assetId = created.Id }, created);

@@ -1,7 +1,7 @@
 
 namespace TOEICMaster.Application.ExerciseBank;
 
-// Danh sách bài tập hiển thị trong thư viện.
+// Exercise list displayed in the library.
 public sealed record LrPracticeItemDto(
     Guid Id,
     int Part,
@@ -15,8 +15,8 @@ public sealed record LrPracticeItemDto(
     int QuestionCount
 );
 
-// Chi tiết bài tập trước khi làm.
-// Cố ý KHÔNG có CorrectKey, Translation, Explanation.
+// Exercise detail before starting practice.
+// Intentionally omits CorrectKey, Translation, and Explanation.
 public sealed record LrPracticeDetailDto(
     Guid Id,
     int Part,
@@ -41,7 +41,7 @@ public sealed record LrPracticeQuestionDto(
     string? OptionD
 );
 
-// Dữ liệu frontend gửi lên khi nộp bài.
+// Payload submitted by the frontend on submission.
 public sealed record LrPracticeSubmitRequest(
     IReadOnlyList<LrPracticeAnswerInput> Answers
 );
@@ -51,7 +51,7 @@ public sealed record LrPracticeAnswerInput(
     string? SelectedKey
 );
 
-// Kết quả trả về sau khi nộp bài.
+// Result returned after submission.
 public sealed record LrPracticeSubmitResultDto(
     Guid ItemId,
     int TotalQuestions,

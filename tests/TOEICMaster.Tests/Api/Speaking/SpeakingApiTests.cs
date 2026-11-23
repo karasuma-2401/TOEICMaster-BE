@@ -153,7 +153,7 @@ public sealed class SpeakingApiTests : IDisposable
         Assert.NotNull((await JsonAsync(notReady))["errors"]!["Part5"]);
 
         using var createdTest = await admin.PostAsJsonAsync($"{Admin}/tests",
-            new SpeakingTestInput("SPK-2026-01", "TOEIC Speaking Practice Test 01", "Đề đủ 11 câu.", slots));
+            new SpeakingTestInput("SPK-2026-01", "TOEIC Speaking Practice Test 01", "Full 11-question test.", slots));
         Assert.Equal(HttpStatusCode.Created, createdTest.StatusCode);
         var test = await JsonAsync(createdTest);
         Assert.Equal(("DRAFT", 7), (test["status"]!.GetValue<string>(), test["exercises"]!.AsArray().Count));
@@ -293,7 +293,7 @@ public sealed class SpeakingApiTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, list.StatusCode);
         var page = await JsonAsync(list);
         var item = page["items"]![0]!;
-        Assert.Equal((exerciseId, "SP3-API", 3, "Công việc", "MEDIUM", 3, 69, 1),
+        Assert.Equal((exerciseId, "SP3-API", 3, "Work", "MEDIUM", 3, 69, 1),
             (item["id"]!.GetValue<string>(), item["code"]!.GetValue<string>(), item["part"]!.GetValue<int>(),
                 item["topic"]!.GetValue<string>(), item["difficulty"]!.GetValue<string>(),
                 item["questionCount"]!.GetValue<int>(), item["durationSeconds"]!.GetValue<int>(),
@@ -305,7 +305,7 @@ public sealed class SpeakingApiTests : IDisposable
         Assert.Equal(HttpStatusCode.Created, started.StatusCode);
         var attempt = await JsonAsync(started);
         Assert.Null(attempt["testId"]);
-        Assert.Equal((exerciseId, "PART_3", "Luyện Part 3 · Công việc", 3), (attempt["exerciseId"]!.GetValue<string>(),
+        Assert.Equal((exerciseId, "PART_3", "Part 3 Practice · Work", 3), (attempt["exerciseId"]!.GetValue<string>(),
             attempt["mode"]!.GetValue<string>(), attempt["testTitle"]!.GetValue<string>(),
             attempt["questions"]!.AsArray().Count));
     }

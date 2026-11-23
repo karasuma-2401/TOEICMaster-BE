@@ -28,7 +28,7 @@ public sealed class AzurePronunciationAssessor(HttpClient httpClient, IOptions<P
 
         var wav = await converter.ToWavAsync(audio, contentType, cancellationToken);
         if (wav.Seconds > PronunciationRules.MaxAudioSeconds + 0.5)
-            throw PronunciationAssessmentException.InvalidAudio("Bản thu dài quá 10 giây. Hãy thu lại ngắn hơn.");
+            throw PronunciationAssessmentException.InvalidAudio("Recording is longer than 10 seconds. Please record a shorter clip.");
         if (wav.Seconds < MinimumSeconds)
             return PronunciationAssessmentDto.NoSpeech(referenceText);
 

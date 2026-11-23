@@ -11,11 +11,12 @@ public sealed class KnowledgeAdminApplicationTests
     private static readonly DateTimeOffset FixedNow = new(2026, 11, 20, 10, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void Slug_generator_normalizes_vietnamese_diacritics_and_punctuation()
+    public void Slug_generator_normalizes_diacritics_and_punctuation()
     {
-        Assert.Equal("meo-lam-bai-doc-hieu-toeic", KnowledgeSlug.Generate("Mẹo làm bài Đọc hiểu TOEIC!!!", 120));
-        Assert.Equal("chien-luoc-nghe-hieu-100", KnowledgeSlug.Generate("  Chiến lược   nghe hiểu 100%  ", 120));
-        Assert.True(KnowledgeSlug.IsValid("meo-lam-reading-2026", 120));
+        Assert.Equal("toeic-reading-tips", KnowledgeSlug.Generate("TOEIC Reading Tips!!!", 120));
+        Assert.Equal("listening-strategy-100", KnowledgeSlug.Generate("  Listening   Strategy 100%  ", 120));
+        Assert.Equal("cafe-resume", KnowledgeSlug.Generate("Caf\u00e9 & R\u00e9sum\u00e9", 120));
+        Assert.True(KnowledgeSlug.IsValid("reading-tips-2026", 120));
         Assert.False(KnowledgeSlug.IsValid("Invalid Slug!", 120));
     }
 
@@ -31,15 +32,15 @@ public sealed class KnowledgeAdminApplicationTests
             {
               "type": "heading",
               "attrs": { "level": 2 },
-              "content": [{ "type": "text", "text": "Giới thiệu chung" }]
+              "content": [{ "type": "text", "text": "General Introduction" }]
             },
             {
               "type": "paragraph",
               "content": [
-                { "type": "text", "text": "Học TOEIC cần chiến lược rõ ràng và luyện tập đều đặn." },
+                { "type": "text", "text": "Learning TOEIC requires a clear strategy and consistent practice." },
                 {
                   "type": "text",
-                  "text": "Xem thêm",
+                  "text": "Read more",
                   "marks": [{ "type": "link", "attrs": { "href": "https://example.com/guide" } }]
                 }
               ]
@@ -51,7 +52,7 @@ public sealed class KnowledgeAdminApplicationTests
             {
               "type": "heading",
               "attrs": { "level": 3 },
-              "content": [{ "type": "text", "text": "Giới thiệu chung" }]
+              "content": [{ "type": "text", "text": "General Introduction" }]
             },
             {
               "type": "image",
@@ -64,8 +65,8 @@ public sealed class KnowledgeAdminApplicationTests
         var processed = KnowledgeContentProcessor.Process(doc);
 
         Assert.Equal(2, processed.Toc.Count);
-        Assert.Equal(new KnowledgeTocItemDto("gioi-thieu-chung", 2, "Giới thiệu chung"), processed.Toc[0]);
-        Assert.Equal(new KnowledgeTocItemDto("gioi-thieu-chung-2", 3, "Giới thiệu chung"), processed.Toc[1]);
+        Assert.Equal(new KnowledgeTocItemDto("general-introduction", 2, "General Introduction"), processed.Toc[0]);
+        Assert.Equal(new KnowledgeTocItemDto("general-introduction-2", 3, "General Introduction"), processed.Toc[1]);
         Assert.Equal(2, processed.EmbeddedMediaAssetIds.Count);
         Assert.Contains(imageId1, processed.EmbeddedMediaAssetIds);
         Assert.Contains(imageId2, processed.EmbeddedMediaAssetIds);
@@ -142,10 +143,10 @@ public sealed class KnowledgeAdminApplicationTests
         var adminId = Guid.NewGuid();
         var createHandler = new CreateKnowledgeCategoryCommandHandler(repo, new FixedTimeProvider(FixedNow));
         var category = await createHandler.Handle(
-            new CreateKnowledgeCategoryCommand(adminId, new KnowledgeCategoryInput("Mẹo Listening", null, null, 1)),
+            new CreateKnowledgeCategoryCommand(adminId, new KnowledgeCategoryInput("Listening Tips", null, null, 1)),
             CancellationToken.None);
 
-        Assert.Equal("meo-listening", category.Slug);
+        Assert.Equal("listening-tips", category.Slug);
         repo.CategoriesWithArticles.Add(category.Id);
 
         var deleteHandler = new DeleteKnowledgeCategoryCommandHandler(repo);
@@ -165,7 +166,7 @@ public sealed class KnowledgeAdminApplicationTests
         var repo = new InMemoryKnowledgeAdminRepository();
         var clock = new FixedTimeProvider(FixedNow);
         var adminId = Guid.NewGuid();
-        var category = KnowledgeCategory.Create("Chiến lược", "chien-luoc", null, 0, adminId, FixedNow);
+        var category = KnowledgeCategory.Create("Strategy", "strategy", null, 0, adminId, FixedNow);
         repo.Categories.Add(category);
         var coverAsset = KnowledgeMediaAsset.Create("knowledge/a.png", "cover.png", "image/png", 1024,
             new string('a', 64), adminId, FixedNow);
@@ -173,17 +174,17 @@ public sealed class KnowledgeAdminApplicationTests
 
         var createHandler = new CreateKnowledgeArticleCommandHandler(repo, clock);
         var created = await createHandler.Handle(new CreateKnowledgeArticleCommand(adminId, new KnowledgeArticleInput(
-            "Chiến lược làm bài Reading",
+            "Reading Test Strategies",
             null,
-            "Hướng dẫn phân bổ thời gian hiệu quả.",
+            "Guide to effective time allocation.",
             "Reading",
             category.Id,
             coverAsset.Id,
-            "Ảnh bìa Reading",
-            ParseJson("""{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Bước 1"}]}]}"""),
-            ["Reading", "Mẹo Thi"])), CancellationToken.None);
+            "Reading cover image",
+            ParseJson("""{"type":"doc","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Step 1"}]}]}"""),
+            ["Reading", "Exam Tips"])), CancellationToken.None);
 
-        Assert.Equal("chien-luoc-lam-bai-reading", created.Slug);
+        Assert.Equal("reading-test-strategies", created.Slug);
         Assert.Equal("Draft", created.Status);
         Assert.Single(created.Toc);
         Assert.Equal(2, created.Tags.Count);
@@ -198,14 +199,14 @@ public sealed class KnowledgeAdminApplicationTests
         var updateHandler = new UpdateKnowledgeArticleCommandHandler(repo, clock);
         var updated = await updateHandler.Handle(new UpdateKnowledgeArticleCommand(adminId, published.Id,
             published.Version, new KnowledgeArticleInput(
-                "Chiến lược làm bài Reading (Đã cập nhật)",
+                "Reading Test Strategies (Updated)",
                 published.Slug,
-                "Bản cập nhật mới nhất.",
+                "Latest update.",
                 "Reading",
                 category.Id,
                 coverAsset.Id,
-                "Ảnh bìa Reading",
-                ParseJson("""{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Nội dung mới"}]}]}"""),
+                "Reading cover image",
+                ParseJson("""{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"New content"}]}]}"""),
                 ["Reading"])), CancellationToken.None);
         Assert.Equal("Published", updated.Status);
         Assert.Single(updated.Tags);
@@ -233,7 +234,7 @@ public sealed class KnowledgeAdminApplicationTests
         var repo = new InMemoryKnowledgeAdminRepository();
         var store = new InMemoryKnowledgeMediaStore();
         var adminId = Guid.NewGuid();
-        var category = KnowledgeCategory.Create("Mẹo", "meo", null, 0, adminId, FixedNow);
+        var category = KnowledgeCategory.Create("Tips", "tips", null, 0, adminId, FixedNow);
         repo.Categories.Add(category);
 
         var asset = KnowledgeMediaAsset.Create("knowledge/img1.png", "img1.png", "image/png", 512,
@@ -241,7 +242,7 @@ public sealed class KnowledgeAdminApplicationTests
         repo.MediaAssets.Add(asset);
         store.Objects[asset.ObjectKey] = ([0x89, 0x50, 0x4E, 0x47], "image/png");
 
-        var article = KnowledgeArticle.Create("Bài viết", "bai-viet", "Tóm tắt", KnowledgeSkill.General,
+        var article = KnowledgeArticle.Create("Article", "article", "Summary", KnowledgeSkill.General,
             category.Id, asset.Id, null, """{"type":"doc","content":[]}""", "[]", 1, [], [], adminId, FixedNow);
         repo.Articles.Add(article);
 

@@ -70,7 +70,7 @@ public sealed class WritingAdministrationApplicationTests
             null, null, null, null, null, null, null, null, null, "Explain your opinion.", 300, null);
         var preview = new WritingExerciseImportPreviewDto(3, "part3.xlsx",
             [new WritingExerciseImportRowDto(2, "WP3-1", [], valid),
-             new WritingExerciseImportRowDto(3, null, ["Thiếu mã bài."])]);
+             new WritingExerciseImportRowDto(3, null, ["Missing exercise code."])]);
         var repository = new FakeWritingAdminRepository(null, []);
         var handler = new ImportWritingExercisesCommandHandler(new FixedImportParser(preview), repository, TimeProvider.System);
 

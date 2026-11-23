@@ -1,102 +1,108 @@
-# AI evaluation cho TOEIC Speaking
+# AI Evaluation for TOEIC Speaking
 
-Speaking chấm theo hàng đợi bền vững. Bài nộp và bản ghi luôn được lưu trước, nên lỗi nhà cung cấp, hết quota hay timeout không làm mất bài. Điểm luôn được gọi là **điểm ước tính bởi AI (0–200, bước 10)**, không phải điểm ETS.
+Speaking is graded via a durable queue.
+Submissions and recordings are always saved first, so provider errors, quota exhaustion, or timeouts do not cause lost work.
+Scores are always labeled as an **AI-estimated score (0–200, step 10)**, not an ETS score.
 
-## Luồng sử dụng
+## Usage Flow
 
-1. Học viên nộp bài. Chưa có job chấm nào; `evaluation` là `null`.
-2. FE gọi `GET /api/v1/speaking/evaluation-availability`, trả `{ available }`. Nếu chưa cấu hình, UI báo chưa bật.
-3. Học viên đọc thông báo dữ liệu và đồng ý. FE gọi `POST /attempts/{id}/evaluation-consent` với `{ "accepted": true }`. Job chuyển sang `QUEUED`.
-4. Worker xử lý từng câu có bản ghi:
-   - Tải bản ghi từ MinIO, dùng `ffmpeg` chuyển sang WAV PCM 16 kHz mono và cắt đoạn tối đa 25 giây, tại điểm yên tĩnh nhất trong 5 giây cuối của đoạn.
-   - Gửi từng đoạn đến Azure Speech REST kèm pronunciation assessment.
-   - Gộp điểm các đoạn theo thời lượng và lưu kết quả câu ngay. Khi thử lại sẽ không gọi Azure lần nữa.
-5. Worker gọi Gemini một lần cho cả bài, gửi kèm ảnh của các câu Part 2, lấy `grammar`, `vocabulary`, `relevance` (0–100), nhận xét và câu gợi ý. Transcript được coi là dữ liệu không tin cậy.
-6. Server tự tính điểm. FE gọi `GET /attempts/{id}` mỗi 5 giây tới khi `COMPLETED` hoặc `FAILED`.
+1. The learner submits the attempt. There is no evaluation job yet; `evaluation` is `null`.
+2. FE calls `GET /api/v1/speaking/evaluation-availability`, which returns `{ available }`. If unconfigured, the UI reports that it is not enabled.
+3. The learner reads the data notice and consents. FE calls `POST /attempts/{id}/evaluation-consent` with `{ "accepted": true }`. The job transitions to `QUEUED`.
+4. The worker processes each question that has a recording:
+   - Downloads the recording from MinIO, uses `ffmpeg` to convert it to 16 kHz mono PCM WAV, and splits it into chunks of at most 25 seconds at the quietest point within the last 5 seconds of each chunk.
+   - Sends each chunk to Azure Speech REST with pronunciation assessment.
+   - Aggregates chunk scores weighted by duration and saves the question result immediately. Retries will not call Azure again.
+5. The worker calls Gemini once for the entire attempt, attaching images for Part 2 questions, and retrieves `grammar`, `vocabulary`, `relevance` (0–100), feedback, and a suggested response. Transcripts are treated as untrusted data.
+6. The server computes the score itself. FE polls `GET /attempts/{id}` every 5 seconds until `COMPLETED` or `FAILED`.
 
-Phải cắt đoạn vì REST của Azure [giới hạn pronunciation assessment ở 30 giây](https://docs.azure.cn/en-us/ai-services/speech-service/rest-speech-to-text-short), trong khi Part 1 trả lời 45 giây và Part 5 trả lời 60 giây. Phải chuyển định dạng vì trình duyệt ghi WebM hoặc MP4.
+Audio splitting is required because Azure's REST API [limits pronunciation assessment to 30 seconds](https://docs.azure.cn/en-us/ai-services/speech-service/rest-speech-to-text-short), whereas Part 1 responses are 45 seconds and Part 5 responses are 60 seconds.
+Transcoding is required because browsers record in WebM or MP4.
 
-## Điều kiện đồng ý
+## Consent Conditions
 
 `POST .../evaluation-consent`:
 
-| Mã | Khi nào |
+| Code | When |
 | --- | --- |
-| `400` | `accepted` khác `true` |
-| `404` | Không phải chủ lượt làm |
-| `409` | Chưa nộp bài |
-| `409` | Còn trong 15 giây ân hạn tải bản ghi |
-| `409` | Lượt làm không có bản ghi nào |
-| `409` | Backend chưa cấu hình |
-| `409` | Phiên ẩn danh đã dùng lượt chấm trong 24 giờ qua |
-| `409` | Xếp lại job `FAILED` của khách khi bản ghi của câu chưa nhận diện đã hết hạn lưu trữ |
-| `429` | Vượt giới hạn: 10 lần/phút cho mỗi tài khoản; khách dùng chung 30 lần/giờ theo địa chỉ kết nối |
+| `400` | `accepted` is not `true` |
+| `404` | Caller is not the attempt owner |
+| `409` | Attempt has not been submitted |
+| `409` | Still within the 15-second recording upload grace period |
+| `409` | Attempt has no recordings |
+| `409` | Backend is not configured |
+| `409` | Anonymous session has already used an evaluation in the past 24 hours |
+| `409` | Re-queuing a guest's `FAILED` job when the recording for an unrecognized question has expired from storage |
+| `429` | Rate limit exceeded: 10 requests/minute per account; guests share 30 requests/hour per connection address |
 
-Gọi lại, kể cả hai request đồng thời, khi đã có job thì trả job hiện tại. Nếu job đang `FAILED` thì xếp hàng lại.
+Calling again, including two concurrent requests, returns the existing job if one already exists.
+If the job is `FAILED`, it is re-queued.
 
-## Công thức điểm
+## Scoring Formula
 
-Nguồn: `SpeakingEvaluationScoring`. P là `PronScore` của Azure, đã gồm accuracy, fluency và prosody.
+Source: `SpeakingEvaluationScoring`.
+P is Azure's `PronScore`, which already includes accuracy, fluency, and prosody.
 
-| Part | Chất lượng 0–100 | Điểm tối đa |
+| Part | Quality 0–100 | Max Score |
 | --- | --- | --- |
-| 1 | min(0,7·P + 0,3·completeness; completeness) | 3 |
-| 2 | 0,4·P + 0,2·grammar + 0,2·vocabulary + 0,2·relevance | 3 |
-| 3, 4 | 0,3·P + 0,2·grammar + 0,2·vocabulary + 0,3·relevance | 3 |
-| 5 | 0,3·P + 0,2·grammar + 0,2·vocabulary + 0,3·relevance | 5 |
+| 1 | min(0.7·P + 0.3·completeness; completeness) | 3 |
+| 2 | 0.4·P + 0.2·grammar + 0.2·vocabulary + 0.2·relevance | 3 |
+| 3, 4 | 0.3·P + 0.2·grammar + 0.2·vocabulary + 0.3·relevance | 3 |
+| 5 | 0.3·P + 0.2·grammar + 0.2·vocabulary + 0.3·relevance | 5 |
 
 ```text
-điểm câu = round(chất lượng / 100 × điểm tối đa)
-điểm ước tính = round(tổng điểm câu × 20 / tổng điểm tối đa) × 10
+question score = round(quality / 100 × max score)
+estimated score = round(total question score × 20 / total max score) × 10
 ```
 
-- `completeness`: phần trăm từ của đoạn văn được đọc đúng thứ tự.
-- `relevance < 40`: câu đó tối đa 1 điểm.
-- Transcript dưới 15 từ ở Part 2 hoặc dưới 30 từ ở Part 5: câu đó tối đa 1 điểm. Part 3, 4 không áp dụng vì câu trả lời ngắn vẫn có thể đủ ý.
-- Câu không có bản ghi, không nhận ra giọng nói hoặc file không giải mã được: 0 điểm, không gửi sang Gemini.
+- `completeness`: percentage of words in the passage read in the correct order.
+- `relevance < 40`: that question is capped at 1 point.
+- Transcript under 15 words in Part 2 or under 30 words in Part 5: that question is capped at 1 point. Parts 3 and 4 are exempt because short answers can still be complete.
+- Question with no recording, no speech recognized, or an undecodable file: 0 points, not sent to Gemini.
 
-Đây là quy đổi luyện tập do nhóm đề xuất, chưa được hiệu chỉnh và không phải bảng quy đổi của ETS.
+This is a practice conversion proposed by the team, is not calibrated, and is not an ETS conversion table.
 
-## Trạng thái, thử lại, lưu trữ
+## Status, Retries, and Storage
 
 `status`: `QUEUED`, `PROCESSING`, `RETRYING`, `COMPLETED`, `FAILED`.
 
-- Lỗi tạm thời (quota, mạng, 5xx, LLM trả sai cấu trúc, `ffmpeg` lỗi vì lý do khác file hỏng): thử lại tối đa 3 lần, chờ 1, 3, 9 phút. Nếu `Retry-After` lớn hơn thì theo giá trị đó.
-- Lỗi cấu hình (sai key, thiếu `ffmpeg`): chuyển thẳng `FAILED`. Thiếu `ffmpeg` có mã `AUDIO_CONVERTER_UNAVAILABLE`.
-- Worker có lease 5 phút. Hết lease thì worker khác tiếp quản, mỗi lần tiếp quản tính là một lần thử lại; vượt quá 3 lần thì `FAILED` với mã `LEASE_RETRIES_EXHAUSTED`. `version` chống hoàn thành hai lần.
-- API trả `failureMessage` an toàn, không trả lỗi gốc của nhà cung cấp hay key.
+- Transient errors (quota, network, 5xx, malformed LLM structured output, `ffmpeg` failure for reasons other than a corrupted file): retry up to 3 times, waiting 1, 3, and 9 minutes. If `Retry-After` is larger, follow that value.
+- Configuration errors (invalid key, missing `ffmpeg`): transition straight to `FAILED`. Missing `ffmpeg` uses code `AUDIO_CONVERTER_UNAVAILABLE`.
+- Workers hold a 5-minute lease. When a lease expires, another worker takes over; each takeover counts as a retry. Exceeding 3 retries sets `FAILED` with code `LEASE_RETRIES_EXHAUSTED`. `version` prevents double completion.
+- The API returns a safe `failureMessage` and does not expose raw provider errors or keys.
 
-## Dữ liệu trả về
+## Response Data
 
-`evaluation` trong `SpeakingAttemptDto`: `status`, `estimatedScore`, `summary`, `strengths`, `improvements`, `items`, `speechProvider`, `languageProvider`, `languageModel`, `rubricVersion`, `consentAcceptedAtUtc`, `queuedAtUtc`, `completedAtUtc`, `retryCount`, `failureMessage`.
+`evaluation` in `SpeakingAttemptDto`: `status`, `estimatedScore`, `summary`, `strengths`, `improvements`, `items`, `speechProvider`, `languageProvider`, `languageModel`, `rubricVersion`, `consentAcceptedAtUtc`, `queuedAtUtc`, `completedAtUtc`, `retryCount`, `failureMessage`.
 
-Mỗi phần tử `items` (chỉ có khi `COMPLETED`): `position`, `part`, `recognitionStatus`, `transcript`, `accuracyScore`, `fluencyScore`, `completenessScore`, `prosodyScore`, `pronunciationScore`, `grammarScore`, `vocabularyScore`, `relevanceScore`, `rawScore`, `maxRawScore`, `feedback`, `suggestedResponse`, `wordIssues`.
+Each entry in `items` (present only when `COMPLETED`): `position`, `part`, `recognitionStatus`, `transcript`, `accuracyScore`, `fluencyScore`, `completenessScore`, `prosodyScore`, `pronunciationScore`, `grammarScore`, `vocabularyScore`, `relevanceScore`, `rawScore`, `maxRawScore`, `feedback`, `suggestedResponse`, `wordIssues`.
 
-`recognitionStatus`: `RECOGNIZED`, `NO_SPEECH`, `NO_RECORDING`. Rubric hiện tại: `toeic-speaking-v2`.
+`recognitionStatus`: `RECOGNIZED`, `NO_SPEECH`, `NO_RECORDING`. Current rubric: `toeic-speaking-v2`.
 
-## Cấu hình
+## Configuration
 
-Không commit key. Đặt trong `.env`, user-secrets hoặc secret của môi trường triển khai.
+Do not commit keys.
+Place them in `.env`, user-secrets, or deployment environment secrets.
 
-| Biến | Mặc định | Ghi chú |
+| Variable | Default | Notes |
 | --- | --- | --- |
 | `AzureSpeech__Enabled` | `false` | |
-| `AzureSpeech__Key`, `AzureSpeech__Region` | | Bắt buộc khi bật |
+| `AzureSpeech__Key`, `AzureSpeech__Region` | | Required when enabled |
 | `AzureSpeech__Locale` | `en-US` | |
-| `AzureSpeech__Endpoint` | | Tùy chọn |
+| `AzureSpeech__Endpoint` | | Optional |
 | `AzureSpeech__FfmpegPath` | `ffmpeg` | |
 | `AzureSpeech__ChunkSeconds` | `25` | |
 | `AzureSpeech__RequestTimeoutSeconds` | `30` | |
-| `Gemini__Enabled`, `Gemini__ApiKey` | | Dùng chung với Writing |
+| `Gemini__Enabled`, `Gemini__ApiKey` | | Shared with Writing |
 
-Image chạy cần có `ffmpeg`; Dockerfile runtime đã cài công cụ này. Compose và `.env.example` có các biến
-`AZURE_SPEECH_ENABLED`, `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`, `AZURE_SPEECH_LOCALE`; khi chạy trực tiếp,
-`AZURE_SPEECH_FFMPEG_PATH` chọn executable. Chưa dựng image trên máy rà soát vì Docker daemon chưa chạy.
+The runtime image needs `ffmpeg`; the runtime Dockerfile already installs this tool.
+Compose and `.env.example` include the variables `AZURE_SPEECH_ENABLED`, `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`, and `AZURE_SPEECH_LOCALE`; when running directly, `AZURE_SPEECH_FFMPEG_PATH` selects the executable.
+The image was not built on the review machine because the Docker daemon was not running.
 
-Mỗi bài đầy đủ gọi Azure khoảng 11–16 request và Gemini 1 lần.
+Each full attempt makes roughly 11–16 Azure requests and 1 Gemini request.
 
-## Giới hạn đã biết
+## Known Limitations
 
-- `notespeaking.md` ghi chưa gọi thử Azure và Gemini bằng key thật. Cần xác nhận lại trước khi demo.
-- Tài liệu Azure chưa rõ `ReferenceText` có bắt buộc với chế độ unscripted hay không. Code thử unscripted trước; nếu nhận `400` thì dùng chính transcript làm văn bản tham chiếu.
-- Trọng số chưa được hiệu chỉnh. Trước khi dùng thật, nên có bộ mẫu đã được giáo viên chấm, tương tự mục Calibration của [Writing](../writing/ai-evaluation.md#calibration-trước-demo-chính-thức), rồi mới nâng phiên bản rubric.
+- `notespeaking.md` notes that Azure and Gemini have not yet been tested with real keys. This must be verified before the demo.
+- Azure documentation is unclear on whether `ReferenceText` is required for unscripted mode. The code tries unscripted first; if it receives `400`, it falls back to using the transcript itself as the reference text.
+- Weights have not been calibrated yet. Before real usage, there should be a teacher-graded sample set, similar to the Calibration section of [Writing](../writing/ai-evaluation.md#calibration-before-official-demo), before bumping the rubric version.

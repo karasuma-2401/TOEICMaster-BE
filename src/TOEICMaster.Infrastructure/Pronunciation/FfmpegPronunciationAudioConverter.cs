@@ -60,7 +60,7 @@ public sealed class FfmpegPronunciationAudioConverter(IOptions<PronunciationSpee
             {
                 // ffmpeg is not installed on this host.
                 throw new PronunciationAssessmentException(PronunciationFailureKind.NotConfigured, "NOT_CONFIGURED",
-                    "Chưa chấm được phát âm lúc này.", exception);
+                    "Pronunciation could not be scored right now.", exception);
             }
 
             using (process)
@@ -84,7 +84,7 @@ public sealed class FfmpegPronunciationAudioConverter(IOptions<PronunciationSpee
                 }
 
                 if (process.ExitCode != 0 || !File.Exists(output))
-                    throw PronunciationAssessmentException.InvalidAudio("Không đọc được bản thu. Hãy thu lại.");
+                    throw PronunciationAssessmentException.InvalidAudio("Could not read the recording. Please record again.");
             }
 
             var wav = await File.ReadAllBytesAsync(output, cancellationToken);

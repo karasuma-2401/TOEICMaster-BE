@@ -115,14 +115,14 @@ public sealed class SpeakingAttemptsController(ISender sender) : ControllerBase
     {
         var owner = CurrentOwner();
         if (file is null || file.Length == 0)
-            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Bản ghi trống, không thể tải lên.");
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Recording is empty and cannot be uploaded.");
         if (file.Length > SpeakingMediaRules.MaxRecordingBytes)
             return Problem(statusCode: StatusCodes.Status413PayloadTooLarge,
-                title: "Bản ghi vượt quá dung lượng cho phép.");
+                title: "Recording exceeds the allowed size.");
         if (durationSeconds is null)
             return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]>
             {
-                ["DurationSeconds"] = ["Thiếu thời lượng bản ghi."]
+                ["DurationSeconds"] = ["Recording duration is required."]
             }));
         return Ok(await sender.Send(new UploadSpeakingRecordingCommand(owner, attemptId, position,
             await AdminSpeakingController.ReadAsync(file, cancellationToken), file.ContentType,

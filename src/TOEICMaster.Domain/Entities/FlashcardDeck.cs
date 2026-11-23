@@ -165,7 +165,7 @@ public sealed class FlashcardDeck
 
         var cleanTitle = title.Trim();
         var cleanDescription = string.IsNullOrWhiteSpace(description)
-            ? "Bộ từ vựng TOEIC do bạn tự biên soạn."
+            ? "Your custom TOEIC vocabulary deck."
             : description.Trim();
 
         var deckId = Guid.NewGuid();
@@ -180,7 +180,7 @@ public sealed class FlashcardDeck
             cleanTitle,
             cleanDescription,
             FlashcardCategories.Custom,
-            "Cá nhân",
+            "Personal",
             estimatedMinutes,
             nowUtc,
             nowUtc);
@@ -224,7 +224,7 @@ public sealed class FlashcardDeck
 
             var mapped = ch switch
             {
-                'đ' or 'Đ' => 'd',
+                '\u0111' or '\u0110' => 'd',
                 _ => char.ToLowerInvariant(ch)
             };
 
@@ -241,7 +241,7 @@ public sealed class FlashcardDeck
         }
 
         var result = builder.ToString().Trim('-');
-        return string.IsNullOrEmpty(result) ? "bo-the-ca-nhan" : result;
+        return string.IsNullOrEmpty(result) ? "custom-deck" : result;
     }
 }
 
@@ -334,7 +334,7 @@ public sealed class FlashcardCard
             input.ExampleEn?.Trim() ?? string.Empty,
             input.ExampleVi?.Trim() ?? string.Empty,
             collocations,
-            string.IsNullOrWhiteSpace(input.ToeicPart) ? "Từ vựng cá nhân" : input.ToeicPart.Trim(),
+            string.IsNullOrWhiteSpace(input.ToeicPart) ? "Personal vocabulary" : input.ToeicPart.Trim(),
             level);
     }
 }

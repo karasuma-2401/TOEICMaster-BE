@@ -61,9 +61,9 @@ internal static class ExamAttemptSupport
             ?? throw ExamAttemptNotFoundException.ForExam(attempt.RevisionId);
 
         var scoreProfile = await repository.FindScoreProfileAsync(attempt.ScoreProfileId, cancellationToken)
-            ?? throw new ExamAttemptValidationException("Không tìm thấy bảng barem điểm quy đổi cho bài thi này.");
+            ?? throw new ExamAttemptValidationException("Score conversion table for this exam was not found.");
         if (!scoreProfile.IsComplete)
-            throw new ExamAttemptValidationException("Barem điểm của bài thi này chưa đủ 101 mốc cho Listening và Reading.");
+            throw new ExamAttemptValidationException("The score conversion table for this exam does not have all 101 entries for Listening and Reading.");
 
         var questions = revision.Blocks
             .SelectMany(block => block.Questions.Select(question => new
@@ -103,20 +103,20 @@ internal static class ExamAttemptSupport
         CancellationToken cancellationToken)
     {
         if (attempt.Status != ExamAttemptStatus.InProgress)
-            throw new ExamAttemptConflictException("Không thể thay đổi đáp án của bài thi đã nộp hoặc đã hủy.");
+            throw new ExamAttemptConflictException("Cannot modify answers for a submitted or abandoned exam.");
 
         if (attempt.IsTimeUp(now, SaveGraceSeconds))
-            throw new ExamAttemptConflictException("Đã hết thời gian làm bài, không thể lưu thêm đáp án.");
+            throw new ExamAttemptConflictException("Time has expired; no more answers can be saved.");
 
         var metadata = await repository.GetQuestionMetadataAsync(questionIds, cancellationToken);
         foreach (var questionId in questionIds)
         {
             if (!metadata.TryGetValue(questionId, out var question) || question.RevisionId != attempt.RevisionId)
-                throw new ExamAttemptValidationException($"Câu hỏi '{questionId}' không thuộc bài thi này.");
+                throw new ExamAttemptValidationException($"Question '{questionId}' does not belong to this exam.");
 
             if (attempt.IsListeningLocked && ExamAttempt.IsListeningPart(question.Part))
                 throw new ExamAttemptConflictException(
-                    $"Câu {question.Number} thuộc phần Listening đã khóa, không thể thay đổi.");
+                    $"Question {question.Number} is in the locked Listening section and cannot be modified.");
         }
 
         return metadata;
@@ -130,7 +130,7 @@ internal static class ExamAttemptSupport
         var key = selectedKey.Trim().ToUpperInvariant();
         var valid = key is "A" or "B" or "C" || (key == "D" && question.HasOptionD);
         if (!valid)
-            throw new ExamAttemptValidationException($"Đáp án '{selectedKey}' không hợp lệ cho câu {question.Number}.");
+            throw new ExamAttemptValidationException($"Answer '{selectedKey}' is invalid for question {question.Number}.");
         return key;
     }
 }
@@ -219,13 +219,13 @@ public sealed class GetExamAttemptProgressHandler(IExamAttemptRepository reposit
             ?? throw ExamAttemptNotFoundException.ForAttempt(request.AttemptId);
 
         if (attempt.Status != ExamAttemptStatus.InProgress)
-            throw new ExamAttemptConflictException("Bài thi này đã kết thúc hoặc bị hủy, không thể tiếp tục làm.");
+            throw new ExamAttemptConflictException("This exam has already ended or been abandoned and cannot be resumed.");
 
         var now = timeProvider.GetUtcNow();
         if (attempt.IsTimeUp(now))
         {
             await ExamAttemptSupport.GradeAsync(repository, attempt, now, cancellationToken);
-            throw new ExamAttemptConflictException("Đã hết thời gian làm bài, hệ thống đã tự động nộp bài của bạn.");
+            throw new ExamAttemptConflictException("Time has expired; the system has automatically submitted your exam.");
         }
 
         return await ExamAttemptSupport.LoadSheetAsync(repository, attempt, now, cancellationToken);
@@ -259,13 +259,13 @@ public sealed class StartReadingHandler(IExamAttemptRepository repository, TimeP
             ?? throw ExamAttemptNotFoundException.ForAttempt(request.AttemptId);
 
         if (attempt.Status != ExamAttemptStatus.InProgress)
-            throw new ExamAttemptConflictException("Không thể chuyển sang Reading với bài thi đã nộp hoặc đã hủy.");
+            throw new ExamAttemptConflictException("Cannot move to Reading for a submitted or abandoned exam.");
 
         var now = timeProvider.GetUtcNow();
         if (attempt.IsTimeUp(now))
         {
             await ExamAttemptSupport.GradeAsync(repository, attempt, now, cancellationToken);
-            throw new ExamAttemptConflictException("Đã hết thời gian làm bài, hệ thống đã tự động nộp bài của bạn.");
+            throw new ExamAttemptConflictException("Time has expired; the system has automatically submitted your exam.");
         }
 
         attempt.StartReading(now);
@@ -286,7 +286,7 @@ public sealed class SaveExamAttemptAnswersHandler(IExamAttemptRepository reposit
     {
         if (request.Answers.Count > ExamAttemptSupport.MaxAnswersPerRequest)
             throw new ExamAttemptValidationException(
-                $"Mỗi lần lưu tối đa {ExamAttemptSupport.MaxAnswersPerRequest} câu.");
+                $"At most {ExamAttemptSupport.MaxAnswersPerRequest} answers can be saved per request.");
 
         var attempt = await repository.FindAttemptForUpdateAsync(request.AttemptId, request.UserId, cancellationToken)
             ?? throw ExamAttemptNotFoundException.ForAttempt(request.AttemptId);
@@ -343,7 +343,7 @@ public sealed class AbandonExamAttemptHandler(IExamAttemptRepository repository,
             ?? throw ExamAttemptNotFoundException.ForAttempt(request.AttemptId);
 
         if (attempt.Status != ExamAttemptStatus.InProgress)
-            throw new ExamAttemptConflictException("Chỉ có thể hủy bài thi đang làm dở.");
+            throw new ExamAttemptConflictException("Only an in-progress exam attempt can be abandoned.");
 
         attempt.Abandon(timeProvider.GetUtcNow());
         await repository.SaveChangesAsync(cancellationToken);
@@ -362,9 +362,9 @@ public sealed class SubmitExamAttemptHandler(IExamAttemptRepository repository, 
             ?? throw ExamAttemptNotFoundException.ForAttempt(request.AttemptId);
 
         if (attempt.Status == ExamAttemptStatus.Completed)
-            throw new ExamAttemptConflictException("Bài thi này đã được nộp trước đó.");
+            throw new ExamAttemptConflictException("This exam has already been submitted.");
         if (attempt.Status != ExamAttemptStatus.InProgress)
-            throw new ExamAttemptConflictException("Bài thi này đã bị hủy, không thể nộp.");
+            throw new ExamAttemptConflictException("This exam has been abandoned and cannot be submitted.");
 
         await ExamAttemptSupport.GradeAsync(repository, attempt, timeProvider.GetUtcNow(), cancellationToken);
 
@@ -387,7 +387,7 @@ public sealed class GetExamAttemptResultHandler(IExamAttemptRepository repositor
             ?? throw ExamAttemptNotFoundException.ForAttempt(request.AttemptId);
 
         if (attempt.Status != ExamAttemptStatus.Completed)
-            throw new ExamAttemptConflictException("Chỉ xem được kết quả sau khi đã nộp bài.");
+            throw new ExamAttemptConflictException("Results can only be viewed after the exam has been submitted.");
 
         var revision = await repository.FindRevisionAsync(attempt.RevisionId, cancellationToken)
             ?? throw ExamAttemptNotFoundException.ForExam(attempt.RevisionId);
@@ -409,7 +409,7 @@ public sealed class GetExamAttemptReviewHandler(IExamAttemptRepository repositor
             ?? throw ExamAttemptNotFoundException.ForAttempt(request.AttemptId);
 
         if (attempt.Status != ExamAttemptStatus.Completed)
-            throw new ExamAttemptConflictException("Chỉ có thể xem lại bài làm sau khi đã hoàn thành nộp bài.");
+            throw new ExamAttemptConflictException("Exam answers can only be reviewed after submission is completed.");
 
         var revision = await repository.FindRevisionAsync(attempt.RevisionId, cancellationToken)
             ?? throw ExamAttemptNotFoundException.ForExam(attempt.RevisionId);

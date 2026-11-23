@@ -88,7 +88,7 @@ public sealed class EfWritingEvaluationRepository(ToeicDbContext context) : IWri
         catch (DbUpdateConcurrencyException)
         {
             throw new WritingEvaluatorException("CONCURRENT_UPDATE",
-                "Kết quả chấm AI đang được cập nhật bởi một tiến trình khác.", true);
+                "The AI evaluation result is being updated by another process.", true);
         }
     }
 }

@@ -1,217 +1,224 @@
-# Báo cáo rà soát module Speaking
+# Speaking Module Audit Report
 
-> **Cập nhật 2026-11-21:** báo cáo này giữ bằng chứng lịch sử ngày 03/11. ADR-002 bước 1, phiên micro,
-> device check/beep và các AC Test Builder đã được sửa; kết quả hiện tại và phần UAT/calibration còn mở nằm
-> trong [báo cáo Sprint 3](./sprint3-review.md).
+> **Update 2026-11-21:** This report preserves historical evidence from 2026-11-03.
+> ADR-002 Step 1, the microphone session, device check/beep, and the Test Builder ACs have been fixed; current results and remaining open UAT/calibration items are in the [Sprint 3 review](./sprint3-review.md).
 
-> **Ngày rà soát:** 2026-11-03  
-> **Phiên bản đã đọc:** BE `feature/speaking-evaluation` @ `d9a9e76`; FE `feature/speaking-part-practice` (working tree)  
-> **Phạm vi:** chỉ Speaking. Không sửa code. Writing và L&R chỉ được đọc để so sánh.  
-> **Phương pháp:** đọc code và test, đối chiếu với PRD, Figma và nguồn ngoài; sau đó tái hiện bằng test tự động và dựng thử phương án trên bản sao (mục 0). Chưa chạy trên trình duyệt thật, nên hành vi theo từng trình duyệt vẫn cần đo theo [UAT runbook](./speaking-uat-runbook.md).
+> **Review date:** 2026-11-03  
+> **Reviewed revisions:** BE `feature/speaking-evaluation` @ `d9a9e76`; FE `feature/speaking-part-practice` (working tree)  
+> **Scope:** Speaking only. No code changes. Writing and L&R were read only for comparison.  
+> **Method:** Read code and tests, cross-referenced against the PRD, Figma, and external sources; then reproduced via automated tests and prototyped solutions on a separate copy (Section 0). Not yet run in real browsers, so per-browser behavior still needs to be measured per the [UAT runbook](./speaking-uat-runbook.md).
 
-Đường dẫn `src/TOEICMaster.*` thuộc repo BE. Đường dẫn `FE:` thuộc repo `TOEICMaster-FE`, tính từ `src/features/speaking/` nếu không ghi khác.
+Paths under `src/TOEICMaster.*` belong to the BE repo.
+Paths prefixed with `FE:` belong to the `TOEICMaster-FE` repo, relative to `src/features/speaking/` unless noted otherwise.
 
 ---
 
-## 0. Kết quả kiểm tra lại (2026-11-03)
+## 0. Re-verification Results (2026-11-03)
 
-Code BE và FE không đổi so với lần rà soát đầu. Test tái hiện và prototype chạy trên bản sao ngoài repo, nên repo không có thay đổi code nào.
+BE and FE code are unchanged from the initial review.
+Reproduction tests and prototypes ran on a copy outside the repo, so the repo has no code changes.
 
-### Mức độ xác minh
+### Verification Coverage
 
-| Phát hiện | Cách xác minh | Kết quả |
+| Finding | Verification Method | Result |
 | :--- | :--- | :--- |
-| DUP-01, DUP-02 (cả giữa các Part), DUP-03 (cùng asset, và khác asset cùng hash) | Test BE qua handler thật | Đúng: đều lưu hoặc công bố được |
-| MIC-01, MIC-02 | Test FE: chạy từ màn kiểm tra sang màn làm bài | Đúng: thứ tự `getUserMedia → POST /attempts → getUserMedia`, stream đầu bị dừng |
-| MIC-03 | Test FE | Đúng, kèm hiệu chỉnh ở dưới |
-| MIC-04, MIC-06 | Test FE | Đúng, kèm hiệu chỉnh ở dưới |
-| UI-01, UI-02, UI-03, UI-04, UI-05, UI-07, DUP-04 | Test FE | Đúng |
-| MIC-05, MIC-07, MIC-08, MIC-10, MIC-11, FLOW-01, UI-06, UI-08 đến UI-13, DOC, OPS-01 | Đọc code | Đúng theo code, chưa chạy thực tế |
-| MIC-09; hộp thoại có hiện lần hai không | Cần trình duyệt thật | **Chưa xác minh** |
+| DUP-01, DUP-02 (including across Parts), DUP-03 (same asset, and different asset with same hash) | BE test via real handler | Confirmed: all can be saved or published |
+| MIC-01, MIC-02 | FE test: run from check screen to attempt screen | Confirmed: call order is `getUserMedia -> POST /attempts -> getUserMedia`, first stream is stopped |
+| MIC-03 | FE test | Confirmed, with adjustments below |
+| MIC-04, MIC-06 | FE test | Confirmed, with adjustments below |
+| UI-01, UI-02, UI-03, UI-04, UI-05, UI-07, DUP-04 | FE test | Confirmed |
+| MIC-05, MIC-07, MIC-08, MIC-10, MIC-11, FLOW-01, UI-06, UI-08 to UI-13, DOC, OPS-01 | Code reading | Confirmed in code, not yet run live |
+| MIC-09; whether the permission prompt appears a second time | Requires real browser | **Unverified** |
 
-Bộ test gốc vẫn xanh trên bản sao: BE 286 test, FE Speaking 53 test.
+The original test suite remains green on the copy: BE 286 tests, FE Speaking 53 tests.
 
-### Hiệu chỉnh so với lần đầu
+### Adjustments from Initial Review
 
-| ID | Lần đầu | Hiệu chỉnh | Lý do |
+| ID | Initial | Adjusted | Reason |
 | :--- | :--- | :--- | :--- |
-| MIC-04 | Lỗi mức Cao | **Quyết định sản phẩm, mức TB** | Hành vi này là có chủ đích: có test `lets learners practise on timers when the microphone is denied`. Nó chỉ lệch PRD ở đề đầy đủ. |
-| MIC-03 | "Mở lại bài đã nộp" | **Trường hợp chính là micro vẫn bật sau khi nộp bài** | Trường hợp này xảy ra ở mọi lượt làm xong. Còn mở lại chỉ qua tải trang hoặc URL, vì FE không có liên kết quay lại (FLOW-02). |
-| MIC-02 | Cao | **Cao, có điều kiện** | Thứ tự sai là chắc chắn, nhưng chỉ gây mất thời gian khi hộp thoại hiện lại. Với quyền đã lưu vĩnh viễn thì thường không có hộp thoại. |
-| UI-01 | Cao | **TB, thành Cao khi có trên 100 bài `PUBLISHED`** | `notespeaking.md` ghi có 11 bài mẫu, nên giới hạn chưa bị chạm. Số 270 chỉ là số trong Figma. Chưa truy vấn số bài thật trên Neon. |
-| ADR-002 | Chưa nêu tác động lên test | **Làm đỏ 22 test nếu không sửa bộ mẫu** | Bộ mẫu dùng chung một đoạn văn và một ảnh cho cả hai vị trí. |
-| FLOW-02 | Chưa có | **Phát hiện mới, mức TB** | Xem mục 3. |
+| MIC-04 | High severity bug | **Product decision, Medium severity** | This behavior is intentional: there is a test `lets learners practise on timers when the microphone is denied`. It only diverges from the PRD on full tests. |
+| MIC-03 | "Reopening a submitted attempt" | **Primary case is microphone staying active after submission** | This happens on every completed attempt. Reopening only occurs via page reload or direct URL, because FE has no back/history link (FLOW-02). |
+| MIC-02 | High | **High, conditional** | The wrong order is definite, but it only costs timer time when the prompt reappears. With permanently granted permissions, no prompt usually appears. |
+| UI-01 | High | **Medium, becomes High once there are >100 `PUBLISHED` exercises** | `notespeaking.md` notes 11 sample exercises, so the limit has not been hit yet. The number 270 is only a Figma placeholder. Actual exercise count on Neon has not been queried. |
+| ADR-002 | Impact on tests not stated | **Breaks 22 tests if sample fixtures are not updated** | Sample fixtures reuse one passage and one image for both slots. |
+| FLOW-02 | Not listed | **New finding, Medium severity** | See Section 3. |
 
-### Dựng thử phương án
+### Prototypes Built
 
-Chạy trên bản sao, chưa đưa vào repo:
+Run on a separate copy, not yet committed to the repo:
 
-| Phương án | Quy mô thực tế | Kết quả |
+| Solution | Actual Scope | Result |
 | :--- | :--- | :--- |
-| Chặn trùng ở BE (không migration, không API mới) | 1 file mới 61 dòng, thêm khoảng 10 dòng ở 2 file | Chặn đúng cả 5 kịch bản trùng. Ban đầu 22 test đỏ. Sau khi sửa bộ mẫu và helper `FullTestAsync`, còn 2 test đỏ cần sửa riêng. |
-| Một phiên micro bằng layout và provider | 1 provider 106 dòng, 1 layout, sửa 3 file | `getUserMedia` đúng 1 lần, trước `POST /attempts`. Bài đã nộp: 0 lần. Dừng stream khi nộp và khi rời luồng. FE Speaking pass, typecheck sạch. |
-| Giữ đúng vị trí ô (UI-02) | Khoảng 6 dòng ở 3 file | Pass. Server đã chấp nhận đề nháp chỉ có vị trí 2. |
+| Duplicate blocking in BE (no migration, no new API) | 1 new 61-line file, ~10 lines added across 2 files | Correctly blocked all 5 duplicate scenarios. Initially 22 tests failed. After updating sample fixtures and the `FullTestAsync` helper, 2 tests remained failing and needed individual fixes. |
+| Single microphone session via layout and provider | 1 provider (106 lines), 1 layout, 3 files edited | `getUserMedia` called exactly once, before `POST /attempts`. Submitted attempt: 0 calls. Stream stopped on submit and on leaving the flow. FE Speaking passed, typecheck clean. |
+| Preserve slot positions (UI-02) | ~6 lines across 3 files | Passed. Server already accepted draft tests with only slot 2 filled. |
 
-Prototype micro còn thiếu: nút bật lại micro ở màn làm bài khi stream chưa có (banner hiện chỉ xử lý `denied` và `unsupported`). Việc layout giữ stream khi chuyển route mới được giả lập trong test, chưa chạy trên Next.js thật.
+What the microphone prototype still lacks: a button to re-enable the microphone on the attempt screen when the stream is missing (the current banner only handles `denied` and `unsupported`).
+Keeping the stream alive in the layout across route transitions was only simulated in tests, not yet run on real Next.js.
 
-### Thứ tự xử lý đề xuất
+### Recommended Execution Order
 
-Xếp theo tác động so với công sức. Chi tiết nằm trong [tasks.md](../features/speaking/tasks.md).
+Ranked by impact versus effort.
+Details are in [tasks.md](../features/speaking/tasks.md).
 
-| Đợt | Nội dung | Sửa |
+| Batch | Items | Changes |
 | :--- | :--- | :--- |
-| 1. Sửa nhanh | UI-02, UI-03, UI-04, UI-07, MIC-06, MIC-11, DUP-04, DUP-01 | FE, 1 luật validator BE |
-| 2. Micro | MIC-01, MIC-02, MIC-03, rồi đo trên trình duyệt | Chỉ FE |
-| 3. Chặn trùng | DUP-02, DUP-03, sửa bộ mẫu test, rà dữ liệu | BE, không migration |
-| 4. Đúng PRD | MIC-05, MIC-07, MIC-08, MIC-10, D1, D2 | Chỉ FE |
-| 5. Builder | UI-01, UI-05, UI-06, UI-08, UI-10 đến UI-13, FLOW-02, nhân bản đề | FE, vài endpoint nhỏ |
-| Song song | OPS-01 | File dùng chung, cần nhóm thống nhất |
-| Để sau | `publish-check`, cảnh báo gần giống, số đề đang dùng bài, gỡ đề | Làm khi có nhu cầu thật |
+| 1. Quick fixes | UI-02, UI-03, UI-04, UI-07, MIC-06, MIC-11, DUP-04, DUP-01 | FE, 1 BE validator rule |
+| 2. Microphone | MIC-01, MIC-02, MIC-03, then measure in browsers | FE only |
+| 3. Duplicate blocking | DUP-02, DUP-03, update test fixtures, audit existing data | BE, no migration |
+| 4. PRD alignment | MIC-05, MIC-07, MIC-08, MIC-10, D1, D2 | FE only |
+| 5. Builder | UI-01, UI-05, UI-06, UI-08, UI-10 to UI-13, FLOW-02, clone test | FE, a few small endpoints |
+| Parallel | OPS-01 | Shared files, needs team alignment |
+| Later | `publish-check`, near-duplicate warning, count of tests using an exercise, unpublish test | Implement when actually needed |
 
-**Thay đổi so với đề xuất ban đầu:** `publish-check` không còn là điều kiện đầu tiên. `POST /publish` đã trả đủ lỗi theo khóa, nên chỉ cần thêm luật ở server và sửa UI-03 là chặn được trùng và hiện đủ lỗi. Endpoint mới chỉ cần khi muốn báo lỗi trước lúc bấm công bố hoặc có cảnh báo không chặn.
+**Change from initial proposal:** `publish-check` is no longer a prerequisite.
+`POST /publish` already returns full errors by key, so adding server rules and fixing UI-03 is enough to block duplicates and display all errors.
+A new endpoint is only needed if errors must be shown before clicking publish or if non-blocking warnings are added.
 
 ---
 
-## 1. Kết luận
+## 1. Conclusions
 
-| Vấn đề được giao | Kết luận | Phương án |
+| Assigned Question | Conclusion | Solution |
 | :--- | :--- | :--- |
-| Câu trong đề không được trùng | Hệ thống chỉ chặn trùng **ID bài tập**. Nội dung trùng vẫn công bố được. | [ADR-002](../decisions/002-speaking-test-content-uniqueness.md) |
-| Chỉ xin quyền micro một lần | Mỗi luồng làm bài gọi `getUserMedia` **hai lần**. Lần thứ hai chạy khi đồng hồ server đã chạy. Micro vẫn bật sau khi nộp bài, và tải lại màn xem lại cũng xin quyền. | [ADR-003](../decisions/003-speaking-microphone-session.md) |
-| UI tạo đề bất cập | Có 13 vấn đề. Nặng nhất hiện tại là chọn bài bị nhảy vị trí khi lưu. Giới hạn 100 bài chưa bị chạm với dữ liệu mẫu. | [Thiết kế Test Builder](../features/speaking/admin-test-builder.md) |
+| Questions in a test must not be duplicated | The system only blocks duplicate **exercise IDs**. Duplicate content can still be published. | [ADR-002](../decisions/002-speaking-test-content-uniqueness.md) |
+| Request microphone permission only once | Each attempt flow calls `getUserMedia` **twice**. The second call runs after the server timer has already started. The microphone stays active after submission, and reloading the review screen also requests permission. | [ADR-003](../decisions/003-speaking-microphone-session.md) |
+| Test builder UI gaps | There are 13 issues. Currently the most severe is selected exercises shifting slots on save. The 100-exercise limit has not been hit with sample data. | [Test Builder Design](../features/speaking/admin-test-builder.md) |
 
-Mức độ trong các bảng dưới được hiệu chỉnh theo mục 0:
+Severity levels in the tables below reflect the adjustments in Section 0:
 
-- **Cao:** sai nghiệp vụ, mất dữ liệu, hoặc chặn thao tác chính.
-- **TB:** gây nhầm lẫn hoặc tốn công, nhưng có cách đi vòng.
-- **Thấp:** chưa nhất quán, chưa ảnh hưởng đến kết quả.
+- **High:** broken business logic, data loss, or blocks a primary flow.
+- **Medium:** causes confusion or extra manual effort, with a workaround available.
+- **Low:** inconsistent, does not affect outcomes.
 
 ---
 
-## 2. Trùng nội dung trong đề (DUP)
+## 2. Duplicate Content in Tests (DUP)
 
-| ID | Mức | Hiện trạng | Bằng chứng | Hậu quả |
+| ID | Severity | Current State | Evidence | Impact |
 | :--- | :--- | :--- | :--- | :--- |
-| DUP-01 | Cao | 3 câu hỏi trong một bài Part 3 hoặc Part 4 có thể giống hệt nhau. Validator chỉ kiểm tra đủ 3 câu và độ dài. | `Application/Speaking/Admin/SpeakingAdminContracts.cs:131`; FE: `admin-draft.ts:125` | Câu 5–7 hoặc 8–10 có thể là cùng một câu. |
-| DUP-02 | Cao | Mọi lớp kiểm tra đều so sánh `ExerciseId`, không so sánh nội dung. Hai bài khác mã, cùng đoạn văn vẫn công bố được. | `SpeakingAdminContracts.cs:167`; `SpeakingTestCommands.cs:106`; `Infrastructure/Persistence/Configurations/SpeakingConfiguration.cs:139` | Câu 1 và câu 2 có thể đọc cùng một đoạn văn. |
-| DUP-03 | TB | Tải lại cùng một ảnh tạo asset mới. `sha256` đã được lưu nhưng không được dùng để so sánh. | `SpeakingExerciseCommands.cs:95` | Câu 3 và câu 4 có thể cùng một ảnh. |
-| DUP-04 | TB | Ô chọn liệt kê mọi bài của Part, kể cả bài đang dùng ở vị trí khác. Checklist chỉ báo chung, không nói vị trí nào trùng. | FE: `components/admin/test-slot-picker.tsx:74`; `publish-checklist.ts:46` | Admin chỉ biết trùng sau khi đã chọn và phải tự dò. |
-| DUP-05 | Thấp | Không thấy được một bài đang nằm trong bao nhiêu đề. | DTO admin không có trường này | Hai đề có thể gần giống nhau mà không ai biết. Dùng lại giữa các đề không sai, nhưng cần nhìn thấy được. |
+| DUP-01 | High | All 3 questions inside a Part 3 or Part 4 exercise can be identical. The validator only checks question count (3) and length. | `Application/Speaking/Admin/SpeakingAdminContracts.cs:131`; FE: `admin-draft.ts:125` | Questions 5-7 or 8-10 can be the exact same question. |
+| DUP-02 | High | Every check layer compares `ExerciseId`, not content. Two exercises with different codes and the same passage can be published together. | `SpeakingAdminContracts.cs:167`; `SpeakingTestCommands.cs:106`; `Infrastructure/Persistence/Configurations/SpeakingConfiguration.cs:139` | Question 1 and Question 2 can read the same passage. |
+| DUP-03 | Medium | Uploading the same image again creates a new asset. `sha256` is already stored but never compared. | `SpeakingExerciseCommands.cs:95` | Question 3 and Question 4 can use the same image. |
+| DUP-04 | Medium | The slot picker lists every exercise in the Part, including ones already used in another slot. The checklist only shows a generic message without naming which slots collide. | FE: `components/admin/test-slot-picker.tsx:74`; `publish-checklist.ts:46` | Admins only discover the duplicate after selecting and must hunt for it manually. |
+| DUP-05 | Low | There is no visibility into how many tests currently use an exercise. | Admin DTO lacks this field | Two tests can become nearly identical unnoticed. Reuse across tests is valid, but visibility is needed. |
 
-**Phần đang đúng, cần giữ:** validator chặn trùng `ExerciseId` và trùng vị trí; có unique index `(test_id, exercise_id)`; publish kiểm tra lại toàn bộ; đề đã công bố dùng snapshot bất biến.
+**What already works and should be kept:** the validator blocks duplicate `ExerciseId` and duplicate slot positions; there is a unique index `(test_id, exercise_id)`; publish re-validates everything; published tests use an immutable snapshot.
 
 ---
 
-## 3. Quyền micro và ghi âm (MIC)
+## 3. Microphone Permission and Recording (MIC)
 
-| ID | Mức | Hiện trạng | Bằng chứng | Hậu quả |
+| ID | Severity | Current State | Evidence | Impact |
 | :--- | :--- | :--- | :--- | :--- |
-| MIC-01 | Cao | Màn kiểm tra và màn làm bài mỗi màn tạo một `useVoiceRecorder` riêng. Khi rời màn đầu, stream bị dừng; màn sau gọi lại `getUserMedia`. `src/app/speaking/` không có `layout.tsx` để giữ stream. | FE: `components/session/speaking-session.tsx:80`; `components/session/speaking-attempt.tsx:31,48`; `hooks/use-voice-recorder.ts:127` | Có thể hiện hộp thoại quyền lần hai. Chú thích trong code chỉ ghi "usually", tức không bảo đảm. |
-| MIC-02 | Cao, có điều kiện | Lượt làm được tạo trên server **trước** lần gọi thứ hai. Domain vào câu 1 ngay khi tạo. | FE: `speaking-session.tsx` (`start`); `Domain/Entities/SpeakingAttempt.cs:106` | Nếu hộp thoại hiện lại, đồng hồ đang chạy trong lúc thí sinh bấm cho phép. |
-| MIC-03 | Cao | Stream không được dừng khi nộp bài, nên micro vẫn bật suốt màn xem lại. Màn này còn xin micro ngay khi mount, không xét trạng thái. | FE: `speaking-attempt.tsx:46-50` | Sau mọi lượt làm, micro vẫn bật dù không ghi âm. Tải lại màn xem lại có thể hiện hộp thoại quyền. |
-| MIC-04 | TB | Nút bắt đầu vẫn bấm được khi bị từ chối quyền hoặc trình duyệt không hỗ trợ. Đây là hành vi có chủ đích, có test bảo vệ. | FE: `components/session/mic-check-panel.tsx:56-57`, `mic-check-panel.test.tsx` | Hợp lý với luyện tập, nhưng trái PRD 4.3.2.A và AC-SPEAK-01 ở đề đầy đủ. Xem D1. |
-| MIC-05 | TB | Chưa có bước nói thử, đo âm lượng, nghe lại, thử loa hay chọn micro. Thanh âm lượng chỉ chạy khi đang ghi. | FE: `use-voice-recorder.ts`; `mic-check-panel.tsx` | Thiếu so với PRD 4.3.2.A và Figma 20. Micro tắt tiếng vẫn được coi là sẵn sàng. |
-| MIC-06 | TB | Mọi lỗi đều thành `denied`. Trang không có HTTPS thành `unsupported`. | FE: `use-voice-recorder.ts:58` | Không có micro hoặc micro đang bận vẫn nhận hướng dẫn "cấp quyền", tức là sai cách xử lý. |
-| MIC-07 | TB | Không xử lý rút micro giữa bài: không nghe `track.ended`, `MediaRecorder.onerror` hay `devicechange`. | FE: `use-voice-recorder.ts` | Thí sinh mất bản ghi mà không được báo. |
-| MIC-08 | TB | Không có tiếng beep. Tìm `beep`, `oscillator`, `tiếng bíp` trong module đều không có kết quả. | FE: `src/features/speaking` | Trái PRD 4.3.2.B và spec cũ. |
-| MIC-09 | Thấp | `AudioContext` tạo không qua thao tác người dùng ở màn làm bài và không gọi `resume()`. | FE: `use-voice-recorder.ts:49` | Rủi ro: thanh âm lượng có thể đứng yên. Bản ghi không bị ảnh hưởng vì `MediaRecorder` dùng trực tiếp stream. Cần đo thực tế. |
-| MIC-10 | TB | Bản ghi đang ghi nằm trong bộ nhớ. Tải lại trang trong pha trả lời sẽ mất phần đó và không có cảnh báo. | FE: `use-voice-recorder.ts`, `hooks/use-recording-uploads.ts` | Mất câu trả lời, thường là không chấm được câu đó. |
-| MIC-11 | Thấp | Màn giới thiệu ghi "Bản ghi chỉ lưu trong tab hiện tại", trong khi bản ghi được tải lên server. Bản ghi của khách lưu 30 ngày. | FE: `components/speaking-test-overview.tsx:113`; `SpeakingRecordingRetentionWorker.cs:14` | Thông tin về dữ liệu cá nhân bị sai. |
-| FLOW-01 | TB | Có nút bỏ qua ở mọi pha, kể cả pha chuẩn bị của đề đầy đủ. `Next` không xét mode. | FE: `components/session/session-stage.tsx`; `SpeakingAttempt.cs:133` | Spec cũ cấm bỏ qua pha chuẩn bị. Cần quyết định, xem mục 7. |
-| FLOW-02 | TB | FE không gọi `GET /attempts`, và chỉ `speaking-session.tsx` dẫn đến `/speaking/attempts/{id}`. Backend đã có API lịch sử. | FE: `api.ts`; tìm `speaking/attempts` trong `src` | Rời màn kết quả thì không có đường quay lại trong app để xem bài hay điểm AI, trong khi job chấm có thể chạy lâu. Trái AC-HIST-01. |
+| MIC-01 | High | The pre-check screen and the attempt screen each instantiate a separate `useVoiceRecorder`. Leaving the first screen stops the stream; the next screen calls `getUserMedia` again. `src/app/speaking/` has no `layout.tsx` to persist the stream. | FE: `components/session/speaking-session.tsx:80`; `components/session/speaking-attempt.tsx:31,48`; `hooks/use-voice-recorder.ts:127` | May trigger a second permission prompt. Code comment only says "usually", meaning it is not guaranteed. |
+| MIC-02 | High, conditional | The attempt is created on the server **before** the second call. The domain enters Question 1 immediately on creation. | FE: `speaking-session.tsx` (`start`); `Domain/Entities/SpeakingAttempt.cs:106` | If the prompt reappears, the timer runs while the candidate clicks Allow. |
+| MIC-03 | High | The stream is not stopped upon submission, so the microphone remains active throughout the review screen. That screen also requests the microphone on mount regardless of state. | FE: `speaking-attempt.tsx:46-50` | After every attempt, the mic stays on even when not recording. Reloading the review screen can show a permission prompt. |
+| MIC-04 | Medium | The start button remains clickable when permission is denied or the browser is unsupported. This is intentional, guarded by a test. | FE: `components/session/mic-check-panel.tsx:56-57`, `mic-check-panel.test.tsx` | Reasonable for practice, but violates PRD 4.3.2.A and AC-SPEAK-01 for full tests. See D1. |
+| MIC-05 | Medium | Missing test recording, volume meter check, playback, speaker check, and microphone selector. The level meter only runs while recording. | FE: `use-voice-recorder.ts`; `mic-check-panel.tsx` | Missing compared to PRD 4.3.2.A and Figma 20. A muted mic is still treated as ready. |
+| MIC-06 | Medium | All errors collapse into `denied`. Non-HTTPS pages collapse into `unsupported`. | FE: `use-voice-recorder.ts:58` | Missing or busy microphone shows "grant permission" instructions, which is the wrong remediation. |
+| MIC-07 | Medium | No handling for microphone unplugging mid-test: does not listen to `track.ended`, `MediaRecorder.onerror`, or `devicechange`. | FE: `use-voice-recorder.ts` | Candidates lose recordings without any notification. |
+| MIC-08 | Medium | No beep sound. Searching for `beep`, `oscillator`, or beep-related terms in the module returns no results. | FE: `src/features/speaking` | Violates PRD 4.3.2.B and old spec. |
+| MIC-09 | Low | `AudioContext` is created without a user gesture on the attempt screen and `resume()` is never called. | FE: `use-voice-recorder.ts:49` | Risk: the volume meter may stay frozen. Recording is unaffected because `MediaRecorder` uses the stream directly. Needs live measurement. |
+| MIC-10 | Medium | Active recordings live only in memory. Reloading the page during the response phase loses that recording with no warning. | FE: `use-voice-recorder.ts`, `hooks/use-recording-uploads.ts` | Loses the answer, usually making that question ungradable. |
+| MIC-11 | Low | The intro screen states "Recordings are only stored in the current tab", whereas recordings are uploaded to the server. Guest recordings are retained for 30 days. | FE: `components/speaking-test-overview.tsx:113`; `SpeakingRecordingRetentionWorker.cs:14` | Inaccurate personal data disclosure. |
+| FLOW-01 | Medium | A skip button is present in every phase, including the preparation phase of full tests. `Next` ignores mode. | FE: `components/session/session-stage.tsx`; `SpeakingAttempt.cs:133` | Old spec forbade skipping the preparation phase. Needs decision, see Section 7. |
+| FLOW-02 | Medium | FE never calls `GET /attempts`, and only `speaking-session.tsx` navigates to `/speaking/attempts/{id}`. Backend already provides a history API. | FE: `api.ts`; search for `speaking/attempts` in `src` | Once leaving the results screen, there is no in-app path back to view the attempt or AI score, even though grading jobs can take a while. Violates AC-HIST-01. |
 
 ---
 
-## 4. UI tạo đề (UI)
+## 4. Test Builder UI (UI)
 
-Phương án cho từng dòng nằm ở [admin-test-builder.md](../features/speaking/admin-test-builder.md).
+Proposed solutions for each item are in [admin-test-builder.md](../features/speaking/admin-test-builder.md).
 
-| ID | Mức | Hiện trạng | Bằng chứng | Hậu quả |
+| ID | Severity | Current State | Evidence | Impact |
 | :--- | :--- | :--- | :--- | :--- |
-| UI-01 | TB | Builder chỉ tải 100 bài `PUBLISHED` mới nhất của **tất cả** Part, và không có tìm kiếm. | FE: `components/admin/speaking-test-workspace.tsx:95` | Khi có trên 100 bài, bài cũ không chọn được (thành mức Cao). Figma mô tả ngân hàng 270 câu và riêng Part 1 có 85 bài. Dữ liệu mẫu hiện chưa tới mức này. |
-| UI-02 | Cao | Vị trí bị dồn khi lưu: `compact()` bỏ ô trống, `sequenceNumber` lấy theo chỉ số mới, parser đọc lại bằng `push`. | FE: `speaking-test-workspace.tsx:46`; `admin-api.ts:85-88`; `parsers.ts:208-212` | Chọn "Bài 2", để trống "Bài 1", sau khi lưu bài nhảy lên "Bài 1". |
-| UI-03 | TB | Chỉ giữ lỗi đầu tiên của mỗi trường, trong khi `Exercises` có thể trả nhiều lỗi. | FE: `http.ts:24-25` | Admin phải sửa rồi công bố lại nhiều lần mới thấy hết lỗi. |
-| UI-04 | TB | Mọi lỗi `409` hiện chung một câu, bỏ qua thông báo chính xác của server. Câu đó còn khuyên đóng rồi mở lại. | FE: `speaking-test-workspace.tsx:53` | Không phân biệt được trùng mã và xung đột version. Làm theo thì mất phần đang sửa. |
-| UI-05 | TB | "Hủy" và nút đóng thoát ngay, không hỏi khi có thay đổi chưa lưu. | FE: `speaking-test-workspace.tsx:188,193` | Mất các lựa chọn. |
-| UI-06 | TB | "Lưu bản nháp" đóng builder. | FE: `components/admin/admin-speaking-tests-page.tsx` (`onSaved`) | Muốn làm tiếp phải mở lại và tải lại. |
-| UI-07 | Thấp | Lỗi khi lưu nháp cũng có tiêu đề "Chưa thể công bố". | FE: `components/admin/publish-checklist-panel.tsx:58` | Hiểu sai loại lỗi. |
-| UI-08 | TB | Huy hiệu `2/2` xanh chỉ đếm số ô đã chọn, trong khi checklist có thể báo chưa đạt vì bài đã rời trạng thái `PUBLISHED`. Không có lý do hay liên kết đến chỗ cần sửa. | FE: `test-slot-picker.tsx:38`; `publish-checklist.ts` | Hai tín hiệu mâu thuẫn. Figma 43 của L&R có banner bấm để cuộn đến lỗi. |
-| UI-09 | TB | Đề đã công bố không thể gỡ hay nhân bản. Đề nháp không thể xóa. | `AdminSpeakingController.cs` không có các endpoint này | Đề sai phải tạo lại từ đầu và vẫn hiện cho học viên. L&R đã có cơ chế fork ([ADR-001](../decisions/001-admin-lr-exam-revisions.md)). |
-| UI-10 | Thấp | Trộn đơn vị: tiêu đề ghi `2/2/3/3/1 CÂU`, ô chọn đếm theo bài `2/2/1/1/1`. | FE: `speaking-test-workspace.tsx`, `test-slot-picker.tsx` | Dễ tưởng Part 3 cần chọn 3 bài. |
-| UI-11 | TB | Bảng Part 4 nhập bằng cú pháp `nhãn \| nội dung`. Giới hạn của server không được kiểm tra trước. Form chỉ báo một lỗi mỗi lần. | FE: `admin-draft.ts:36-48,110-181`; `SpeakingAdminContracts.cs` | Nhập dễ sai, lỗi chỉ hiện sau khi gửi. |
-| UI-12 | TB | Form bài tập đổi được trạng thái mà không báo bài đang nằm trong đề nháp nào. | FE: `components/admin/speaking-exercise-editor.tsx` | Một đề nháp có thể mất điều kiện công bố mà không ai biết. |
-| UI-13 | Thấp | Chỉ xem trước từng bài, không xem được cả đề theo thứ tự 11 câu. Part chưa có bài không có lối tắt để tạo bài. | FE: `components/admin/test-preview-panel.tsx` | Khó soát cả đề trước khi công bố. |
+| UI-01 | Medium | Builder only loads the latest 100 `PUBLISHED` exercises across **all** Parts, with no search. | FE: `components/admin/speaking-test-workspace.tsx:95` | Once >100 exercises exist, older ones cannot be selected (becomes High). Figma shows a 270-question bank with 85 exercises in Part 1 alone. Sample data has not reached this yet. |
+| UI-02 | High | Slots collapse on save: `compact()` drops empty slots, `sequenceNumber` is assigned by compacted index, and the parser reloads via `push`. | FE: `speaking-test-workspace.tsx:46`; `admin-api.ts:85-88`; `parsers.ts:208-212` | Selecting "Slot 2" and leaving "Slot 1" empty causes the exercise to jump to "Slot 1" after saving. |
+| UI-03 | Medium | Only the first error per field is kept, while `Exercises` can return multiple errors. | FE: `http.ts:24-25` | Admins must fix and republish repeatedly to see all errors. |
+| UI-04 | Medium | All `409` errors display a generic message, discarding the exact server message. That message also tells the user to close and reopen. | FE: `speaking-test-workspace.tsx:53` | Cannot distinguish duplicate code from version conflict. Following the prompt loses unsaved edits. |
+| UI-05 | Medium | "Cancel" and the close button exit immediately without asking when there are unsaved changes. | FE: `speaking-test-workspace.tsx:188,193` | Loses selections. |
+| UI-06 | Medium | "Save draft" closes the builder. | FE: `components/admin/admin-speaking-tests-page.tsx` (`onSaved`) | Continuing work requires reopening and reloading. |
+| UI-07 | Low | Errors when saving a draft still show the heading "Cannot publish yet". | FE: `components/admin/publish-checklist-panel.tsx:58` | Misleading error category. |
+| UI-08 | Medium | Green `2/2` badge only counts filled slots, while the checklist can fail because an exercise left `PUBLISHED` status. No reason or link to the broken slot is shown. | FE: `test-slot-picker.tsx:38`; `publish-checklist.ts` | Contradictory signals. L&R Figma 43 has a clickable banner that scrolls to the error. |
+| UI-09 | Medium | Published tests cannot be unpublished or cloned. Draft tests cannot be deleted. | `AdminSpeakingController.cs` lacks these endpoints | Broken tests must be recreated from scratch and stay visible to learners. L&R already has a fork mechanism ([ADR-001](../decisions/001-admin-lr-exam-revisions.md)). |
+| UI-10 | Low | Mixed units: header says `2/2/3/3/1 QUESTIONS`, while slot pickers count exercises `2/2/1/1/1`. | FE: `speaking-test-workspace.tsx`, `test-slot-picker.tsx` | Easy to mistake Part 3 as needing 3 exercises. |
+| UI-11 | Medium | Part 4 table uses `label \| content` syntax. Server limits are not validated upfront. The form shows only one error at a time. | FE: `admin-draft.ts:36-48,110-181`; `SpeakingAdminContracts.cs` | Easy to mistype, errors only surface after submit. |
+| UI-12 | Medium | Exercise form allows changing status without warning which draft tests reference that exercise. | FE: `components/admin/speaking-exercise-editor.tsx` | A draft test can silently lose publish eligibility. |
+| UI-13 | Low | Preview only shows one exercise at a time, not the full 11-question test sequence. Parts without exercises have no shortcut to create one. | FE: `components/admin/test-preview-panel.tsx` | Hard to review the entire test before publishing. |
 
 ---
 
-## 5. Tài liệu lệch thực tế (DOC)
+## 5. Documentation Drift (DOC)
 
-| ID | Hiện trạng | Xử lý |
+| ID | Current State | Resolution |
 | :--- | :--- | :--- |
-| DOC-01 | `spec.md` cũ chỉ ghi chấm bằng Gemini, trong khi thực tế dùng Azure Speech và Gemini. | Đã sửa trong `spec.md` và `ai-evaluation.md`. |
-| DOC-02 | `spec.md` cũ liên kết sai `../../notespeaking.md`, và ánh xạ Figma ghi màn 19 (L&R) thay vì 23. | Đã sửa trong `spec.md`. |
-| DOC-03 | `contracts/api-contract.md` chưa có mục Speaking. Handoff phía FE (23/10) bị gitignore và có trước tính năng luyện Part. | Tạm dùng `admin-api.md` và `attempt-api.md`. Xem đề xuất ở mục 8. |
-| DOC-04 | PRD 5.5.1 yêu cầu cấu hình thời gian từng câu, tải audio câu hỏi và audio mẫu. Code cố định thời gian (`SpeakingTiming`), không có audio; Part 3–4 dùng nút đọc bằng giọng trình duyệt. | Giữ thời gian cố định vì đúng format ETS. Việc audio là quyết định mở, xem mục 7. |
-| DOC-05 | Figma dùng `/exams/speaking/...` và `/admin/exams/speaking`, còn code dùng `/speaking/...` và `/admin/tests/speaking`. | Đã có bảng ánh xạ trong `spec.md`. Không đổi route. |
-| DOC-06 | Tài liệu ghi "~20 phút", trong khi tổng đọc, chuẩn bị và trả lời trong code là 618 giây (khoảng 10,3 phút). UI cũng hiện theo số này. | Hai số đều đúng theo cách tính khác nhau: 20 phút của ETS là cả bài thi. Cần giải thích trên UI. |
-| OPS-01 | `ffmpeg` và biến `AzureSpeech__*`, `Gemini__*` chỉ có trong `docker-compose.override.yml`. File này bị loại khỏi git qua `.git/info/exclude`. `Dockerfile`, `docker-compose.yml`, `docker-compose.shared.yml` và `.env.example` đều chưa có. | Chấm AI chạy được trên máy của Jin, nhưng máy khác hoặc bản triển khai từ repo sẽ không chấm được. Cần chuyển vào file dùng chung, xem mục 8. |
+| DOC-01 | Old `spec.md` listed only Gemini for grading, while actual code uses Azure Speech and Gemini. | Fixed in `spec.md` and `ai-evaluation.md`. |
+| DOC-02 | Old `spec.md` had a broken link to `../../notespeaking.md`, and the Figma mapping cited screen 19 (L&R) instead of 23. | Fixed in `spec.md`. |
+| DOC-03 | `contracts/api-contract.md` still lacks a Speaking section. FE handoff (Oct 23) is gitignored and predates Part practice. | Temporarily use `admin-api.md` and `attempt-api.md`. See proposal in Section 8. |
+| DOC-04 | PRD 5.5.1 requested per-question timer configuration, question audio upload, and sample audio. Code hardcodes timings (`SpeakingTiming`) with no audio; Part 3-4 use browser TTS button. | Keep fixed timings because they match ETS format. Audio remains an open decision, see Section 7. |
+| DOC-05 | Figma uses `/exams/speaking/...` and `/admin/exams/speaking`, while code uses `/speaking/...` and `/admin/tests/speaking`. | Added mapping table in `spec.md`. Do not change routes. |
+| DOC-06 | Docs say "~20 minutes", while total reading, prep, and response time in code is 618 seconds (~10.3 minutes). UI displays this figure too. | Both numbers are valid under different definitions: ETS's 20 minutes covers the whole exam session. Needs explanation in UI. |
+| OPS-01 | `ffmpeg` and `AzureSpeech__*`, `Gemini__*` env vars exist only in `docker-compose.override.yml`. That file is excluded from git via `.git/info/exclude`. `Dockerfile`, `docker-compose.yml`, `docker-compose.shared.yml`, and `.env.example` all lack them. | AI grading works on Jin's machine, but other machines or deployments from the repo cannot grade. Needs moving into shared config files, see Section 8. |
 
 ---
 
-## 6. Tham chiếu đã dùng
+## 6. References Used
 
-**Trong hệ thống**
+**Internal**
 
-| Nguồn | Học được gì |
+| Source | Takeaways |
 | :--- | :--- |
-| Writing (`WritingTestCommands.cs:28-31`, `admin-writing-pages.tsx:940-957`) | Cùng mô hình chặn theo ID và cùng ô chọn không loại trừ. Vì vậy đây không phải mẫu cần sao chép cho vấn đề này. Không đề xuất sửa Writing trong phạm vi này. |
-| L&R ([ADR-001](../decisions/001-admin-lr-exam-revisions.md), Figma 43) | Fork khi cần sửa đề đã công bố; banner lỗi có liên kết đến vị trí; bảng ô theo vị trí. |
+| Writing (`WritingTestCommands.cs:28-31`, `admin-writing-pages.tsx:940-957`) | Same ID-based blocking and non-excluding slot picker. Therefore not a pattern to copy for this issue. No Writing changes proposed in this scope. |
+| L&R ([ADR-001](../decisions/001-admin-lr-exam-revisions.md), Figma 43) | Fork when editing published tests; error banner linking to slot; slot-indexed table. |
 
-**Bên ngoài**
+**External**
 
-| Nguồn | Nội dung liên quan | Độ tin cậy |
+| Source | Relevant Content | Reliability |
 | :--- | :--- | :--- |
-| [ETS: TOEIC Speaking & Writing](https://www.ets.org/toeic/about/speaking-writing.html) | 11 câu, khoảng 20 phút, thang 0–200, thời gian từng dạng. Khớp `SpeakingTiming`. | Chính thức |
-| [Azure: REST cho audio ngắn](https://docs.azure.cn/en-us/ai-services/speech-service/rest-speech-to-text-short) | Pronunciation assessment giới hạn 30 giây, lý do phải cắt đoạn. | Tài liệu nhà cung cấp (bản azure.cn) |
-| [MDN: getUserMedia](https://developer.mozilla.org/docs/Web/API/MediaDevices/getUserMedia) | Secure context; ý nghĩa `NotAllowedError`, `NotFoundError`, `NotReadableError`. | Chuẩn tham khảo |
-| [MDN: Permissions.query](https://developer.mozilla.org/docs/Web/API/Permissions/query) | Promise bị reject khi không hỗ trợ, nên phải dùng `try/catch`. | Chuẩn tham khảo; bảng hỗ trợ cần kiểm tra lại |
-| [Chrome: One-time permissions](https://developer.chrome.com/blog/one-time-permissions) | Chọn "Allow this time" thì lần sau hỏi lại; quyền có thể hết hạn về `prompt`. | Chính thức |
-| [Chrome: Permissions request chip](https://developer.chrome.com/blog/permissions-chip) | Website phải tự chọn đúng thời điểm và ngữ cảnh để xin quyền. | Chính thức |
-| [W3C webrtc logs (2019)](https://lists.w3.org/Archives/Public/public-webrtc-logs/2019Oct/0176.html) | Safari hỏi theo từng document, có hết hạn. | **Cũ, cần đo lại** |
-| [Apple Forums (2025)](https://developer.apple.com/forums/thread/788518) | Có người báo iOS hỏi lại khi đổi route trong SPA. | **Báo cáo đơn lẻ, chưa xác nhận** |
-| [Cambridge: Speaking Test Setup](https://auto-metrica.cambridgeenglish.org/metrica/systemTest.aspx) | Nói vào micro 5 giây rồi xác nhận âm lượng khi nghe lại. | Trang của đơn vị khảo thí |
-| [Talview: Precheck](https://certification.talview.com/support/solutions/articles/11000130937-complete-guide-of-precheck-process-for-online-exams), [Prometric FAQ](https://www.prometric.com/files/cbla/Speaking-Platform-FAQs-for-Candidates.pdf) | Kiểm tra hệ thống trước khi vào phiên thi là thông lệ. | Nhà cung cấp |
-| [Moodle forum](https://moodle.org/mod/forum/discuss.php?d=251833), [Moodle docs 2.6](https://docs.moodle.org/26/en/Building_Quiz) | Moodle không cho một câu xuất hiện hai lần, nhưng hai **bản sao** của cùng câu vẫn lọt. Đây chính là DUP-02. | Tài liệu cũ, nguyên lý vẫn đúng |
-| [ASC: Enemy items](https://assess.com/enemy-items/), [FastTest](https://www.fasttestweb.com/manual/enemy-items/) | "Enemy items": hai câu không nên cùng xuất hiện trong một đề, kể cả khi không trùng chữ. | Nhà cung cấp phần mềm khảo thí |
+| [ETS: TOEIC Speaking & Writing](https://www.ets.org/toeic/about/speaking-writing.html) | 11 questions, ~20 minutes, 0-200 scale, per-task timings. Matches `SpeakingTiming`. | Official |
+| [Azure: REST for short audio](https://docs.azure.cn/en-us/ai-services/speech-service/rest-speech-to-text-short) | Pronunciation assessment 30-second limit, reason for segment splitting. | Vendor docs (azure.cn mirror) |
+| [MDN: getUserMedia](https://developer.mozilla.org/docs/Web/API/MediaDevices/getUserMedia) | Secure context; meanings of `NotAllowedError`, `NotFoundError`, `NotReadableError`. | Reference standard |
+| [MDN: Permissions.query](https://developer.mozilla.org/docs/Web/API/Permissions/query) | Promise rejects when unsupported, so `try/catch` is required. | Reference standard; browser support table needs re-checking |
+| [Chrome: One-time permissions](https://developer.chrome.com/blog/one-time-permissions) | Choosing "Allow this time" re-prompts next time; permission can expire back to `prompt`. | Official |
+| [Chrome: Permissions request chip](https://developer.chrome.com/blog/permissions-chip) | Sites must choose the right timing and context to request permissions. | Official |
+| [W3C webrtc logs (2019)](https://lists.w3.org/Archives/Public/public-webrtc-logs/2019Oct/0176.html) | Safari prompts per document and can expire permissions. | **Dated, needs re-measuring** |
+| [Apple Forums (2025)](https://developer.apple.com/forums/thread/788518) | One user reported iOS re-prompting on SPA route changes. | **Single report, unconfirmed** |
+| [Cambridge: Speaking Test Setup](https://auto-metrica.cambridgeenglish.org/metrica/systemTest.aspx) | Speak into mic for 5 seconds then confirm volume on playback. | Exam board page |
+| [Talview: Precheck](https://certification.talview.com/support/solutions/articles/11000130937-complete-guide-of-precheck-process-for-online-exams), [Prometric FAQ](https://www.prometric.com/files/cbla/Speaking-Platform-FAQs-for-Candidates.pdf) | Pre-session system check is standard practice. | Exam delivery vendors |
+| [Moodle forum](https://moodle.org/mod/forum/discuss.php?d=251833), [Moodle docs 2.6](https://docs.moodle.org/26/en/Building_Quiz) | Moodle disallows adding the same question twice, yet two **copies** of the same question still slip through. This is exactly DUP-02. | Old docs, principle still holds |
+| [ASC: Enemy items](https://assess.com/enemy-items/), [FastTest](https://www.fasttestweb.com/manual/enemy-items/) | "Enemy items": two items that must not appear together in one test even when worded differently. | Testing software vendors |
 
-**Chưa xác minh được:** không tìm thấy tài liệu chính thức về quy tắc kiểm tra micro của TOEFL Home Edition, Duolingo English Test và Pearson OnVUE, nên báo cáo không dựa vào các hệ thống này.
+**Could not verify:** no official documentation was found for microphone check rules in TOEFL Home Edition, Duolingo English Test, or Pearson OnVUE, so this report does not rely on those systems.
 
 ---
 
-## 7. Quyết định chờ chủ tính năng
+## 7. Decisions Pending Feature Owner
 
-Tài liệu đang viết theo phương án đề xuất. Nếu chọn khác, cần cập nhật ADR và `spec.md`.
+Docs are currently written per the recommended options.
+If different options are chosen, the ADRs and `spec.md` must be updated.
 
-| # | Câu hỏi | Đề xuất | Lý do |
+| # | Question | Recommendation | Rationale |
 | :--- | :--- | :--- | :--- |
-| D1 | Khi không có quyền micro thì xử lý thế nào? | Đề đầy đủ: chặn. Luyện Part: cho chọn rõ "Luyện không ghi âm". | Đúng AC-SPEAK-01 và vẫn giữ được việc luyện theo thời gian. |
-| D2 | Có cho bỏ qua pha không? | Đề đầy đủ: bỏ nút bỏ qua ở pha đọc và chuẩn bị. Luyện Part: giữ. | Gần với phòng thi, và luyện tập vẫn linh hoạt. |
-| D3 | Ngưỡng cảnh báo nội dung gần giống? | Jaccard ≥ 0,8, chỉ cảnh báo, không chặn. | Con số này là điểm khởi đầu, cần hiệu chỉnh trên dữ liệu thật. |
-| D4 | Đề đã công bố bị sai thì làm gì? | Làm "nhân bản thành nháp" trước. "Gỡ đề" làm sau vì cần migration. | Nhân bản không cần đổi schema. |
-| D5 | Part 3–4 có cần audio câu hỏi không? | Giữ giọng đọc của trình duyệt cho MVP, ghi nhận là khác PRD. | Audio cần thêm luồng tải lên và dữ liệu. |
+| D1 | What to do when microphone permission is missing? | Full test: block. Part practice: allow explicitly choosing "Practice without recording". | Meets AC-SPEAK-01 while preserving timed practice. |
+| D2 | Allow skipping phases? | Full test: remove skip button in reading and preparation phases. Part practice: keep it. | Closer to exam conditions while keeping practice flexible. |
+| D3 | Near-duplicate content warning threshold? | Jaccard >= 0.8, warn only, do not block. | Starting point only; needs calibration against real data. |
+| D4 | What to do when a published test is broken? | Build "clone as draft" first. Defer "unpublish" since it requires a migration. | Cloning needs no schema changes. |
+| D5 | Do Parts 3-4 need question audio? | Keep browser TTS for MVP, document as a PRD divergence. | Audio requires an upload flow and additional storage/data. |
 
 ---
 
-## 8. Đề xuất sửa file dùng chung (chưa thực hiện)
+## 8. Proposed Edits to Shared Files (Not Yet Applied)
 
-Các file này dùng chung với nhóm nên chưa được sửa. Mỗi mục chỉ cần một đến hai dòng:
+These files are shared with the team so they were left untouched.
+Each item needs only one or two lines:
 
-- `docs/README.md`: thêm vào cây thư mục các file mới của Speaking, ADR-002, ADR-003 và hai runbook.
-- `docs/features/README.md`: đổi mô tả Speaking thành "Chấm AI bằng Azure Speech + Gemini".
-- `docs/runbooks/README.md`: thêm liên kết đến hai runbook Speaking.
-- `docs/contracts/api-contract.md`: thêm mục Speaking trỏ đến `features/speaking/admin-api.md` và `attempt-api.md`.
+- `docs/README.md`: add the new Speaking files, ADR-002, ADR-003, and the two runbooks to the directory tree.
+- `docs/features/README.md`: update Speaking description to "AI grading via Azure Speech + Gemini".
+- `docs/runbooks/README.md`: add links to the two Speaking runbooks.
+- `docs/contracts/api-contract.md`: add a Speaking section pointing to `features/speaking/admin-api.md` and `attempt-api.md`.
 
-File cấu hình dùng chung (OPS-01), cũng chưa sửa:
+Shared config files (OPS-01), also untouched:
 
-- `Dockerfile`: cài `ffmpeg` trong stage runtime. Bước cài có sẵn ở `docker-compose.override.yml:22`.
-- `docker-compose.yml` và `.env.example`: thêm các biến `AzureSpeech__*` và `Gemini__*` như `docker-compose.override.yml:30-35`.
+- `Dockerfile`: install `ffmpeg` in the runtime stage. The install step is already in `docker-compose.override.yml:22`.
+- `docker-compose.yml` and `.env.example`: add `AzureSpeech__*` and `Gemini__*` variables as in `docker-compose.override.yml:30-35`.

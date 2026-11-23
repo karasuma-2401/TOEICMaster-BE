@@ -21,7 +21,7 @@ public sealed class LockAdminUserCommandHandler(IAdminUserRepository repository,
     {
         if (request.ActorUserId == request.TargetUserId)
             throw new AdminUserOperationConflictException("CANNOT_LOCK_SELF",
-                "Không thể tự khóa tài khoản quản trị của chính mình.");
+                "Cannot lock your own admin account.");
 
         return repository.LockAsync(request.ActorUserId, request.TargetUserId, timeProvider.GetUtcNow(),
             cancellationToken);

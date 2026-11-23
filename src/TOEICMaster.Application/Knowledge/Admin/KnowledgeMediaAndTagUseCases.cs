@@ -20,12 +20,12 @@ public sealed class GetAdminKnowledgeTagsQueryValidator : AbstractValidator<GetA
         {
             RuleFor(x => x.Filter.PageNumber).Cascade(CascadeMode.Stop).GreaterThanOrEqualTo(1)
                 .Must((query, pageNumber) => KnowledgePagination.CanRepresentOffset(pageNumber, query.Filter.PageSize))
-                .WithMessage("Số trang vượt quá giới hạn cho kích thước trang đã chọn.");
+                .WithMessage("Page number exceeds the limit for the selected page size.");
             RuleFor(x => x.Filter.PageSize).InclusiveBetween(1, 100);
             RuleFor(x => x.Filter.Query).MaximumLength(50);
             RuleFor(x => x.Filter.Sort)
                 .Must(sort => string.IsNullOrWhiteSpace(sort) || AllowedSorts.Contains(sort.Trim()))
-                .WithMessage("Kiểu sắp xếp thẻ không hợp lệ.");
+                .WithMessage("Invalid tag sort option.");
         });
     }
 }
@@ -99,7 +99,7 @@ public sealed class GetAdminKnowledgeImageQueryHandler(
         CancellationToken cancellationToken)
     {
         var asset = await repository.FindMediaAssetAsync(request.AssetId, cancellationToken)
-            ?? throw new KnowledgeNotFoundException("Không tìm thấy hình ảnh kiến thức.");
+            ?? throw new KnowledgeNotFoundException("Knowledge image not found.");
         var bytes = await mediaStore.DownloadAsync(asset.ObjectKey, cancellationToken);
         return new KnowledgeMediaBinary(bytes, asset.ContentType);
     }
@@ -122,12 +122,12 @@ public sealed class GetAdminKnowledgeMediaAssetsQueryValidator : AbstractValidat
         {
             RuleFor(x => x.Filter.PageNumber).Cascade(CascadeMode.Stop).GreaterThanOrEqualTo(1)
                 .Must((query, pageNumber) => KnowledgePagination.CanRepresentOffset(pageNumber, query.Filter.PageSize))
-                .WithMessage("Số trang vượt quá giới hạn cho kích thước trang đã chọn.");
+                .WithMessage("Page number exceeds the limit for the selected page size.");
             RuleFor(x => x.Filter.PageSize).InclusiveBetween(1, 100);
             RuleFor(x => x.Filter.Query).MaximumLength(255);
             RuleFor(x => x.Filter.Sort)
                 .Must(sort => string.IsNullOrWhiteSpace(sort) || AllowedSorts.Contains(sort.Trim()))
-                .WithMessage("Kiểu sắp xếp hình ảnh không hợp lệ.");
+                .WithMessage("Invalid image sort option.");
         });
     }
 }
@@ -157,11 +157,11 @@ public sealed class DeleteKnowledgeMediaAssetCommandHandler(
     public async Task Handle(DeleteKnowledgeMediaAssetCommand request, CancellationToken cancellationToken)
     {
         var asset = await repository.FindMediaAssetForDeleteAsync(request.AssetId, cancellationToken)
-            ?? throw new KnowledgeNotFoundException("Không tìm thấy hình ảnh kiến thức.");
+            ?? throw new KnowledgeNotFoundException("Knowledge image not found.");
 
         if (await repository.IsMediaAssetUsedAsync(asset.Id, cancellationToken))
             throw new KnowledgeConflictException(
-                "Không thể xóa hình ảnh đang được sử dụng trong bài viết. Hãy gỡ ảnh khỏi các bài viết liên quan trước.");
+                "Cannot delete an image that is currently used in articles. Remove it from the related articles first.");
 
         var objectKey = asset.ObjectKey;
         repository.RemoveMediaAsset(asset);

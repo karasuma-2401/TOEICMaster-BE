@@ -1,13 +1,13 @@
 # Clean Architecture
 
-Backend là một ứng dụng ASP.NET Core, triển khai như một khối thống nhất. CQRS tách command (ghi/thực hiện hành động) và query (đọc) trong cùng ứng dụng; hiện vẫn dùng một database Neon. MediatR điều phối request trong process, không phải message broker.
+The backend is an ASP.NET Core application deployed as a single unit. CQRS separates commands (writes/performing actions) and queries (reads) within the same application; it currently still uses a single Neon database. MediatR dispatches requests in-process, not via a message broker.
 
-## Chiều dependency
+## Dependency Direction
 
 ```mermaid
 flowchart TD
     API[Api] --> APP[Application]
-    API --> INF[Infrastructure - đăng ký DI]
+    API --> INF[Infrastructure - DI registration]
     INF --> APP
     APP --> DOMAIN[Domain]
     INF --> PG[Neon PostgreSQL / EF Core]
@@ -16,16 +16,16 @@ flowchart TD
     INF --> SMTP[External SMTP provider]
 ```
 
-Mũi tên giữa project biểu diễn dependency khi biên dịch. Domain không tham chiếu project khác hoặc NuGet package. Application chỉ tham chiếu Domain; Infrastructure triển khai interface do Application định nghĩa. API tham chiếu Infrastructure để đăng ký DI trong `Program.cs`; controller gọi Application qua `ISender`.
+Arrows between projects represent compile-time dependencies. Domain does not reference other projects or NuGet packages. Application only references Domain; Infrastructure implements interfaces defined by Application. API references Infrastructure for DI registration in `Program.cs`; controllers call Application via `ISender`.
 
-| Project        | Đặt code ở đây                                                               | Ranh giới                                                       |
-| -------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Domain         | Entity, value object, quy tắc nghiệp vụ                                      | Độc lập với ASP.NET, EF Core và các adapter                     |
-| Application    | Command/query, handler, validator, DTO, interface                            | Không dùng DbContext, HTTP context hoặc client Redis/MinIO/SMTP |
-| Infrastructure | DbContext, EF configurations/migrations, adapter dữ liệu/cache/storage/email | Triển khai interface Application                                |
-| Api            | Controller, HTTP request/response, mapping HTTP, exception handler, DI       | Không xử lý nghiệp vụ hoặc truy cập DbContext trong controller  |
+| Project        | Place code here                                                               | Boundary                                                        |
+| -------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Domain         | Entities, value objects, business rules                                       | Independent of ASP.NET, EF Core, and adapters                   |
+| Application    | Commands/queries, handlers, validators, DTOs, interfaces                      | No DbContext, HTTP context, or Redis/MinIO/SMTP clients         |
+| Infrastructure | DbContext, EF configurations/migrations, data/cache/storage/email adapters    | Implements Application interfaces                               |
+| Api            | Controllers, HTTP request/response, HTTP mapping, exception handlers, DI      | No business logic or DbContext access in controllers            |
 
-## Luồng request
+## Request Flow
 
 ```mermaid
 sequenceDiagram
@@ -38,23 +38,23 @@ sequenceDiagram
     Client->>Api: HTTP request
     Api->>Mediator: ISender.Send(request, cancellationToken)
     Mediator->>Validation: ValidateAsync
-    alt Dữ liệu không hợp lệ
+    alt Invalid data
         Validation-->>Api: ValidationException
         Api-->>Client: 400 ValidationProblemDetails
-    else Dữ liệu hợp lệ
+    else Valid data
         Validation->>Handler: Handle
-        opt Use case cần dịch vụ bên ngoài
-            Handler->>Adapter: Gọi interface Application
-            Adapter-->>Handler: Kết quả
+        opt Use case needs external service
+            Handler->>Adapter: Call Application interface
+            Adapter-->>Handler: Result
         end
-        Handler-->>Api: DTO / kết quả
+        Handler-->>Api: DTO / result
         Api-->>Client: HTTP response
     end
 ```
 
-`ValidationBehavior` chạy validator bất đồng bộ và tuần tự trước handler. Cách này hỗ trợ `MustAsync` và tránh chạy đồng thời nhiều validator dùng chung scoped DbContext. Request và validator phải truyền tiếp cancellation token. Lỗi được gom theo property vào `errors`; ProblemDetails có `traceId` để tra log.
+`ValidationBehavior` runs validators asynchronously and sequentially before the handler. This supports `MustAsync` and avoids concurrent execution of multiple validators sharing a scoped DbContext. Requests and validators must forward the cancellation token. Errors are grouped by property into `errors`; ProblemDetails includes `traceId` for log lookup.
 
-## Tổ chức use case
+## Use Case Organization
 
 ```text
 Application/
@@ -73,60 +73,60 @@ Api/
   ExceptionHandling/ValidationExceptionHandler.cs
 ```
 
-Khi thêm tính năng, tạo thư mục theo nghiệp vụ, ví dụ `Exams/Commands/SubmitExam` hoặc `Exams/Queries/GetExam`. Mỗi use case chứa request, handler, DTO và validator cần thiết; có thể tách ra các file riêng khi code dài hơn.
+When adding a feature, create a folder by business domain, for example `Exams/Commands/SubmitExam` or `Exams/Queries/GetExam`. Each use case contains the required request, handler, DTO, and validator; they may be split into separate files as code grows longer.
 
-1. Đặt quy tắc nghiệp vụ và entity trong Domain.
-2. Tạo command/query dùng `IRequest<TResponse>` và handler dùng `IRequestHandler<TRequest, TResponse>` trong Application.
-3. Với dữ liệu đầu vào, tạo `AbstractValidator<TRequest>`. DI tự phát hiện handler, validator và mapping profile trong Application.
-4. Nếu cần database hoặc dịch vụ bên ngoài, định nghĩa interface theo use case trong Application và triển khai trong Infrastructure. Đăng ký implementation tại `AddInfrastructure`.
-5. Controller chuyển HTTP request thành command/query, gọi `ISender.Send` và trả HTTP response.
-6. Bổ sung test cho quy tắc nghiệp vụ, dữ liệu sai và các side effect cần kiểm soát.
+1. Place business rules and entities in Domain.
+2. Create a command/query using `IRequest<TResponse>` and a handler using `IRequestHandler<TRequest, TResponse>` in Application.
+3. For input data, create an `AbstractValidator<TRequest>`. DI automatically discovers handlers, validators, and mapping profiles in Application.
+4. If a database or external service is needed, define a use-case-specific interface in Application and implement it in Infrastructure. Register the implementation in `AddInfrastructure`.
+5. The controller converts the HTTP request into a command/query, calls `ISender.Send`, and returns an HTTP response.
+6. Add tests for business rules, invalid data, and controlled side effects.
 
-Mẫu đọc hiện có: `GET /api/v1/system/ping` → `GetSystemStatusQueryHandler` → `SystemStatusDto` → `SystemProfile` → `PingResponse`. Contract FE vẫn là `{ "service": "TOEICMaster", "status": "ok" }`.
+Existing read sample: `GET /api/v1/system/ping` → `GetSystemStatusQueryHandler` → `SystemStatusDto` → `SystemProfile` → `PingResponse`. The FE contract remains `{ "service": "TOEICMaster", "status": "ok" }`.
 
-Mẫu command hiện có: `SendEmailCommand` → `SendEmailCommandValidator` → `SendEmailCommandHandler` → `IMailSender` → `SmtpMailSender`. Command này phục vụ use case nội bộ và tests; chưa có HTTP endpoint gửi mail. Giới hạn hiện tại là recipient 254 ký tự, subject 200 ký tự và text body 100.000 ký tự.
+Existing command sample: `SendEmailCommand` → `SendEmailCommandValidator` → `SendEmailCommandHandler` → `IMailSender` → `SmtpMailSender`. This command serves internal use cases and tests; there is no HTTP endpoint for sending mail yet. Current limits are 254 characters for recipient, 200 characters for subject, and 100,000 characters for text body.
 
-## Thư viện và quy ước
+## Libraries and Conventions
 
-- **MediatR:** dùng `ISender` trong controller để gửi command/query. CQRS là pattern, không có package riêng bắt buộc.
-- **FluentValidation:** dùng core package và DI extensions; validation nằm trong MediatR pipeline. Không dùng `FluentValidation.AspNetCore` auto-validation vì pipeline MVC không hỗ trợ async và package đó đã ngừng được duy trì. [Hướng dẫn chính thức](https://docs.fluentvalidation.net/en/latest/aspnet.html).
-- **AutoMapper:** profile Domain → Application DTO đặt trong Application; profile Application DTO → HTTP response đặt trong Api. DI scan cả hai assembly. Map vào entity có quy tắc nghiệp vụ phải đi qua constructor/method của entity để bảo vệ trạng thái; không map input tùy ý vào entity.
-- **EF Core:** DbContext, configuration và migration nằm trong Infrastructure. Query chỉ đọc nên dùng `AsNoTracking`, phân trang và chỉ lấy trường cần thiết. Tạo interface truy cập dữ liệu theo nghiệp vụ khi có use case; không thêm generic repository hoặc transaction behavior toàn cục khi chưa xác định ranh giới transaction.
+- **MediatR:** uses `ISender` in controllers to dispatch commands/queries. CQRS is a pattern; no separate package is mandatory.
+- **FluentValidation:** uses the core package and DI extensions; validation runs in the MediatR pipeline. Do not use `FluentValidation.AspNetCore` auto-validation because the MVC pipeline does not support async and that package is no longer maintained. [Official guide](https://docs.fluentvalidation.net/en/latest/aspnet.html).
+- **AutoMapper:** Domain → Application DTO profiles live in Application; Application DTO → HTTP response profiles live in Api. DI scans both assemblies. Mapping into an entity with business rules must go through the entity's constructor/methods to protect state; do not arbitrarily map input onto entities.
+- **EF Core:** DbContext, configurations, and migrations live in Infrastructure. Read-only queries should use `AsNoTracking`, pagination, and select only needed fields. Create business-specific data access interfaces when use cases require them; do not add a generic repository or global transaction behavior before transaction boundaries are defined.
 
-AutoMapper đã tích hợp `AddAutoMapper`; MediatR đã tích hợp `AddMediatR`. Không cài thêm các package `*.Extensions.Microsoft.DependencyInjection` cũ. [AutoMapper DI](https://docs.automapper.io/en/stable/Dependency-injection.html), [MediatR DI](https://github.com/LuckyPennySoftware/MediatR#registering-with-iservicecollection).
+AutoMapper already integrates `AddAutoMapper`; MediatR already integrates `AddMediatR`. Do not install legacy `*.Extensions.Microsoft.DependencyInjection` packages. [AutoMapper DI](https://docs.automapper.io/en/stable/Dependency-injection.html), [MediatR DI](https://github.com/LuckyPennySoftware/MediatR#registering-with-iservicecollection).
 
-## Kiểm thử và cấu hình
+## Testing and Configuration
 
-Test project được chia thư mục theo cùng ranh giới Clean Architecture: `Architecture`, `Application`,
-`Infrastructure` và `Api`. Fake dùng chung nằm trong `TestDoubles` để test case không phụ thuộc lẫn nhau qua namespace
-gốc. Tests kiểm tra project references, dependency của Domain/Application, dispatch và validation qua MediatR,
-cancellation, HTTP ProblemDetails, mapping configuration, contract ping, CORS và SMTP adapter. Tests dùng mail adapter
-giả hoặc SMTP server local; không cần credential Neon thật.
+The test project is organized into folders following the same Clean Architecture boundaries: `Architecture`, `Application`,
+`Infrastructure`, and `Api`. Shared fakes live in `TestDoubles` so test cases do not depend on each other through the root
+namespace. Tests check project references, Domain/Application dependencies, MediatR dispatch and validation,
+cancellation, HTTP ProblemDetails, mapping configuration, the ping contract, CORS, and the SMTP adapter. Tests use a fake
+mail adapter or local SMTP server; real Neon credentials are not required.
 
-Credential Neon và license key nằm trong user secrets hoặc environment. Xem README để setup. DI không đưa license key vào HTTP response hoặc log và không tắt cảnh báo license của thư viện.
+Neon credentials and license keys live in user secrets or environment variables. See the README for setup. DI does not expose license keys in HTTP responses or logs and does not suppress library license warnings.
 
-Luồng đăng ký tài khoản đặt `RegisterCommand`, `VerifyEmailCommand` và `ResendEmailVerificationCommand` trong
-Application. `User` và `EmailVerificationChallenge` nằm trong Domain; adapter EF/BCrypt/HMAC/SMTP nằm trong
-Infrastructure. Tài khoản local bắt đầu ở trạng thái chưa kích hoạt; PostgreSQL chỉ lưu HMAC của OTP 6 số, số lần sai,
-thời hạn và cooldown gửi lại. Đăng nhập dùng `LoginCommand`; JWT và random refresh token được cấp bởi adapter Infrastructure. Domain
-quản lý `UserSession`, còn PostgreSQL chỉ lưu hash của refresh token. Refresh thực hiện rotation trong transaction với
-conditional update để một token không thể được dùng thành công hai lần đồng thời. API cấu hình Bearer authentication và
-chỉ chuyển request vào MediatR, ánh xạ lỗi sang ProblemDetails.
+The account registration flow places `RegisterCommand`, `VerifyEmailCommand`, and `ResendEmailVerificationCommand` in
+Application. `User` and `EmailVerificationChallenge` live in Domain; EF/BCrypt/HMAC/SMTP adapters live in
+Infrastructure. Local accounts start in an unactivated state; PostgreSQL only stores the HMAC of the 6-digit OTP, attempt count,
+expiration, and resend cooldown. Login uses `LoginCommand`; JWT and random refresh tokens are issued by the Infrastructure adapter. Domain
+manages `UserSession`, while PostgreSQL only stores the hash of the refresh token. Refresh performs rotation inside a transaction with
+a conditional update so one token cannot be used successfully twice concurrently. API configures Bearer authentication and
+only forwards requests into MediatR, mapping errors to ProblemDetails.
 
-JWT hiện chỉ chứa identity claim, chưa chứa role. Mô hình role và permission cần được xác định theo nghiệp vụ;
-không gán role mặc định tùy ý trong token. API danh sách tài khoản áp dụng policy `AccountAdministration` yêu cầu Admin,
-nên token đăng nhập thông thường nhận `403` cho đến khi module phân quyền cấp role phù hợp.
-Access token ngắn hạn không có cơ chế blacklist;
-logout thu hồi refresh session và access token cũ tự hết hạn sau tối đa 15 phút.
+JWTs currently only contain identity claims and do not yet contain roles. Role and permission models need to be defined by business requirements;
+do not assign arbitrary default roles inside tokens. The account list API applies the `AccountAdministration` policy requiring Admin,
+so standard login tokens receive `403` until the authorization module grants the appropriate role.
+Short-lived access tokens have no blacklist mechanism;
+logout revokes the refresh session and old access tokens expire after at most 15 minutes.
 
-Đăng nhập Google nhận ID token đã ký, adapter `GoogleIdentityVerifier` kiểm tra token bằng Web Client ID cấu hình cho môi
-trường. `external_identities` lưu khóa ổn định `(provider, subject)` và tham chiếu `users`; email chỉ dùng để tạo hoặc cân
-nhắc liên kết tài khoản, không phải định danh Google. Tài khoản Google-only có `PasswordHash = null` và không thể đăng
-nhập local cho đến khi có use case đặt mật khẩu riêng.
+Google login receives a signed ID token, and the `GoogleIdentityVerifier` adapter verifies the token using the environment's configured Web Client ID.
+`external_identities` stores the stable `(provider, subject)` key and references `users`; email is only used to create or consider
+linking an account, not as the Google identifier. Google-only accounts have `PasswordHash = null` and cannot log in
+locally until a separate set-password use case is implemented.
 
-Việc liên kết tự động với user có sẵn chỉ được phép cho Gmail hoặc Google Workspace. Email bên thứ ba cần một luồng liên
-kết đã xác thực phiên local để tránh takeover. Repository xử lý unique constraint của email và `(provider, subject)` để
-hai lần đăng nhập Google đầu tiên chạy đồng thời vẫn hội tụ về một user.
+Automatic linking to an existing user is only allowed for Gmail or Google Workspace. Third-party emails require a linking flow
+authenticated by a local session to avoid takeover. The repository handles unique constraints on email and `(provider, subject)` so
+two concurrent first-time Google logins still converge on a single user.
 
-[API danh sách tài khoản](api-contract.md#quản-trị-danh-sách-tài-khoản-account-administration) gọi `GetAccountsQuery` qua MediatR và đọc `users` qua `IAccountReader`.
-Projection trả `DisplayName`, `CreatedAtUtc` cùng thông tin cơ bản; không đọc password hash hoặc truy cập bảng role.
+[Account list API](api-contract.md#account-list-administration-account-administration) calls `GetAccountsQuery` via MediatR and reads `users` via `IAccountReader`.
+The projection returns `DisplayName`, `CreatedAtUtc`, and basic info; it does not read password hashes or access the role table.

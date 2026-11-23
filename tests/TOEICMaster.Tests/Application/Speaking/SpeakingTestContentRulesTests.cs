@@ -34,8 +34,8 @@ public sealed class SpeakingTestContentRulesTests
             (4, 1, new SpeakingContentDto(4, Questions: ["WHEN!", "How?", "Who?"]))
         ], new Dictionary<Guid, SpeakingMediaAsset>());
         Assert.Equal(2, errors.Count);
-        Assert.Contains(errors, message => message.Contains("Câu 1 và Câu 2", StringComparison.Ordinal));
-        Assert.Contains(errors, message => message.Contains("Câu 5 và Câu 8", StringComparison.Ordinal));
+        Assert.Contains(errors, message => message.Contains("Question 1 and Question 2", StringComparison.Ordinal));
+        Assert.Contains(errors, message => message.Contains("Question 5 and Question 8", StringComparison.Ordinal));
     }
 
     [Theory]

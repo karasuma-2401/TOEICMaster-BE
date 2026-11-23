@@ -26,7 +26,7 @@ public sealed class MinioKnowledgeMediaStore(IMinioClient client) : IKnowledgeMe
             await client.GetObjectAsync(new GetObjectArgs().WithBucket(Bucket).WithObject(objectKey)
                 .WithCallbackStream(stream => stream.CopyTo(output)), cancellationToken);
             return output.ToArray();
-        }, _ => new KnowledgeNotFoundException("Không tìm thấy hình ảnh kiến thức."));
+        }, _ => new KnowledgeNotFoundException("Knowledge image not found."));
 
     public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) =>
         client.RemoveObjectAsync(new RemoveObjectArgs().WithBucket(Bucket).WithObject(objectKey), cancellationToken);

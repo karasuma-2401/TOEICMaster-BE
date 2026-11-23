@@ -83,7 +83,7 @@ public sealed class GoogleLoginApiTests
         var problem = await response.Content.ReadFromJsonAsync<GoogleAuthenticationProblem>();
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        Assert.Equal("Google credential không hợp lệ hoặc đã hết hạn.", problem?.Title);
+        Assert.Equal("Google credential is invalid or has expired.", problem?.Title);
         Assert.False(string.IsNullOrWhiteSpace(problem?.TraceId));
     }
 

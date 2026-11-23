@@ -98,13 +98,13 @@ public sealed class KnowledgePersistenceTests
         var tagId = Guid.NewGuid();
 
         var article = KnowledgeArticle.Create(
-            "  Mẹo làm Reading Part 7  ",
-            "  Meo-Lam-Reading-Part-7 ",
-            "Tóm tắt ngắn",
+            "  Reading Part 7 Tips  ",
+            "  Reading-Part-7-Tips ",
+            "Short summary",
             KnowledgeSkill.Reading,
             categoryId,
             coverId,
-            "Ảnh bìa",
+            "Cover image",
             """{"type":"doc","content":[]}""",
             "[]",
             0,
@@ -114,7 +114,7 @@ public sealed class KnowledgePersistenceTests
             now);
 
         Assert.Equal(KnowledgeArticleStatus.Draft, article.Status);
-        Assert.Equal("meo-lam-reading-part-7", article.Slug);
+        Assert.Equal("reading-part-7-tips", article.Slug);
         Assert.Equal(1, article.EstimatedReadMinutes);
         Assert.True(article.CanBeDeleted);
         Assert.Single(article.ArticleTags);
@@ -130,15 +130,15 @@ public sealed class KnowledgePersistenceTests
 
         // Editing a published article is allowed and keeps Published status.
         article.Update(
-            "Mẹo làm Reading Part 7 (Cập nhật)",
-            "meo-lam-reading-part-7",
-            "Tóm tắt cập nhật",
+            "Reading Part 7 Tips (Updated)",
+            "reading-part-7-tips",
+            "Updated summary",
             KnowledgeSkill.Reading,
             categoryId,
             null,
             null,
             """{"type":"doc","content":[{"type":"paragraph"}]}""",
-            """[{"id":"h1","level":2,"text":"Mục 1"}]""",
+            """[{"id":"h1","level":2,"text":"Section 1"}]""",
             4,
             [],
             [embeddedId],

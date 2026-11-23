@@ -1,19 +1,19 @@
 name: Bug report
-description: Lỗi có thể tái hiện.
+description: A reproducible bug.
 title: "[Bug] "
 body:
   - type: textarea
     id: steps
-    attributes: { label: Các bước tái hiện }
+    attributes: { label: Steps to reproduce }
     validations: { required: true }
   - type: textarea
     id: expected
-    attributes: { label: Kết quả mong đợi }
+    attributes: { label: Expected behavior }
     validations: { required: true }
   - type: textarea
     id: actual
-    attributes: { label: Kết quả thực tế và bằng chứng }
+    attributes: { label: Actual behavior and evidence }
     validations: { required: true }
   - type: input
     id: version
-    attributes: { label: Môi trường và commit }
+    attributes: { label: Environment and commit }

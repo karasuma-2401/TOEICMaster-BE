@@ -1,68 +1,73 @@
 # Speaking Administration API
 
-Các endpoint dùng prefix `/api/v1/admin/speaking`, yêu cầu JWT và policy `SpeakingAdministration`. Mọi response có `Cache-Control: no-store`.
+Endpoints use the `/api/v1/admin/speaking` prefix and require a JWT with the `SpeakingAdministration` policy.
+All responses include `Cache-Control: no-store`.
 
-## Tổng quan
+## Overview
 
-- `GET /summary`: trả `{ exercises: { total, published, draft, archived }, tests: { total, published, draft } }`.
+- `GET /summary`: returns `{ exercises: { total, published, draft, archived }, tests: { total, published, draft } }`.
 
-## Ngân hàng bài tập
+## Exercise Bank
 
 `GET /exercises?part=1&query=walk&difficulty=EASY&status=PUBLISHED&pageNumber=1&pageSize=20`
 
-Trả danh sách phân trang theo `updatedAtUtc DESC`, sau đó `id`. `pageSize` từ 1 đến 100. `query` tìm trong `code` và `topic`, tối đa 100 ký tự. Enum: `EASY`, `MEDIUM`, `HARD` và `DRAFT`, `PUBLISHED`, `ARCHIVED`.
+Returns a paginated list ordered by `updatedAtUtc DESC`, then `id`.
+`pageSize` ranges from 1 to 100.
+`query` searches `code` and `topic`, up to 100 characters.
+Enums: `EASY`, `MEDIUM`, `HARD` and `DRAFT`, `PUBLISHED`, `ARCHIVED`.
 
-- `POST /exercises`: tạo bài, trả `201`.
-- `GET /exercises/{exerciseId}`: lấy chi tiết.
-- `PUT /exercises/{exerciseId}`: body `{ "version": 1, "exercise": { ... } }`. Không đổi được Part.
-- `DELETE /exercises/{exerciseId}?version=1`: chuyển sang `ARCHIVED`, không xóa dữ liệu.
+- `POST /exercises`: creates an exercise, returns `201`.
+- `GET /exercises/{exerciseId}`: retrieves exercise details.
+- `PUT /exercises/{exerciseId}`: body `{ "version": 1, "exercise": { ... } }`. Cannot change Part.
+- `DELETE /exercises/{exerciseId}?version=1`: transitions to `ARCHIVED` without deleting data.
 
-Phần chung của body:
+Common body fields:
 
-| Trường | Ràng buộc |
+| Field | Constraints |
 | --- | --- |
-| `part` | 1–5 |
-| `code` | 1–32 ký tự chữ, số, dấu gạch ngang; duy nhất, không phân biệt hoa thường |
-| `topic` | 1–100 ký tự |
-| `difficulty`, `status` | Enum ở trên |
-| `rubricNotes` | Tối đa 2000 ký tự, tùy chọn |
-| `modelAnswer` | 1–4000 ký tự |
+| `part` | 1-5 |
+| `code` | 1-32 alphanumeric or hyphen characters; unique, case-insensitive |
+| `topic` | 1-100 characters |
+| `difficulty`, `status` | Enums listed above |
+| `rubricNotes` | Up to 2000 characters, optional |
+| `modelAnswer` | 1-4000 characters |
 
-Trường riêng theo Part:
+Part-specific fields:
 
-| Part | Trường bắt buộc |
+| Part | Required Fields |
 | --- | --- |
-| 1 | `passage` (1–1500) |
-| 2 | `imageAssetId`, `imageAlt` (1–300) |
-| 3 | `context` (1–600), `questions` đúng 3 phần tử (mỗi phần tử 1–300) |
-| 4 | `documentTitle` (1–200), `documentRows` 1–20 dòng `{ label (1–40), value (1–200) }`, `questions` như Part 3; `callerIntro` tùy chọn (tối đa 400) |
-| 5 | `prompt` (1–600) |
+| 1 | `passage` (1-1500) |
+| 2 | `imageAssetId`, `imageAlt` (1-300) |
+| 3 | `context` (1-600), `questions` with exactly 3 items (each 1-300) |
+| 4 | `documentTitle` (1-200), `documentRows` with 1-20 rows `{ label (1-40), value (1-200) }`, `questions` same as Part 3; `callerIntro` optional (up to 400) |
+| 5 | `prompt` (1-600) |
 
-Server chỉ lưu các trường thuộc đúng Part, trong `content_json`. Lỗi `400` dùng tên trường không có tiền tố, ví dụ `Passage`, để form hiện lỗi đúng chỗ.
+The server persists only fields belonging to the corresponding Part inside `content_json`.
+`400` errors use unprefixed field names, such as `Passage`, so forms highlight errors in the right place.
 
-**Đích (ADR-002):** `questions` của Part 3–4 phải khác nhau sau chuẩn hóa.
+**Target (ADR-002):** `questions` in Part 3-4 must be distinct after normalization.
 
-## Ảnh
+## Images
 
-- `POST /media/images`: `multipart/form-data`, field `file`. Chỉ JPEG hoặc PNG, kiểm tra bằng magic bytes, tối đa 5 MiB. Trả `201` với `{ id, contentType, sizeBytes }`.
-- `GET /media/{assetId}`: lấy ảnh cho Admin, kể cả ảnh chưa công bố.
+- `POST /media/images`: `multipart/form-data`, field `file`. JPEG or PNG only, validated via magic bytes, max 5 MiB. Returns `201` with `{ id, contentType, sizeBytes }`.
+- `GET /media/{assetId}`: retrieves an image for Admin, including unpublished images.
 
-Asset bất biến. Thay ảnh nghĩa là tải asset mới.
+Assets are immutable. Replacing an image means uploading a new asset.
 
-## Đề Speaking
+## Speaking Tests
 
-- `GET /tests?query=&status=&pageNumber=1&pageSize=20`: mỗi phần tử có `partCounts` và `questionCount`.
-- `GET /tests/{testId}`: đề đã công bố đọc từ snapshot; đề nháp đọc bài hiện tại.
-- `POST /tests`: tạo đề nháp, trả `201`.
-- `PUT /tests/{testId}`: lưu Draft trực tiếp; đề legacy đã công bố chỉ được sửa metadata cơ bản (mã, tên, mô tả), không đổi nội dung.
+- `GET /tests?query=&status=&pageNumber=1&pageSize=20`: each item includes `partCounts` and `questionCount`.
+- `GET /tests/{testId}`: published tests read from the snapshot; draft tests read current exercises.
+- `POST /tests`: creates a draft test, returns `201`.
+- `PUT /tests/{testId}`: saves a Draft directly; published legacy tests only allow updating basic metadata (code, title, description) without modifying content.
 - `POST /tests/{testId}/publish`: body `{ "version": 1 }`.
 
-Body đề mới (builder nhập trực tiếp):
+New test body (direct builder input):
 
 ```json
 {
   "code": "SP-2026-01",
-  "title": "Đề Speaking 01",
+  "title": "Speaking Test 01",
   "description": "",
   "contentMode": "DIRECT",
   "exercises": [],
@@ -71,7 +76,7 @@ Body đề mới (builder nhập trực tiếp):
       "part": 1,
       "sequenceNumber": 1,
       "content": {
-        "rubricNotes": "Phát âm rõ ràng.",
+        "rubricNotes": "Clear pronunciation.",
         "modelAnswer": "Reference answer for evaluation.",
         "passage": "Please read this short announcement aloud."
       }
@@ -80,14 +85,17 @@ Body đề mới (builder nhập trực tiếp):
 }
 ```
 
-`questions` là nội dung thuộc riêng đề: không tạo `speaking_exercises`, không xuất hiện ở tab Bài tập và không được đề khác chọn lại. Part 3 và 4 mỗi phần tử chứa context chung cùng đúng ba câu con, nên đề có 7 nhóm nội dung tương ứng 11 câu của thí sinh (2/2/3/3/1). Draft có thể thiếu nhóm; mỗi nhóm đã gửi phải hợp lệ theo trường của Part. Ảnh Part 2 vẫn upload qua `POST /media/images`, sau đó dùng `imageAssetId` trong `content`.
+`questions` represent content owned exclusively by the test: they do not create `speaking_exercises`, do not appear in the Exercises tab, and cannot be reused by other tests.
+In Parts 3 and 4, each item contains a shared context along with exactly three sub-questions, so a test has 7 content groups corresponding to 11 candidate questions (2/2/3/3/1).
+A Draft may omit groups; each submitted group must satisfy its Part's field rules.
+Part 2 images are still uploaded via `POST /media/images`, then referenced via `imageAssetId` in `content`.
 
-Body legacy tương thích:
+Legacy-compatible body:
 
 ```json
 {
   "code": "SP-2026-01",
-  "title": "Đề Speaking 01",
+  "title": "Speaking Test 01",
   "description": "",
   "exercises": [
     { "exerciseId": "uuid", "part": 1, "sequenceNumber": 1 }
@@ -95,40 +103,48 @@ Body legacy tương thích:
 }
 ```
 
-Khi lưu: đề nháp được phép thiếu bài. Mỗi bài phải tồn tại và đúng Part; `sequenceNumber` từ 1 đến số bài của Part; không trùng `exerciseId` và không trùng vị trí.
+On save: draft tests may omit exercises.
+Each exercise must exist and match the Part; `sequenceNumber` must range from 1 to the Part's exercise count; neither `exerciseId` nor position may be duplicated.
 
-Body legacy không có `contentMode` (hoặc dùng `EXERCISE_BANK`) tiếp tục được đọc để xem/làm bài. API không chuyển dữ liệu legacy sang direct builder. Với đề legacy đã công bố, `PUT` không kèm `exercises` chỉ lưu metadata; nội dung snapshot giữ nguyên.
+Legacy payloads without `contentMode` (or using `EXERCISE_BANK`) remain readable for viewing/taking tests.
+The API does not migrate legacy data to the direct builder format.
+For published legacy tests, a `PUT` without `exercises` updates metadata only; the snapshot content remains unchanged.
 
-**Điều kiện công bố** (lỗi `422`, trả tất cả lỗi cùng lúc):
+**Publish Conditions** (`422` error, returning all errors at once):
 
-| Khóa lỗi | Điều kiện |
+| Error Key | Condition |
 | --- | --- |
-| `Code`, `Title` | Không rỗng |
-| `Part1` … `Part5` | Đúng 2/2/1/1/1 bài, đánh số liên tục từ 1 |
-| `Exercises` | Không lặp bài; mọi bài tồn tại, đúng Part và `PUBLISHED` |
-| `Part1` … `Part5` (direct) | Đúng 2/2/1/1/1 nhóm nội dung, thứ tự liên tục; Part 3/4 có đúng ba câu con |
-| `Questions` | Chỉ chứa nội dung direct thuộc đề, không lẫn tham chiếu ngân hàng |
-| `Content` | Không trùng văn bản sau NFKC/lowercase/chuẩn hóa dấu và khoảng trắng; không trùng ảnh theo asset hoặc SHA-256, ở cả hai chế độ |
+| `Code`, `Title` | Non-empty |
+| `Part1` ... `Part5` | Exactly 2/2/1/1/1 exercises, numbered sequentially starting from 1 |
+| `Exercises` | No duplicate exercises; all exercises exist, match the Part, and are `PUBLISHED` |
+| `Part1` ... `Part5` (direct) | Exactly 2/2/1/1/1 content groups in sequential order; Part 3/4 have exactly three sub-questions |
+| `Questions` | Contains only direct content belonging to the test, with no bank references mixed in |
+| `Content` | No duplicate text after NFKC/lowercase/diacritic and whitespace normalization; no duplicate images by asset or SHA-256, in both modes |
 
-Khi công bố, server ghi `snapshot_json` cho từng vị trí, tăng `version` và khóa đề. Sửa hoặc lưu trữ bài sau đó không ảnh hưởng đề đã công bố. `snapshot_json` có chứa rubric và bài mẫu, chỉ dùng cho Admin và attempt snapshot.
+When publishing, the server writes `snapshot_json` for each slot, increments `version`, and locks the test.
+Editing or archiving exercises afterward does not affect published tests.
+`snapshot_json` includes the rubric and model answer and is intended only for Admin and attempt snapshots.
 
-## Lỗi
+## Errors
 
-| Mã | Khi nào |
+| Code | When |
 | --- | --- |
-| `400` | Dữ liệu không hợp lệ |
-| `404` | Không tìm thấy |
-| `409` | Trùng mã, sai `version`, đổi Part, sửa đề đã công bố |
-| `413` | Ảnh quá 5 MiB |
-| `422` | Chưa đủ điều kiện công bố |
+| `400` | Invalid input |
+| `404` | Not found |
+| `409` | Duplicate code, stale `version`, Part change, editing a published test |
+| `413` | Image exceeds 5 MiB |
+| `422` | Publish conditions not met |
 
-## Đề xuất API mới (chưa triển khai)
+## Proposed New APIs (Not Yet Implemented)
 
-Tất cả chỉ **thêm mới**, không đổi các response hiện có.
+All additions are **purely additive**, leaving existing responses unchanged.
 
-### Kiểm tra trước khi công bố (đề xuất)
+### Pre-publish Check (Proposed)
 
-`POST /tests/publish-check`. Body giống `POST /tests`. Không ghi dữ liệu. Chấp nhận đề chưa đủ bài.
+`POST /tests/publish-check`.
+Same body as `POST /tests`.
+Does not persist data.
+Accepts tests with missing exercises.
 
 ```json
 {
@@ -137,14 +153,14 @@ Tất cả chỉ **thêm mới**, không đổi các response hiện có.
     {
       "code": "DUPLICATE_PROMPT_TEXT",
       "severity": "BLOCKING",
-      "message": "Câu 1 và Câu 2 có cùng nội dung.",
+      "message": "Question 1 and Question 2 have identical content.",
       "positions": [1, 2],
       "exerciseIds": ["uuid", "uuid"]
     },
     {
       "code": "SIMILAR_CONTENT",
       "severity": "WARNING",
-      "message": "Câu 6 và Câu 8 gần giống nhau.",
+      "message": "Question 6 and Question 8 are very similar.",
       "positions": [6, 8],
       "exerciseIds": ["uuid", "uuid"]
     }
@@ -152,32 +168,41 @@ Tất cả chỉ **thêm mới**, không đổi các response hiện có.
 }
 ```
 
-- `severity`: `BLOCKING` hoặc `WARNING`.
+- `severity`: `BLOCKING` or `WARNING`.
 - `code`: `MISSING_INFO`, `INCOMPLETE_PART`, `EXERCISE_NOT_FOUND`, `EXERCISE_WRONG_PART`, `EXERCISE_NOT_PUBLISHED`, `DUPLICATE_EXERCISE`, `DUPLICATE_QUESTION_IN_EXERCISE`, `DUPLICATE_PROMPT_TEXT`, `DUPLICATE_IMAGE`, `SIMILAR_CONTENT`, `SAME_TOPIC_IN_PART`.
-- `positions`: vị trí câu 1–11 trong đề đầy đủ, để UI cuộn tới đúng chỗ.
-- Trả `400` khi body sai cấu trúc. Thiếu bài không phải lỗi `400`.
+- `positions`: question positions 1-11 in a full test, allowing the UI to scroll directly to the issue.
+- Returns `400` when the body structure is invalid. Missing exercises are not a `400` error.
 
-`POST /tests/{testId}/publish` dùng cùng logic. Mức `BLOCKING` trả `422`. Mức `WARNING` không chặn.
+`POST /tests/{testId}/publish` uses the same logic.
+`BLOCKING` severity returns `422`.
+`WARNING` severity does not block publishing.
 
-### Nhân bản đề đã triển khai
+### Clone Existing Test
 
 `POST /tests/{testId}/clone`, body `{ "version": 2, "code": "SP-2026-01-V2", "title": "..." }`.
-Tạo đề DIRECT nháp độc lập, trả `201`. Với nguồn đã công bố từ ngân hàng, sao chép snapshot đã đóng băng,
-không lấy nội dung hiện tại của ngân hàng. Giữ nguyên nguồn và các lượt làm; sai version/trùng mã trả `409`.
+Creates an independent draft DIRECT test and returns `201`.
+For a published source built from the exercise bank, it copies the frozen snapshot rather than reading current exercise bank content.
+Leaves the source test and its attempts untouched; stale version or duplicate code returns `409`.
 
-### Xóa đề nháp
+### Delete Draft Test
 
-`DELETE /tests/{testId}?version=1`. Chỉ với đề nháp. Trả `204`; xóa đề và các vị trí trong đề, không xóa bài tập. Thiếu `version` hoặc `version` nhỏ hơn 1 trả `400`; không tìm thấy trả `404`; đề đã công bố hoặc sai phiên bản trả `409`.
+`DELETE /tests/{testId}?version=1`.
+Draft tests only.
+Returns `204`; deletes the test and its slot entries without deleting exercises.
+Missing `version` or `version` less than 1 returns `400`; not found returns `404`; published test or stale version returns `409`.
 
-### Số đề đang dùng bài (đề xuất)
+### Number of Tests Using an Exercise (Proposed)
 
-Thêm `usedInTestCount` vào phần tử danh sách của `GET /exercises`. Đây là trường mới, không đổi trường cũ.
+Add `usedInTestCount` to list items in `GET /exercises`.
+This is a new field without altering existing fields.
 
-### Mã lỗi cho `409` đã triển khai
+### Implemented Error Codes for `409`
 
-ProblemDetails có extension `code`: `DUPLICATE_CODE` cho mã đề trùng, `VERSION_CONFLICT` cho phiên bản cũ,
-`CONFLICT` cho các xung đột khác. FE giữ nguyên `title` và toàn bộ mảng `errors` của server.
+ProblemDetails includes the `code` extension: `DUPLICATE_CODE` for duplicate test codes, `VERSION_CONFLICT` for stale versions, and `CONFLICT` for other conflicts.
+The frontend preserves the server's `title` and entire `errors` array.
 
-### Gỡ đề (chờ D4)
+### Withdraw Test (Pending D4)
 
-`POST /tests/{testId}/withdraw`. Cần migration mới để thêm trạng thái vào `ck_speaking_tests_status`. Lượt làm cũ vẫn giữ nguyên.
+`POST /tests/{testId}/withdraw`.
+Requires a new migration to add the status to `ck_speaking_tests_status`.
+Existing attempts remain intact.

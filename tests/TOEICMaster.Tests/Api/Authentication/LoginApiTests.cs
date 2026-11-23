@@ -94,7 +94,7 @@ public sealed class LoginApiTests
         var problem = await response.Content.ReadFromJsonAsync<AuthenticationProblem>();
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        Assert.Equal("Email hoặc mật khẩu không chính xác.", problem?.Title);
+        Assert.Equal("Email or password is incorrect.", problem?.Title);
         Assert.False(string.IsNullOrWhiteSpace(problem?.TraceId));
         Assert.Null(factory.Repository.AddedSession);
     }

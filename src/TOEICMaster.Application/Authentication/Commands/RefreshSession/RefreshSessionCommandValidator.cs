@@ -7,7 +7,7 @@ public sealed class RefreshSessionCommandValidator : AbstractValidator<RefreshSe
     public RefreshSessionCommandValidator()
     {
         RuleFor(command => command.RefreshToken).Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Refresh token là bắt buộc.")
-            .MaximumLength(512).WithMessage("Refresh token không hợp lệ.");
+            .NotEmpty().WithMessage("Refresh token is required.")
+            .MaximumLength(512).WithMessage("Invalid refresh token.");
     }
 }

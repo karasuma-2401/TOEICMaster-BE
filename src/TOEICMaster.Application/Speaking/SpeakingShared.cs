@@ -4,7 +4,7 @@ using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Application.Speaking;
 
-public sealed class SpeakingNotFoundException(string message = "Không tìm thấy dữ liệu Speaking.") : Exception(message);
+public sealed class SpeakingNotFoundException(string message = "Speaking data not found.") : Exception(message);
 
 /// <summary>409: stale version, duplicate code, locked resource or closed recording window.</summary>
 public sealed class SpeakingConflictException(string message, string code = "CONFLICT") : Exception(message)
@@ -14,14 +14,14 @@ public sealed class SpeakingConflictException(string message, string code = "CON
 
 /// <summary>422: a test does not meet the publishing requirements; one entry per failed requirement.</summary>
 public sealed class SpeakingPublishRequirementsException(IReadOnlyDictionary<string, string[]> errors) : Exception(
-    "Đề Speaking chưa đủ điều kiện để công bố.")
+    "Speaking test does not meet the requirements to be published.")
 {
     public IReadOnlyDictionary<string, string[]> Errors { get; } = errors;
 }
 
 /// <summary>The row changed in another request (for example two tabs pressing "next" at once).</summary>
 public sealed class SpeakingConcurrencyException() : Exception(
-    "Lượt làm đã được cập nhật ở một phiên khác. Hãy tải lại trang.");
+    "The attempt was updated in another session. Please reload the page.");
 
 public sealed class InvalidSpeakingMediaException(string message) : Exception(message);
 

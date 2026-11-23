@@ -1,8 +1,8 @@
-# ADR-003: Một phiên micro duy nhất cho mỗi lượt làm Speaking
+# ADR-003: Single Microphone Session per Speaking Attempt
 
 ## Status
 
-Implemented ngày 2026-11-21; còn cần UAT thiết bị và quyền trên ma trận trình duyệt.
+Implemented on 2026-11-21; device and permission UAT across the browser matrix is still pending.
 
 ## Date
 
@@ -10,45 +10,51 @@ Implemented ngày 2026-11-21; còn cần UAT thiết bị và quyền trên ma t
 
 ## Context
 
-Yêu cầu: học viên chỉ cấp quyền micro một lần, rồi làm bài liên tục.
+Requirement: learners grant microphone permission only once, then complete the test continuously.
 
-Triển khai dùng `status = ready` cùng cờ `verified` cho kết quả kiểm tra. Provider sở hữu stream và AudioContext;
-hook chỉ sở hữu MediaRecorder/bản ghi. Đề FULL phải qua đủ ba bước; luyện Part có nút riêng không ghi âm.
-Khi tải lại chỉ thử khôi phục nếu permission query trả `granted`; quyền không rõ cần thao tác người dùng.
+The implementation uses `status = ready` together with a `verified` flag for the check result.
+The provider owns the stream and AudioContext; the hook only owns the MediaRecorder/recordings.
+FULL tests must complete all three steps; Part practice offers a separate non-recording button.
+On page reload, restoration is only attempted if the permission query returns `granted`; unknown permission states require user interaction.
 
-Hiện tại màn kiểm tra (`/speaking/tests/[id]/practice`, `/speaking/exercises/[id]/practice`) và màn làm bài (`/speaking/attempts/[id]`) mỗi màn tạo một `useVoiceRecorder`. Khi chuyển màn, stream đầu bị dừng và màn sau gọi `getUserMedia` lần nữa. Lần gọi này xảy ra **sau khi** server đã tạo lượt làm, nên đồng hồ đã chạy. Route làm bài cũng là màn xem lại, nên bài đã nộp vẫn xin micro. Chi tiết ở MIC-01 đến MIC-11 trong [báo cáo rà soát](../runbooks/speaking-audit-report.md).
+Currently, the check screen (`/speaking/tests/[id]/practice`, `/speaking/exercises/[id]/practice`) and the test-taking screen (`/speaking/attempts/[id]`) each create their own `useVoiceRecorder`.
+When navigating between screens, the first stream is stopped and the next screen calls `getUserMedia` again.
+This second call happens **after** the server has already created the attempt, so the timer is already running.
+The attempt route is also the review screen, so submitted tests still prompt for microphone access.
+Details are documented in MIC-01 through MIC-11 in the [audit report](../runbooks/speaking-audit-report.md).
 
-**Giới hạn của nền tảng.** Quyền thuộc về trình duyệt và người dùng, website không thể ép "cho phép vĩnh viễn":
+**Platform limitations.** Permissions belong to the browser and the user; a website cannot force "allow forever":
 
-- Chrome có lựa chọn ["Allow this time"](https://developer.chrome.com/blog/one-time-permissions): lần sau sẽ hỏi lại, và quyền có thể hết hạn về `prompt`.
-- Tài liệu [MDN](https://developer.mozilla.org/docs/Web/API/MediaDevices/getUserMedia) ghi rõ trình duyệt có thể cấp quyền theo phiên hoặc theo domain.
-- Nguồn về Safari ([W3C 2019](https://lists.w3.org/Archives/Public/public-webrtc-logs/2019Oct/0176.html), [Apple Forums 2025](https://developer.apple.com/forums/thread/788518)) cho thấy có thể hỏi theo từng document, nhưng các nguồn này cũ hoặc chưa được xác nhận, nên phải đo thực tế.
+- Chrome has an ["Allow this time"](https://developer.chrome.com/blog/one-time-permissions) option: the next visit prompts again, and permission can expire back to `prompt`.
+- [MDN documentation](https://developer.mozilla.org/docs/Web/API/MediaDevices/getUserMedia) explicitly notes that browsers may grant permission per session or per domain.
+- Safari sources ([W3C 2019](https://lists.w3.org/Archives/Public/public-webrtc-logs/2019Oct/0176.html), [Apple Forums 2025](https://developer.apple.com/forums/thread/788518)) suggest it may prompt per document, though these sources are dated or unconfirmed and must be measured in practice.
 
-Vì vậy, cam kết của hệ thống được định nghĩa như sau:
+Therefore, the system's guarantee is defined as follows:
 
-> **Trong một lượt làm, ứng dụng chỉ yêu cầu quyền một lần, trước khi lượt làm được tạo. Sau đó ứng dụng không tự gây ra hộp thoại quyền nào nữa, trừ khi học viên bấm nút, hoặc khi trang bị tải lại và trình duyệt đã quên quyền.**
+> **Within a single attempt, the application requests permission only once, before the attempt is created. Afterward, the application will never trigger another permission dialog on its own, unless the learner clicks a button, or the page is reloaded and the browser has forgotten the permission.**
 
 ## Decision
 
-### 1. Giữ stream trong provider ở cấp layout
+### 1. Keep the stream in a layout-level provider
 
-Thêm `src/app/speaking/layout.tsx`, bọc `MicSessionProvider`. Next.js giữ nguyên layout khi điều hướng bằng `router.push` trong `/speaking/*`, nên stream sống qua lần chuyển từ màn kiểm tra sang màn làm bài.
+Add `src/app/speaking/layout.tsx` wrapping `MicSessionProvider`.
+Next.js preserves layouts across `router.push` navigations within `/speaking/*`, so the stream survives the transition from the check screen to the attempt screen.
 
-Tách hook hiện có thành hai phần:
+Split the existing hook into two parts:
 
-| File trong `src/features/speaking/` | Trách nhiệm |
+| File in `src/features/speaking/` | Responsibility |
 | :--- | :--- |
-| `mic/mic-session-provider.tsx` (mới) | Sở hữu `MediaStream`, `AudioContext`, trạng thái quyền, thiết bị đang chọn. **Nơi duy nhất gọi `getUserMedia`.** |
-| `hooks/use-voice-recorder.ts` (sửa) | Chỉ tạo `MediaRecorder` trên stream của provider; quản lý bản ghi theo câu. |
+| `mic/mic-session-provider.tsx` (new) | Owns `MediaStream`, `AudioContext`, permission state, and selected device. **The only place that calls `getUserMedia`.** |
+| `hooks/use-voice-recorder.ts` (modified) | Only creates `MediaRecorder` on the provider's stream; manages recordings per question. |
 
 ```ts
 interface MicSession {
   status: MicStatus;
   level: number;
   devices: MediaDeviceInfo[];
-  /** Chỉ gọi từ thao tác người dùng. Gọi lại khi stream còn sống thì không xin quyền. */
+  /** Only call from a user gesture. Calling again while the stream is live does not prompt for permission. */
   acquire(deviceId?: string): Promise<boolean>;
-  /** Chỉ gọi khi query trả "granted", nên không thể làm hiện hộp thoại. */
+  /** Only called when query returns "granted", so it cannot trigger a dialog. */
   restoreIfGranted(): Promise<boolean>;
   release(): void;
 }
@@ -58,127 +64,135 @@ type MicStatus =
   | "denied" | "no-device" | "busy" | "insecure" | "unsupported";
 ```
 
-`ready` giữ nguyên tên hiện có, để `RecorderStatus` và `MicCheckPanel` đổi ít nhất. `verified` và `lost` chỉ cần khi làm đợt đúng PRD (mục 6 và mục 4).
+`ready` keeps its existing name so `RecorderStatus` and `MicCheckPanel` require minimal changes.
+`verified` and `lost` are only needed when implementing the PRD-aligned pass (sections 6 and 4).
 
-**Chi tiết cần giữ khi triển khai, rút ra từ prototype:**
+**Implementation details to preserve, drawn from the prototype:**
 
-- Effect ở màn làm bài phải chờ tải xong attempt: `IN_PROGRESS` thì `restoreIfGranted()`, `SUBMITTED` thì `release()`. Không dùng effect chạy ngay lúc mount như hiện nay.
-- Provider tự `release()` khi `usePathname()` ra khỏi các route `/speaking/tests/*/practice`, `/speaking/exercises/*/practice`, `/speaking/attempts/*`. Nếu thiếu bước này, bấm "Quay lại" về `/speaking` vẫn giữ micro vì layout không bị hủy.
-- `recordings` vẫn ở hook theo từng lượt làm, không đưa lên provider, để bản ghi không lẫn giữa các lượt.
-- Bản ghi cuối: `recorder.stop()` chạy trước `release()`, vì effect dọn của pha trả lời chạy trước effect theo trạng thái. Cần xác nhận trên trình duyệt thật rằng bản ghi cuối vẫn đủ dữ liệu.
-- Banner ở `speaking-attempt.tsx` phải xử lý thêm `idle` (nút bật lại micro) và các lỗi mới. Prototype chưa làm phần này.
+- The effect on the attempt screen must wait until the attempt finishes loading: `IN_PROGRESS` calls `restoreIfGranted()`, `SUBMITTED` calls `release()`. Do not run an effect immediately on mount as currently implemented.
+- The provider automatically calls `release()` when `usePathname()` leaves `/speaking/tests/*/practice`, `/speaking/exercises/*/practice`, `/speaking/attempts/*`. Without this step, clicking "Back" to `/speaking` keeps the mic open because the layout is not unmounted.
+- `recordings` remain in the per-attempt hook, not lifted to the provider, so recordings do not leak across attempts.
+- Final recording: `recorder.stop()` runs before `release()` because the responding-phase cleanup effect runs before the state-driven effect. Must be verified on a real browser to ensure the final recording contains full audio data.
+- The banner in `speaking-attempt.tsx` must also handle `idle` (button to re-enable mic) and the new error states. The prototype did not implement this part.
 
-### 2. Quy tắc bắt buộc
+### 2. Mandatory rules
 
-| # | Quy tắc | Sửa |
+| # | Rule | Fixes |
 | :--- | :--- | :--- |
-| R1 | Toàn module Speaking chỉ có provider được gọi `getUserMedia`. | MIC-01 |
-| R2 | `acquire` phải idempotent: có track `live` thì trả ngay; đang chờ thì dùng chung promise. React StrictMode không được tạo hai yêu cầu. | MIC-01 |
-| R3 | Không tự xin quyền lúc mount. Chỉ xin khi người dùng bấm, hoặc khôi phục sau khi `permissions.query` trả `granted`. | MIC-03 |
-| R4 | Thứ tự bắt buộc: có quyền → kiểm tra âm thanh → `POST /attempts` → `router.push`. | MIC-02 |
-| R5 | Attempt `SUBMITTED`: không xin micro; gọi `release()` ngay khi nộp xong. Rời khỏi màn kiểm tra hoặc màn làm bài cũng phải `release()`. | MIC-03 |
-| R6 | Giữa các câu giữ nguyên stream, chỉ tạo và dừng `MediaRecorder`. Không dừng track giữa các câu. | MIC-01 |
-| R7 | `permissions.query` phải bọc `try/catch` vì [promise có thể bị reject](https://developer.mozilla.org/docs/Web/API/Permissions/query). Lỗi được coi là chưa biết, không phải bị từ chối. | MIC-06 |
-| R8 | Mỗi lỗi có một trạng thái và hướng dẫn riêng (bảng mục 4). | MIC-06 |
+| R1 | Across the entire Speaking module, only the provider may call `getUserMedia`. | MIC-01 |
+| R2 | `acquire` must be idempotent: if a `live` track exists, return immediately; if pending, share the promise. React StrictMode must not trigger two requests. | MIC-01 |
+| R3 | Never prompt for permission on mount. Only request on user click, or restore after `permissions.query` returns `granted`. | MIC-03 |
+| R4 | Mandatory sequence: permission granted -> audio check -> `POST /attempts` -> `router.push`. | MIC-02 |
+| R5 | `SUBMITTED` attempt: do not request mic; call `release()` immediately on submission. Leaving the check or attempt screen must also call `release()`. | MIC-03 |
+| R6 | Keep the stream alive between questions; only create and stop `MediaRecorder`. Do not stop tracks between questions. | MIC-01 |
+| R7 | `permissions.query` must be wrapped in `try/catch` because [the promise may reject](https://developer.mozilla.org/docs/Web/API/Permissions/query). Errors are treated as unknown, not denied. | MIC-06 |
+| R8 | Each error has its own state and guidance (table in section 4). | MIC-06 |
 
-"Micro tắt" ở Pha 1 trong PRD được hiểu là **không ghi âm**. Biểu tượng micro của trình duyệt vẫn sáng trong suốt bài, vì stream được giữ để tránh xin quyền lại. Màn kiểm tra phải nói rõ điều này. Không có âm thanh nào được ghi hay gửi đi ngoài pha trả lời.
+"Mic off" in Phase 1 of the PRD means **not recording**.
+The browser's microphone indicator remains lit throughout the test because the stream is kept open to avoid re-prompting.
+The check screen must state this clearly.
+No audio is recorded or transmitted outside the responding phase.
 
-### 3. Luồng
+### 3. Flow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor L as Học viên
+    actor L as Learner
     participant P as MicSessionProvider
-    participant B as Trình duyệt
+    participant B as Browser
     participant API as Backend
 
-    L->>P: Bấm "Cho phép micro"
+    L->>P: Click "Allow microphone"
     P->>B: getUserMedia
-    B-->>L: Hộp thoại quyền (lần duy nhất)
+    B-->>L: Permission dialog (once only)
     B-->>P: Stream
-    L->>P: Nói thử 5 giây, nghe lại
-    P-->>L: Micro đạt (verified)
-    L->>API: Bấm "Bắt đầu" → POST /attempts
-    API-->>L: Attempt, đồng hồ bắt đầu chạy
-    Note over P: router.push, layout giữ nguyên, stream còn sống
-    loop Mỗi câu
-        P->>P: Phát beep, tạo MediaRecorder
-        L->>API: PUT recording khi hết pha trả lời
+    L->>P: Speak for 5 seconds, play back
+    P-->>L: Mic verified
+    L->>API: Click "Start" -> POST /attempts
+    API-->>L: Attempt, timer starts
+    Note over P: router.push, layout preserved, stream stays live
+    loop Each question
+        P->>P: Play beep, create MediaRecorder
+        L->>API: PUT recording when responding phase ends
     end
     API-->>L: SUBMITTED
-    L->>P: release(), đèn micro tắt
+    L->>P: release(), mic indicator turns off
 ```
 
-### 4. Các tình huống
+### 4. Scenarios
 
-| Tình huống | Trạng thái | Hành vi |
+| Scenario | State | Behavior |
 | :--- | :--- | :--- |
-| Từ chối quyền (`NotAllowedError`) | `denied` | Hướng dẫn mở cài đặt site. Xem chính sách ở mục 5. |
-| Không có micro (`NotFoundError`) | `no-device` | Báo cắm micro, có nút thử lại. Không nhắc đến "cấp quyền". |
-| Micro bị ứng dụng khác chiếm (`NotReadableError`) | `busy` | Báo đóng ứng dụng đang dùng micro. |
-| Trang không có HTTPS (`navigator.mediaDevices` là `undefined`) | `insecure` | Báo lỗi triển khai. Không ghi "trình duyệt không hỗ trợ". |
-| Không có `MediaRecorder` | `unsupported` | Báo đổi trình duyệt. |
-| Tải lại, query trả `granted` | khôi phục tự động | Gọi `restoreIfGranted()`, không có hộp thoại. |
-| Tải lại, query trả `prompt` hoặc không hỗ trợ | `idle` | Hiện lớp phủ: "Đồng hồ vẫn đang chạy. Bấm để bật lại micro." Chỉ xin quyền khi bấm. |
-| Rút micro giữa bài (`track.ended`, `recorder.onerror`) | `lost` | Hiện cảnh báo ngay; nếu vẫn có quyền thì thử khôi phục. Đồng hồ server không dừng. |
-| Tải lại trong pha trả lời | | Phần đang ghi bị mất. Thêm `beforeunload` trong pha này. Khi mở lại, báo câu nào không có bản ghi. |
+| Permission denied (`NotAllowedError`) | `denied` | Guide user to open site settings. See policy in section 5. |
+| No microphone (`NotFoundError`) | `no-device` | Ask user to plug in a microphone, with a retry button. Do not mention "grant permission". |
+| Microphone used by another app (`NotReadableError`) | `busy` | Ask user to close the app currently using the microphone. |
+| Page served without HTTPS (`navigator.mediaDevices` is `undefined`) | `insecure` | Report deployment error. Do not say "browser not supported". |
+| No `MediaRecorder` | `unsupported` | Suggest switching browsers. |
+| Reload, query returns `granted` | auto-restore | Call `restoreIfGranted()`, no dialog. |
+| Reload, query returns `prompt` or unsupported | `idle` | Show overlay: "The timer is still running. Click to re-enable microphone." Only request permission on click. |
+| Microphone unplugged mid-test (`track.ended`, `recorder.onerror`) | `lost` | Show immediate warning; if permission still holds, try restoring. Server timer does not stop. |
+| Reload during responding phase | | In-progress recording is lost. Add `beforeunload` during this phase. On reopen, report which questions have no recording. |
 
-Đồng hồ server không bao giờ dừng vì lỗi micro, để giữ tính công bằng và logic `AdvanceExpired` hiện có.
+The server timer never stops for microphone errors, preserving fairness and existing `AdvanceExpired` logic.
 
-### 5. Chính sách khi không có micro
+### 5. Policy when no microphone is available
 
-| Chế độ | Khi không đạt kiểm tra |
+| Mode | When check fails |
 | :--- | :--- |
-| Đề đầy đủ (`FULL`) | Khóa nút bắt đầu, đúng AC-SPEAK-01. |
-| Luyện Part | Hiện thêm nút phụ "Luyện không ghi âm". Lượt này không chấm AI được: consent đã trả `409` khi không có bản ghi. |
+| Full test (`FULL`) | Disable the start button, matching AC-SPEAK-01. |
+| Part practice | Show an additional secondary button "Practice without recording". This attempt cannot be AI-graded: consent already returns `409` when no recording exists. |
 
-Backend không cần đổi vì server không thể tự xác minh micro. Nếu ai đó bỏ qua UI thì câu chỉ nhận `NO_RECORDING` và 0 điểm. Chính sách này là đề xuất D1, chờ duyệt.
+No backend change is required because the server cannot verify microphones itself.
+If someone bypasses the UI, questions simply receive `NO_RECORDING` and 0 points.
+This policy is proposal D1, awaiting approval.
 
-### 6. Kiểm tra thiết bị (3 bước theo PRD 4.3.2.A)
+### 6. Device check (3 steps per PRD 4.3.2.A)
 
-1. **Cấp quyền:** nút "Cho phép micro". Sau khi có quyền mới gọi `enumerateDevices`, vì trước đó trình duyệt có thể ẩn nhãn thiết bị. Hiện danh sách chọn micro theo Figma 20.
-2. **Nói thử:** ghi 5 giây câu "Hello, I am ready for the TOEIC Speaking test." và hiển thị mức âm thanh. Đạt khi `level ≥ 0,15` trong tổng cộng ít nhất 1 giây. Đây là giá trị khởi đầu, cần hiệu chỉnh trong UAT.
-3. **Nghe lại:** phát lại bản vừa ghi và hỏi "Bạn có nghe rõ không?". Bước này kiểm tra cả loa và micro trong một thao tác. Cách làm tương tự [bài kiểm tra của Cambridge](https://auto-metrica.cambridgeenglish.org/metrica/systemTest.aspx).
+1. **Grant permission:** "Allow microphone" button. Call `enumerateDevices` only after permission is granted, because browsers may hide device labels beforehand. Display the microphone selector list per Figma 20.
+2. **Test speaking:** record 5 seconds of "Hello, I am ready for the TOEIC Speaking test." and display the audio level. Pass when `level >= 0.15` for at least 1 second total. This is an initial threshold and should be calibrated during UAT.
+3. **Playback:** play back the recording and ask "Can you hear clearly?". This step checks both speaker and microphone in one action. The approach is similar to [Cambridge's system test](https://auto-metrica.cambridgeenglish.org/metrica/systemTest.aspx).
 
-`AudioContext` được tạo hoặc `resume()` ngay trong thao tác bấm của bước 1, rồi dùng chung cho thanh âm lượng và beep (MIC-09).
+`AudioContext` is created or `resume()`d directly inside the Step 1 click handler, then shared for the volume meter and beep (MIC-09).
 
-### 7. Tiếng beep
+### 7. Beep sound
 
-Tạo bằng `OscillatorNode` trên `AudioContext` dùng chung, nên không cần tệp âm thanh. Khoảng 1 kHz, 300 ms. Khi vào `RESPONDING`: phát beep xong mới bắt đầu `MediaRecorder`, để tiếng beep không lọt vào bản ghi gửi đi chấm.
+Generated with `OscillatorNode` on the shared `AudioContext`, requiring no audio file.
+Approximately 1 kHz, 300 ms.
+Upon entering `RESPONDING`: finish playing the beep before starting `MediaRecorder`, so the beep does not bleed into the recording sent for grading.
 
 ## Alternatives considered
 
-### Dựa vào việc trình duyệt tự nhớ quyền (hiện trạng)
+### Rely on the browser remembering permission (current state)
 
-- Ưu điểm: không phải đổi gì.
-- Nhược điểm: không bảo đảm được khi chọn quyền một lần hoặc trên Safari; không giải quyết việc xin quyền ở màn xem lại.
-- Không chọn.
+- Pros: no changes required.
+- Cons: cannot guarantee behavior with one-time permission or on Safari; does not solve prompting on the review screen.
+- Rejected.
 
-### Gộp màn kiểm tra và màn làm bài thành một route
+### Merge the check screen and attempt screen into one route
 
-- Ưu điểm: không cần layout mới.
-- Nhược điểm: lượt làm chưa tồn tại lúc kiểm tra, nên URL phải đổi giữa chừng; resume và xem lại vẫn cần route theo `attemptId`.
-- Không chọn.
+- Pros: no new layout needed.
+- Cons: the attempt does not exist yet during the check, so the URL would have to change mid-flow; resume and review still need an `attemptId` route.
+- Rejected.
 
-### Biến toàn cục ở cấp module
+### Module-level global variables
 
-- Ưu điểm: rất ít code.
-- Nhược điểm: khó kiểm thử, khó dọn tài nguyên, dễ để micro sáng sau khi rời trang.
-- Không chọn. Provider có vòng đời rõ ràng.
+- Pros: very little code.
+- Cons: hard to test, hard to clean up resources, easy to leave the mic active after leaving the page.
+- Rejected. A provider gives a clear lifecycle.
 
-### Tạo lượt làm trước rồi hoãn đồng hồ cho tới khi có micro
+### Create the attempt first and pause the timer until the mic is ready
 
-- Ưu điểm: tải lại trang công bằng hơn.
-- Nhược điểm: phải đổi state machine ở Domain và tạo thêm trạng thái, mà R4 đã xử lý trường hợp chính.
-- Không chọn.
+- Pros: fairer on page reload.
+- Cons: requires modifying the Domain state machine and adding new states, while R4 already handles the primary case.
+- Rejected.
 
 ## Consequences
 
-- Prototype đã kiểm chứng mục 1 và 2 (xem [báo cáo mục 0](../runbooks/speaking-audit-report.md#0-kết-quả-kiểm-tra-lại-2026-11-03)): provider 106 dòng, 1 layout, sửa 3 file. Test giả lập việc chuyển route; chưa chạy trên Next.js và trình duyệt thật.
-- Chỉ sửa FE. Backend, API và database không đổi.
-- Thêm file mới trong `src/app/speaking/` và `src/features/speaking/`. Không đụng module khác.
-- Test `mic-check-panel.test.tsx` phải viết lại vì các trạng thái thay đổi; cần thêm test cho R1–R5.
-- Đèn micro của trình duyệt sáng suốt bài là đánh đổi đã chấp nhận.
-- Không thể cam kết "không bao giờ hỏi lại" khi tải lại trang. Kết quả từng trình duyệt ghi trong [UAT runbook](../runbooks/speaking-uat-runbook.md#3-ma-trận-quyền-micro).
-- Môi trường triển khai bắt buộc có HTTPS, trừ `localhost`.
+- The prototype verified sections 1 and 2 (see [report section 0](../runbooks/speaking-audit-report.md#0-re-verification-results-2026-11-03)): 106-line provider, 1 layout, 3 modified files. Tests mocked route transitions; not yet run on Next.js and real browsers.
+- FE changes only. Backend, API, and database remain unchanged.
+- New files added only under `src/app/speaking/` and `src/features/speaking/`. No other modules touched.
+- `mic-check-panel.test.tsx` must be rewritten because states changed; tests for R1-R5 must be added.
+- The browser mic indicator staying lit throughout the test is an accepted trade-off.
+- Cannot guarantee "never prompt again" across page reloads. Per-browser results are recorded in the [UAT runbook](../runbooks/speaking-uat-runbook.md#3-microphone-permission-matrix).
+- Deployment environments must use HTTPS, except `localhost`.

@@ -1,20 +1,20 @@
-# Nền tảng Kiến trúc & Quy chuẩn (Foundations)
+# Architecture Foundations & Standards (Foundations)
 
-Thư mục này chứa các tài liệu định hình toàn bộ cấu trúc kỹ thuật, quy tắc bất biến và tiêu chuẩn code của dự án Backend.
-
----
-
-## 1. Mục đích
-- Thiết lập **Guardrails** kỹ thuật vững chắc để AI và các thành viên trong nhóm không vi phạm nguyên tắc kiến trúc.
-- Cung cấp **Golden Samples** (mẫu chuẩn) để AI học theo (In-context Learning) khi sinh mã nguồn mới.
-- Định nghĩa rõ các **Anti-patterns** (điều cấm kỵ) trong codebase.
+This directory contains documents that define the entire technical structure, invariant rules, and coding standards of the Backend project.
 
 ---
 
-## 2. Tài liệu thuộc tầng này
-- **Kiến trúc hệ thống (`architecture.md`):** Phân chia 4 tầng Clean Architecture (`Domain`, `Application`, `Infrastructure`, `Api`), luồng xử lý MediatR, quy tắc dependency giữa các project.
-- **Quy chuẩn code (`coding-conventions.md`):** Cấu trúc file, quy ước đặt tên C#, xử lý ngoại lệ, logging, validation và mẫu chuẩn Command/Query.
-- **Quy trình phát triển tính năng (`feature-development.md`):** Hướng dẫn từng bước phát triển feature từ thiết kế đến viết xUnit test.
+## 1. Purpose
+- Establish solid technical **Guardrails** so AI and team members do not violate architectural principles.
+- Provide **Golden Samples** for AI to follow (In-context Learning) when generating new source code.
+- Clearly define **Anti-patterns** (prohibited practices) in the codebase.
+
+---
+
+## 2. Documents in This Layer
+- **System Architecture (`architecture.md`):** 4-layer Clean Architecture split (`Domain`, `Application`, `Infrastructure`, `Api`), MediatR processing flow, and project dependency rules.
+- **Coding Conventions (`coding-conventions.md`):** File structure, C# naming conventions, exception handling, logging, validation, and Command/Query standard samples.
+- **Feature Development Process (`feature-development.md`):** Step-by-step guide to developing a feature from design to writing xUnit tests.
 
 > [!TIP]
-> Bất kỳ khi nào AI đưa ra giải pháp vi phạm kiến trúc (ví dụ: inject DbContext trực tiếp vào Controller hoặc gọi I/O trong Domain), tài liệu tầng này là cơ sở để nhắc nhở và căn chỉnh lại hành vi của AI.
+> Whenever AI proposes a solution that violates the architecture (for example: injecting DbContext directly into a Controller or performing I/O in Domain), this layer's documentation is the basis for reminding and realigning AI behavior.

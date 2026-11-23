@@ -71,15 +71,15 @@ public sealed class WritingEvaluationProcessorTests
 
     private sealed class Evaluator : IWritingEvaluator
     {
-        public string FeedbackText { get; init; } = "Nhận xét cụ thể.";
+        public string FeedbackText { get; init; } = "Specific feedback.";
         public bool InvalidScore { get; init; }
         public bool MissingQuestion { get; init; }
         public Task<WritingEvaluatorResult> EvaluateAsync(WritingEvaluationWork work, CancellationToken cancellationToken)
         {
             var feedback = work.Answers.Select(answer => new WritingEvaluationFeedbackResult(answer.Position,
                 InvalidScore ? 5 : answer.Part == 1 ? 3 : answer.Part == 2 ? 4 : 5,
-                FeedbackText, "Gợi ý sửa.")).ToArray();
-            return Task.FromResult(new WritingEvaluatorResult("Tổng kết.", [], [], MissingQuestion ? feedback[..^1] : feedback));
+                FeedbackText, "Suggested revision.")).ToArray();
+            return Task.FromResult(new WritingEvaluatorResult("Summary.", [], [], MissingQuestion ? feedback[..^1] : feedback));
         }
     }
 

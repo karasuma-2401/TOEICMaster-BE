@@ -117,7 +117,7 @@ public sealed class RegistrationApiTests
             CancellationToken.None);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("Email này đã được sử dụng.", problem?.Title);
+        Assert.Equal("This email is already in use.", problem?.Title);
         Assert.False(string.IsNullOrWhiteSpace(problem?.TraceId));
     }
 
@@ -153,7 +153,7 @@ public sealed class RegistrationApiTests
         var problem = await response.Content.ReadFromJsonAsync<RegistrationProblem>();
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal("Mã xác minh không chính xác, đã hết hạn hoặc đã vượt quá số lần thử.", problem?.Title);
+        Assert.Equal("Verification code is incorrect, expired, or has exceeded the maximum number of attempts.", problem?.Title);
     }
 
     [Fact]

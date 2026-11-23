@@ -1,12 +1,12 @@
-# Danh mục 44 Màn hình Figma (Screens Inventory)
+# 44 Figma Screens Inventory (Screens Inventory)
 
-> Trích xuất từ [specs/figma-screens-master.md](../specs/figma-screens-master.md)
+> Extracted from [specs/figma-screens-master.md](../specs/figma-screens-master.md)
 
-# 2. BẢNG TỔNG HỢP 44 MÀN HÌNH HIỆN CÓ TRÊN FIGMA
+# 2. SUMMARY TABLE OF 44 EXISTING SCREENS ON FIGMA
 
-Tất cả 44 màn hình đều được bố trí trực quan trên **Page 1 (Node ID: `0:1`)**, được định danh theo quy chuẩn `[Role] Name - /route`:
+All 44 screens are visually arranged on **Page 1 (Node ID: `0:1`)**, named following the `[Role] Name - /route` convention:
 
-| STT | Tên Frame trên Figma | Node ID | Kích Thước (W x H) | Phân Hệ | Route Đường Dẫn Frontend |
+| No. | Figma Frame Name | Node ID | Dimensions (W x H) | Module | Frontend Route Path |
 | :---: | :--- | :---: | :---: | :---: | :--- |
 | **01** | `[Learner] Login_Page - /login` | `1:2` | 1722 x 836 px | Auth | `/login` |
 | **02** | `[Learner] Register_Page - /register` | `1:144` | 1722 x 836 px | Auth | `/register` |

@@ -15,7 +15,7 @@ public sealed class GeminiWritingEvaluator(HttpClient httpClient, IOptions<Gemin
     : IWritingEvaluator
 {
     private const string SystemInstruction = """
-        You are a careful TOEIC Writing practice evaluator. Return only Vietnamese feedback for a learner.
+        You are a careful TOEIC Writing practice evaluator. Return only English feedback for a learner.
         Evaluate each response independently. Give specific, observable feedback before assigning its criterion score.
         Score every answer using its supplied criterion scale. The server converts
         those raw scores to a TOEIC Writing 0-200 estimate; it is never an official ETS result. Evaluate only the
@@ -61,15 +61,15 @@ public sealed class GeminiWritingEvaluator(HttpClient httpClient, IOptions<Gemin
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (work.Answers.Count == 0)
-            throw new WritingEvaluatorException("INVALID_REQUEST", "Không có câu trả lời để chấm.", false);
+            throw new WritingEvaluatorException("INVALID_REQUEST", "No answers to evaluate.", false);
         var blankAnswers = work.Answers.Where(answer => string.IsNullOrWhiteSpace(answer.Answer)).ToArray();
         if (blankAnswers.Length > 0)
         {
             var blankFeedback = blankAnswers.Select(answer => new WritingEvaluationFeedbackResult(answer.Position,
-                0, "Câu trả lời bỏ trống nên nhận 0 điểm.", "Hãy viết câu trả lời bằng tiếng Anh theo yêu cầu đề bài.")).ToArray();
+                0, "No answer was provided, so this item receives a score of 0.", "Please write your response in English following the task prompt.")).ToArray();
             if (blankAnswers.Length == work.Answers.Count)
-                return new WritingEvaluatorResult("Bài làm bỏ trống, chưa có nội dung để đánh giá.", [],
-                    ["Hoàn thành các câu trả lời trước khi nộp bài."], blankFeedback);
+                return new WritingEvaluatorResult("The submission is blank and has no content to evaluate.", [],
+                    ["Complete your answers before submitting."], blankFeedback);
             var graded = await EvaluateAsync(work with
             { Answers = work.Answers.Where(answer => !string.IsNullOrWhiteSpace(answer.Answer)).ToArray() }, cancellationToken);
             return graded with { Feedback = graded.Feedback.Concat(blankFeedback).OrderBy(item => item.QuestionPosition).ToArray() };
@@ -77,7 +77,7 @@ public sealed class GeminiWritingEvaluator(HttpClient httpClient, IOptions<Gemin
         var configuration = options.Value;
         if (!configuration.Enabled || string.IsNullOrWhiteSpace(configuration.ApiKey))
             throw new WritingEvaluatorException("NOT_CONFIGURED",
-                "Dịch vụ chấm AI chưa được cấu hình. Bài làm của bạn vẫn được lưu.", false);
+                "The AI evaluation service is not configured. Your submission is still saved.", false);
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(configuration.RequestTimeoutSeconds));
@@ -88,7 +88,7 @@ public sealed class GeminiWritingEvaluator(HttpClient httpClient, IOptions<Gemin
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new WritingEvaluatorException("TIMEOUT", "Chấm AI đang mất nhiều thời gian hơn dự kiến. Hệ thống sẽ thử lại.",
+            throw new WritingEvaluatorException("TIMEOUT", "AI evaluation is taking longer than expected. The system will retry.",
                 true, innerException: exception);
         }
         using var request = new HttpRequestMessage(HttpMethod.Post,
@@ -122,12 +122,12 @@ public sealed class GeminiWritingEvaluator(HttpClient httpClient, IOptions<Gemin
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new WritingEvaluatorException("TIMEOUT", "Chấm AI đang mất nhiều thời gian hơn dự kiến. Hệ thống sẽ thử lại.",
+            throw new WritingEvaluatorException("TIMEOUT", "AI evaluation is taking longer than expected. The system will retry.",
                 true, innerException: exception);
         }
         catch (HttpRequestException exception)
         {
-            throw new WritingEvaluatorException("NETWORK_ERROR", "Không thể kết nối dịch vụ chấm AI. Hệ thống sẽ thử lại.",
+            throw new WritingEvaluatorException("NETWORK_ERROR", "Unable to connect to the AI evaluation service. The system will retry.",
                 true, innerException: exception);
         }
 
@@ -146,7 +146,7 @@ public sealed class GeminiWritingEvaluator(HttpClient httpClient, IOptions<Gemin
             }
             catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
             {
-                throw new WritingEvaluatorException("TIMEOUT", "Chấm AI đang mất nhiều thời gian hơn dự kiến. Hệ thống sẽ thử lại.",
+                throw new WritingEvaluatorException("TIMEOUT", "AI evaluation is taking longer than expected. The system will retry.",
                     true, innerException: exception);
             }
             catch (Exception exception) when (exception is JsonException or InvalidOperationException)
@@ -165,16 +165,16 @@ public sealed class GeminiWritingEvaluator(HttpClient httpClient, IOptions<Gemin
         foreach (var answer in work.Answers.Where(answer => answer.Part == 1))
         {
             var prompt = JsonSerializer.Deserialize<WritingAttemptPromptSnapshot>(answer.PromptSnapshotJson)
-                ?? throw new WritingEvaluatorException("INVALID_REQUEST", "Dữ liệu câu hỏi Writing không hợp lệ.", false);
+                ?? throw new WritingEvaluatorException("INVALID_REQUEST", "Invalid Writing question data.", false);
             if (prompt.ImageAssetId is not Guid assetId)
-                throw new WritingEvaluatorException("IMAGE_MISSING", "Không tìm thấy ảnh đề bài. Bài làm vẫn được lưu.", false);
+                throw new WritingEvaluatorException("IMAGE_MISSING", "Prompt image not found. Your submission is still saved.", false);
             var asset = await repository.FindMediaAssetAsync(assetId, cancellationToken);
             if (asset is null)
-                throw new WritingEvaluatorException("IMAGE_MISSING", "Không tìm thấy ảnh đề bài. Bài làm vẫn được lưu.", false);
+                throw new WritingEvaluatorException("IMAGE_MISSING", "Prompt image not found. Your submission is still saved.", false);
             var image = await imageStore.DownloadAsync(asset.ObjectKey, cancellationToken);
             totalImageBytes += image.Data.Length;
             if (totalImageBytes > maximumImageBytes)
-                throw new WritingEvaluatorException("IMAGE_TOO_LARGE", "Tổng kích thước ảnh quá lớn để chấm AI. Bài làm vẫn được lưu.", false);
+                throw new WritingEvaluatorException("IMAGE_TOO_LARGE", "Total image size is too large for AI evaluation. Your submission is still saved.", false);
             result.Add(new { text = $"Image for question {answer.Position}:" });
             result.Add(new { inlineData = new { mimeType = image.ContentType, data = Convert.ToBase64String(image.Data) } });
         }
@@ -255,21 +255,21 @@ public sealed class GeminiWritingEvaluator(HttpClient httpClient, IOptions<Gemin
         if (response.StatusCode is HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests ||
             (int)response.StatusCode >= 500)
             return new WritingEvaluatorException(response.StatusCode == HttpStatusCode.TooManyRequests ? "QUOTA" : "PROVIDER_ERROR",
-                "Dịch vụ chấm AI đang bận. Hệ thống sẽ thử lại.", true, retryAfter);
+                "The AI evaluation service is busy. The system will retry.", true, retryAfter);
         if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-            return new WritingEvaluatorException("AUTHENTICATION", "Dịch vụ chấm AI chưa được cấu hình đúng.", false);
-        return new WritingEvaluatorException("PROVIDER_REJECTED", "Dịch vụ chấm AI tạm thời không thể xử lý bài này.", false);
+            return new WritingEvaluatorException("AUTHENTICATION", "The AI evaluation service is not configured properly.", false);
+        return new WritingEvaluatorException("PROVIDER_REJECTED", "The AI evaluation service is temporarily unable to process this submission.", false);
     }
 
     private static WritingEvaluatorException InvalidResponse() => new("INVALID_RESPONSE",
-        "Dịch vụ chấm AI trả về kết quả không hợp lệ. Hệ thống sẽ thử lại.", true);
+        "The AI evaluation service returned an invalid result. The system will retry.", true);
 
     private static int RawScoreMaximum(int part) => part switch
     {
         1 => 3,
         2 => 4,
         3 => 5,
-        _ => throw new WritingEvaluatorException("INVALID_REQUEST", "Dữ liệu câu hỏi Writing không hợp lệ.", false)
+        _ => throw new WritingEvaluatorException("INVALID_REQUEST", "Invalid Writing question data.", false)
     };
 }
 
@@ -277,7 +277,7 @@ public sealed class DisabledWritingEvaluator : IWritingEvaluator
 {
     public Task<WritingEvaluatorResult> EvaluateAsync(WritingEvaluationWork work, CancellationToken cancellationToken) =>
         throw new WritingEvaluatorException("NOT_CONFIGURED",
-            "Dịch vụ chấm AI chưa được cấu hình. Bài làm của bạn vẫn được lưu.", false);
+            "The AI evaluation service is not configured. Your submission is still saved.", false);
 }
 
 public sealed class GeminiWritingEvaluationSettings(IOptions<GeminiOptions> options) : IWritingEvaluationSettings

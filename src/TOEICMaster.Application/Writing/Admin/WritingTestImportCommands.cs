@@ -22,11 +22,11 @@ public sealed class PreviewWritingTestImportQueryHandler(IWritingTestImportParse
         if (result.Test is null) return result;
         var errors = result.Errors.ToList();
         if (await repository.TestCodeExistsAsync(result.Test.Code, null, cancellationToken))
-            errors.Add("Mã đề đã tồn tại.");
+            errors.Add("Test code already exists.");
         foreach (var question in result.Test.Questions)
             if (question.Content?.ImageAssetId is Guid image &&
                 !await repository.MediaAssetExistsAsync(image, cancellationToken))
-                errors.Add($"Part {question.Part}, câu {question.SequenceNumber}: không tìm thấy ảnh {image}.");
+                errors.Add($"Part {question.Part}, question {question.SequenceNumber}: image {image} not found.");
         return result with { Errors = errors };
     }
 }

@@ -111,7 +111,7 @@ public sealed class PasswordResetApiTests
         var problem = await response.Content.ReadFromJsonAsync<PasswordResetProblem>();
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal("Mã đặt lại mật khẩu không chính xác, đã hết hạn hoặc đã vượt quá số lần thử.",
+        Assert.Equal("Password reset code is incorrect, expired, or has exceeded the maximum number of attempts.",
             problem?.Title);
     }
 

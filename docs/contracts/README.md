@@ -1,20 +1,20 @@
-# Giao ước Dữ liệu (Contracts)
+# Data Contracts
 
-Thư mục này đóng vai trò là **Single Source of Truth (SSoT)** cho tất cả các giao ước dữ liệu giữa Frontend và Backend, cũng như giữa Backend và Database.
-
----
-
-## 1. Mục đích
-- Đảm bảo tính nhất quán tuyệt đối về API route, payload, headers, status codes và định dạng lỗi.
-- Tránh việc Frontend và Backend hiểu sai lệch về kiểu dữ liệu (Data types, Enums, Nullability).
-- Cung cấp ngữ cảnh cô đọng, chuẩn xác để AI đối chiếu khi sinh code API hoặc viết Integration Test.
+This directory serves as the **Single Source of Truth (SSoT)** for all data contracts between Frontend and Backend, as well as between Backend and Database.
 
 ---
 
-## 2. Tài liệu thuộc tầng này
-- **API Contracts:** Danh sách endpoint, request/response DTOs, query parameters và validation rules.
-- **Database Schema:** Thiết kế bảng, quan hệ khóa ngoại (FK), chỉ mục (Indexes) và Enums.
-- **Integration Protocols:** Định dạng SSE, WebSockets hoặc gRPC (nếu có).
+## 1. Purpose
+- Ensure absolute consistency in API routes, payloads, headers, status codes, and error formats.
+- Prevent mismatches between Frontend and Backend on data types (Data types, Enums, Nullability).
+- Provide concise, accurate context for AI to reference when generating API code or writing Integration Tests.
+
+---
+
+## 2. Documents in This Layer
+- **API Contracts:** List of endpoints, request/response DTOs, query parameters, and validation rules.
+- **Database Schema:** Table design, foreign key (FK) relationships, indexes, and enums.
+- **Integration Protocols:** Formats for SSE, WebSockets, or gRPC (if applicable).
 
 > [!NOTE]
-> Khi có thay đổi về hợp đồng API (thêm field, đổi route, đổi validation), lập trình viên hoặc AI **bắt buộc** phải cập nhật tài liệu hợp đồng và kiểm tra tính tương thích với repo Frontend (`TOEICMaster-FE`).
+> Whenever there is an API contract change (adding a field, changing a route, updating validation), the developer or AI **must** update the contract documentation and verify compatibility with the Frontend repo (`TOEICMaster-FE`).

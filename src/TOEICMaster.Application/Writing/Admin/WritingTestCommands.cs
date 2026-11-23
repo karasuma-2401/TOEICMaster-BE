@@ -31,10 +31,10 @@ public sealed class WritingTestInputValidator : AbstractValidator<WritingTestInp
         RuleForEach(input => input.Questions).NotNull().SetValidator(new WritingTestQuestionInputValidator());
         RuleFor(input => input.Questions).Must(questions => questions.Where(question => question.ExerciseId.HasValue)
             .Select(question => question.ExerciseId).Distinct().Count() == questions.Count(question => question.ExerciseId.HasValue))
-            .WithMessage("Một bài tập không thể xuất hiện hai lần trong cùng một đề.")
+            .WithMessage("An exercise cannot appear twice in the same test.")
             .When(input => input.Questions is not null && input.Questions.All(question => question is not null));
         RuleFor(input => input.Questions).Must(questions => questions.Select(question => (question.Part, question.SequenceNumber)).Distinct().Count() == questions.Count)
-            .WithMessage("Thứ tự câu hỏi trong mỗi Part không được trùng nhau.")
+            .WithMessage("Question sequence numbers within each Part must not be duplicated.")
             .When(input => input.Questions is not null && input.Questions.All(question => question is not null));
     }
 }
@@ -44,7 +44,7 @@ public sealed class WritingTestQuestionInputValidator : AbstractValidator<Writin
     public WritingTestQuestionInputValidator()
     {
         RuleFor(question => question).Must(question => question.ExerciseId.HasValue != (question.Content is not null))
-            .WithMessage("Chọn một bài tập hoặc nhập nội dung câu hỏi trực tiếp.");
+            .WithMessage("Select an exercise or enter question content inline.");
         RuleFor(question => question.ExerciseId).NotEmpty().When(question => question.ExerciseId.HasValue);
         RuleFor(question => question.Part).InclusiveBetween(1, 3);
         RuleFor(question => question.SequenceNumber).GreaterThan(0);
@@ -123,7 +123,7 @@ internal static class WritingTestMutation
         var test = await repository.FindTestForUpdateAsync(id, cancellationToken)
             ?? throw new WritingResourceNotFoundException();
         if (test.Version != version)
-            throw new WritingConflictException("Đề đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
+            throw new WritingConflictException("The test was updated by someone else. Please reload the data.");
         return test;
     }
 }
@@ -135,7 +135,7 @@ public sealed class DeleteWritingTestDraftCommandHandler(IWritingAdminRepository
     {
         var test = await WritingTestMutation.FindAsync(repository, request.TestId, request.ExpectedVersion, cancellationToken);
         if (!test.IsDraft)
-            throw new WritingConflictException("Chỉ có thể xóa đề nháp. Hãy lưu trữ đề đã công bố.");
+            throw new WritingConflictException("Only draft tests can be deleted. Archive published tests instead.");
         repository.RemoveTest(test);
         await repository.SaveChangesAsync(cancellationToken);
     }
@@ -148,7 +148,7 @@ public sealed class ArchiveWritingTestCommandHandler(IWritingAdminRepository rep
     {
         var test = await WritingTestMutation.FindAsync(repository, request.TestId, request.ExpectedVersion, cancellationToken);
         if (test.Status != WritingTestStatus.Published)
-            throw new WritingConflictException("Chỉ có thể lưu trữ đề đã công bố.");
+            throw new WritingConflictException("Only published tests can be archived.");
         test.Archive(request.ActorUserId, timeProvider.GetUtcNow());
         await repository.SaveChangesAsync(cancellationToken);
         return test.ToDto();
@@ -162,7 +162,7 @@ public sealed class RestoreWritingTestCommandHandler(IWritingAdminRepository rep
     {
         var test = await WritingTestMutation.FindAsync(repository, request.TestId, request.ExpectedVersion, cancellationToken);
         if (test.Status != WritingTestStatus.Archived)
-            throw new WritingConflictException("Chỉ có thể khôi phục đề đã lưu trữ.");
+            throw new WritingConflictException("Only archived tests can be restored.");
         test.Restore(request.ActorUserId, timeProvider.GetUtcNow());
         await repository.SaveChangesAsync(cancellationToken);
         return test.ToDto();
@@ -176,7 +176,7 @@ public sealed class CreateWritingTestCommandHandler(IWritingAdminRepository repo
     {
         var input = request.Input.Normalize();
         if (await repository.TestCodeExistsAsync(input.Code, null, cancellationToken))
-            throw new WritingConflictException("Mã đề Writing đã tồn tại.");
+            throw new WritingConflictException("Writing test code already exists.");
         var test = WritingTest.Create(input.Code, input.Title, input.Description ?? string.Empty, request.ActorUserId,
             timeProvider.GetUtcNow());
         var questions = await BuildDraftQuestionsAsync(test.Id, input.Questions, repository, cancellationToken);
@@ -193,13 +193,13 @@ public sealed class CreateWritingTestCommandHandler(IWritingAdminRepository repo
         var ids = inputs.Where(input => input.ExerciseId.HasValue).Select(input => input.ExerciseId!.Value).Distinct().ToArray();
         var exercises = await repository.FindExercisesAsync(ids, cancellationToken);
         if (exercises.Count != ids.Length)
-            throw new WritingConflictException("Một hoặc nhiều bài tập không tồn tại.");
+            throw new WritingConflictException("One or more exercises do not exist.");
         var exercisesById = exercises.ToDictionary(exercise => exercise.Id);
         foreach (var input in inputs.Where(input => input.ExerciseId.HasValue))
         {
             var exercise = exercisesById[input.ExerciseId!.Value];
             if (exercise.Status != WritingExerciseStatus.Published || exercise.Part != WritingAdminMapping.ParsePart(input.Part))
-                throw new WritingConflictException("Đề chỉ có thể chọn bài tập đã công bố và đúng Part.");
+                throw new WritingConflictException("Tests can only include published exercises matching the Part.");
         }
         var questions = new List<WritingTestQuestion>();
         foreach (var input in inputs.OrderBy(input => input.Part).ThenBy(input => input.SequenceNumber))
@@ -229,11 +229,11 @@ public sealed class UpdateWritingTestDraftCommandHandler(IWritingAdminRepository
         var test = await repository.FindTestForUpdateAsync(request.TestId, cancellationToken)
             ?? throw new WritingResourceNotFoundException();
         if (!test.IsDraft)
-            throw new WritingConflictException("Đề đã công bố không thể chỉnh sửa.");
+            throw new WritingConflictException("Published tests cannot be edited.");
         if (test.Version != request.ExpectedVersion)
-            throw new WritingConflictException("Đề đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
+            throw new WritingConflictException("The test was updated by someone else. Please reload the data.");
         if (await repository.TestCodeExistsAsync(input.Code, test.Id, cancellationToken))
-            throw new WritingConflictException("Mã đề Writing đã tồn tại.");
+            throw new WritingConflictException("Writing test code already exists.");
         var questions = await CreateWritingTestCommandHandler.BuildDraftQuestionsAsync(test.Id, input.Questions,
             repository, cancellationToken);
         test.UpdateDraft(input.Code, input.Title, input.Description ?? string.Empty, questions, request.ActorUserId,
@@ -259,28 +259,28 @@ public sealed class PublishWritingTestCommandHandler(IWritingAdminRepository rep
         var test = await repository.FindTestForUpdateAsync(request.TestId, cancellationToken)
             ?? throw new WritingResourceNotFoundException();
         if (!test.IsDraft)
-            throw new WritingConflictException("Đề Writing này đã được công bố.");
+            throw new WritingConflictException("This Writing test has already been published.");
         if (test.Version != request.ExpectedVersion)
-            throw new WritingConflictException("Đề đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
+            throw new WritingConflictException("The test was updated by someone else. Please reload the data.");
         ValidateQuestionShape(test.Questions);
 
         var exerciseIds = test.Questions.Where(question => question.ExerciseId.HasValue)
             .Select(question => question.ExerciseId!.Value).ToArray();
         var exercises = await repository.FindExercisesAsync(exerciseIds, cancellationToken);
         if (exercises.Count != exerciseIds.Length)
-            throw new WritingConflictException("Một hoặc nhiều bài tập của đề không còn tồn tại.");
+            throw new WritingConflictException("One or more exercises in the test no longer exist.");
         var exercisesById = exercises.ToDictionary(exercise => exercise.Id);
         foreach (var question in test.Questions)
         {
             if (question.ExerciseId is not Guid exerciseId)
             {
                 if (string.IsNullOrWhiteSpace(question.SnapshotJson))
-                    throw new WritingConflictException("Câu hỏi trong đề chưa có nội dung.");
+                    throw new WritingConflictException("A question in the test has no content.");
                 continue;
             }
             var exercise = exercisesById[exerciseId];
             if (exercise.Status != WritingExerciseStatus.Published || exercise.Part != question.Part)
-                throw new WritingConflictException("Đề có bài tập chưa công bố hoặc không đúng Part.");
+                throw new WritingConflictException("The test contains an unpublished exercise or an exercise with a mismatched Part.");
             question.Freeze(JsonSerializer.Serialize(exercise.ToSnapshot()));
         }
         test.Publish(timeProvider.GetUtcNow(), request.ActorUserId);
@@ -296,7 +296,7 @@ public sealed class PublishWritingTestCommandHandler(IWritingAdminRepository rep
                 .OrderBy(question => question.SequenceNumber).ToArray();
             if (selected.Length != expectedCount || selected.Select(question => question.SequenceNumber)
                     .SequenceEqual(Enumerable.Range(1, expectedCount)) is false)
-                throw new WritingConflictException($"Writing {part} phải có đúng {expectedCount} câu theo thứ tự liên tục.");
+                throw new WritingConflictException($"Writing {part} must have exactly {expectedCount} questions in consecutive order.");
         }
     }
 }

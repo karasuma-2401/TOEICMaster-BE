@@ -22,7 +22,7 @@ public sealed class GetAdminWritingEvaluationQueryHandler(IWritingAttemptReposit
         var attempt = await attemptRepository.GetAttemptAsync(request.AttemptId, cancellationToken)
             ?? throw new WritingAttemptNotFoundException();
         var evaluation = await evaluationRepository.GetByAttemptIdAsync(attempt.Id, cancellationToken)
-            ?? throw new WritingAttemptConflictException("Lượt làm Writing này chưa có kết quả AI để review.");
+            ?? throw new WritingAttemptConflictException("This Writing attempt does not have an AI evaluation result to review yet.");
         return attempt.ToDto(timeProvider.GetUtcNow(), evaluation);
     }
 }

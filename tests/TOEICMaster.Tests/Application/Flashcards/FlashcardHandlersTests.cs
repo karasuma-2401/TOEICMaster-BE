@@ -101,15 +101,15 @@ public sealed class FlashcardHandlersTests
             new CreateFlashcardDeckCommand(
                 ownerId,
                 new CreateFlashcardDeckRequest(
-                    "Từ vựng Part 7",
-                    "Ghi chú ôn thi",
-                    [new CreateFlashcardCardRequest("reimburse", "/ˌriː.ɪmˈbɜːrs/", "verb", "hoàn trả chi phí", "Keep receipts.", "Giữ hóa đơn.", ["reimburse expenses"], "Part 7", "B2")])),
+                    "Part 7 Vocabulary",
+                    "Exam study notes",
+                    [new CreateFlashcardCardRequest("reimburse", "/ˌriː.ɪmˈbɜːrs/", "verb", "reimburse expenses", "Keep receipts.", "Keep receipts.", ["reimburse expenses"], "Part 7", "B2")])),
             CancellationToken.None);
 
         Assert.True(created.IsCustom);
         Assert.Equal("custom", created.Category);
         Assert.Single(created.Cards);
-        Assert.StartsWith("tu-vung-part-7-", created.Slug);
+        Assert.StartsWith("part-7-vocabulary-", created.Slug);
 
         var deleteHandler = new DeleteFlashcardDeckCommandHandler(repo);
         Assert.False(await deleteHandler.Handle(new DeleteFlashcardDeckCommand(otherUserId, created.Id), CancellationToken.None));
@@ -126,12 +126,12 @@ public sealed class FlashcardHandlersTests
         var builtInDeck = FlashcardDeck.CreateBuiltIn(
             Guid.NewGuid(),
             "office-operations",
-            "Văn phòng",
-            "Mô tả",
+            "Office",
+            "Description",
             FlashcardCategories.Office,
             "500+",
             5,
-            [(builtInCardId, new FlashcardCardInput("agenda", null, "noun", "chương trình họp", null, null, null, "Part 3", "B1"))],
+            [(builtInCardId, new FlashcardCardInput("agenda", null, "noun", "meeting agenda", null, null, null, "Part 3", "B1"))],
             DateTimeOffset.UtcNow);
         repo.Decks.Add(builtInDeck);
 
@@ -192,9 +192,9 @@ public sealed class FlashcardHandlersTests
             new CreateFlashcardDeckCommand(
                 ownerId,
                 new CreateFlashcardDeckRequest(
-                    "Từ vựng riêng",
+                    "Personal Vocabulary",
                     null,
-                    [new CreateFlashcardCardRequest("agenda", null, "noun", "chương trình họp", null, null, null, null, "B1")])),
+                    [new CreateFlashcardCardRequest("agenda", null, "noun", "meeting agenda", null, null, null, null, "B1")])),
             CancellationToken.None);
 
         var addHandler = new AddFlashcardCardCommandHandler(repo, TimeProvider.System);
@@ -202,7 +202,7 @@ public sealed class FlashcardHandlersTests
             new AddFlashcardCardCommand(
                 otherUserId,
                 deck.Id,
-                new CreateFlashcardCardRequest("invoice", null, "noun", "hóa đơn", null, null, null, null, "B1")),
+                new CreateFlashcardCardRequest("invoice", null, "noun", "invoice", null, null, null, null, "B1")),
             CancellationToken.None);
         Assert.Null(forbidden);
 
@@ -210,7 +210,7 @@ public sealed class FlashcardHandlersTests
             new AddFlashcardCardCommand(
                 ownerId,
                 deck.Id,
-                new CreateFlashcardCardRequest("invoice", "/ˈɪn.vɔɪs/", "noun", "hóa đơn", "Check the invoice.", "Kiểm tra hóa đơn.", ["issue an invoice"], "Part 7", "B2")),
+                new CreateFlashcardCardRequest("invoice", "/ˈɪn.vɔɪs/", "noun", "invoice", "Check the invoice.", "Check the invoice.", ["issue an invoice"], "Part 7", "B2")),
             CancellationToken.None);
 
         Assert.NotNull(added);
@@ -226,12 +226,12 @@ public sealed class FlashcardHandlersTests
         var deck = FlashcardDeck.CreateBuiltIn(
             Guid.NewGuid(),
             "office-operations",
-            "Văn phòng",
-            "Mô tả",
+            "Office",
+            "Description",
             FlashcardCategories.Office,
             "500+",
             5,
-            [(Guid.NewGuid(), new FlashcardCardInput("agenda", null, "noun", "chương trình họp", null, null, null, "Part 3", "B1"))],
+            [(Guid.NewGuid(), new FlashcardCardInput("agenda", null, "noun", "meeting agenda", null, null, null, "Part 3", "B1"))],
             DateTimeOffset.UtcNow);
         repo.Decks.Add(deck);
 

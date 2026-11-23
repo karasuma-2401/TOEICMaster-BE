@@ -47,7 +47,7 @@ public sealed class RateLimitingApiTests
         Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
         Assert.NotNull(rejected.Headers.RetryAfter?.Delta);
         Assert.Equal("application/problem+json", rejected.Content.Headers.ContentType?.MediaType);
-        Assert.Equal("Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.", problem?.Title);
+        Assert.Equal("Too many requests. Please try again later.", problem?.Title);
         Assert.False(string.IsNullOrWhiteSpace(problem?.TraceId));
     }
 

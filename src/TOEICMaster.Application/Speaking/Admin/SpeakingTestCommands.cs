@@ -27,13 +27,13 @@ public sealed class CloneSpeakingTestCommandHandler(ISpeakingAdminRepository rep
         CancellationToken cancellationToken)
     {
         var source = await repository.FindTestAsync(request.TestId, cancellationToken)
-            ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
+            ?? throw new SpeakingNotFoundException("Speaking test not found.");
         if (source.Test.Version != request.ExpectedVersion)
-            throw new SpeakingConflictException("Đề đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.", "VERSION_CONFLICT");
+            throw new SpeakingConflictException("The test was modified elsewhere. Please reload the data.", "VERSION_CONFLICT");
         var metadata = await SpeakingTestInputs.ValidateAsync(new SpeakingTestInput(request.Code,
             request.Title, source.Test.Description, null), cancellationToken);
         if (await repository.TestCodeExistsAsync(metadata.Code!, null, cancellationToken))
-            throw new SpeakingConflictException("Mã đề Speaking đã tồn tại.", "DUPLICATE_CODE");
+            throw new SpeakingConflictException("Speaking test code already exists.", "DUPLICATE_CODE");
 
         // Copy test-owned snapshots so later exercise-bank edits cannot alter the cloned content.
         var detail = source.ToDetailDto(await SpeakingTestInputs.LoadDetailExercisesAsync(source, repository,
@@ -74,12 +74,12 @@ public sealed class DeleteSpeakingTestDraftCommandHandler(ISpeakingAdminReposito
     public async Task Handle(DeleteSpeakingTestDraftCommand request, CancellationToken cancellationToken)
     {
         var loaded = await repository.FindTestForUpdateAsync(request.TestId, cancellationToken)
-            ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
+            ?? throw new SpeakingNotFoundException("Speaking test not found.");
         var test = loaded.Test;
         if (test.Version != request.ExpectedVersion)
-            throw new SpeakingConflictException("Đề đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.", "VERSION_CONFLICT");
+            throw new SpeakingConflictException("The test was modified elsewhere. Please reload the data.", "VERSION_CONFLICT");
         if (!test.IsDraft)
-            throw new SpeakingConflictException("Chỉ có thể xóa đề nháp. Đề đã công bố không thể xóa.");
+            throw new SpeakingConflictException("Only draft tests can be deleted. Published tests cannot be deleted.");
         repository.RemoveTest(test);
         await repository.SaveChangesAsync(cancellationToken);
     }
@@ -93,7 +93,7 @@ public sealed class CreateSpeakingTestCommandHandler(ISpeakingAdminRepository re
     {
         var input = await SpeakingTestInputs.ValidateAsync(request.Input, cancellationToken);
         if (await repository.TestCodeExistsAsync(input.Code!, null, cancellationToken))
-            throw new SpeakingConflictException("Mã đề Speaking đã tồn tại.", "DUPLICATE_CODE");
+            throw new SpeakingConflictException("Speaking test code already exists.", "DUPLICATE_CODE");
         var direct = SpeakingTestInputs.IsDirect(input);
         if (!direct && input.Exercises is null)
             throw SpeakingTestInputs.MissingExercises();
@@ -120,16 +120,16 @@ public sealed class UpdateSpeakingTestCommandHandler(ISpeakingAdminRepository re
     {
         var input = await SpeakingTestInputs.ValidateAsync(request.Input, cancellationToken);
         var loaded = await repository.FindTestForUpdateAsync(request.TestId, cancellationToken)
-            ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
+            ?? throw new SpeakingNotFoundException("Speaking test not found.");
         var test = loaded.Test;
         if (test.Version != request.ExpectedVersion)
-            throw new SpeakingConflictException("Đề đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.", "VERSION_CONFLICT");
+            throw new SpeakingConflictException("The test was modified elsewhere. Please reload the data.", "VERSION_CONFLICT");
         if (await repository.TestCodeExistsAsync(input.Code!, test.Id, cancellationToken))
-            throw new SpeakingConflictException("Mã đề Speaking đã tồn tại.", "DUPLICATE_CODE");
+            throw new SpeakingConflictException("Speaking test code already exists.", "DUPLICATE_CODE");
         if (!test.IsDraft)
         {
             if (test.ContentMode != SpeakingTestContentMode.ExerciseBank)
-                throw new SpeakingConflictException("Đề đã công bố không thể chỉnh sửa.");
+                throw new SpeakingConflictException("Published tests cannot be edited.");
             test.UpdateLegacyMetadata(input.Code!, input.Title!, input.Description!, request.ActorUserId,
                 timeProvider.GetUtcNow());
             await repository.SaveChangesAsync(cancellationToken);
@@ -139,7 +139,7 @@ public sealed class UpdateSpeakingTestCommandHandler(ISpeakingAdminRepository re
 
         var direct = test.ContentMode == SpeakingTestContentMode.Direct;
         if (direct != SpeakingTestInputs.IsDirect(input))
-            throw new SpeakingConflictException("Không thể đổi nguồn nội dung của đề Speaking đã tạo.");
+            throw new SpeakingConflictException("Cannot change the content mode of an existing Speaking test.");
         test.UpdateDraft(input.Code!, input.Title!, input.Description!, request.ActorUserId, timeProvider.GetUtcNow());
         if (direct)
         {
@@ -173,12 +173,12 @@ public sealed class PublishSpeakingTestCommandHandler(ISpeakingAdminRepository r
         CancellationToken cancellationToken)
     {
         var loaded = await repository.FindTestForUpdateAsync(request.TestId, cancellationToken)
-            ?? throw new SpeakingNotFoundException("Không tìm thấy đề Speaking.");
+            ?? throw new SpeakingNotFoundException("Speaking test not found.");
         var test = loaded.Test;
         if (test.Version != request.ExpectedVersion)
-            throw new SpeakingConflictException("Đề đã bị thay đổi ở nơi khác. Hãy tải lại dữ liệu.", "VERSION_CONFLICT");
+            throw new SpeakingConflictException("The test was modified elsewhere. Please reload the data.", "VERSION_CONFLICT");
         if (!test.IsDraft)
-            throw new SpeakingConflictException("Đề Speaking này đã được công bố.");
+            throw new SpeakingConflictException("This Speaking test is already published.");
 
         if (test.ContentMode == SpeakingTestContentMode.Direct)
         {
@@ -216,29 +216,29 @@ public sealed class PublishSpeakingTestCommandHandler(ISpeakingAdminRepository r
     {
         var errors = new Dictionary<string, string[]>();
         if (string.IsNullOrWhiteSpace(test.Code))
-            errors["Code"] = ["Đề cần có mã."];
+            errors["Code"] = ["Test code is required."];
         if (string.IsNullOrWhiteSpace(test.Title))
-            errors["Title"] = ["Đề cần có tên."];
+            errors["Title"] = ["Test title is required."];
         for (var part = SpeakingTiming.MinPart; part <= SpeakingTiming.MaxPart; part++)
         {
             var expected = SpeakingTiming.SlotsPerPart(part);
             var sequence = slots.Where(slot => slot.Part == part).Select(slot => slot.SequenceNumber).Order().ToArray();
             if (!sequence.SequenceEqual(Enumerable.Range(1, expected)))
-                errors[$"Part{part}"] = [$"Part {part} cần đúng {expected} bài, đánh số liên tục từ 1."];
+                errors[$"Part{part}"] = [$"Part {part} requires exactly {expected} exercises, numbered consecutively from 1."];
         }
 
         var exerciseErrors = new List<string>();
         if (slots.Select(slot => slot.ExerciseId).Distinct().Count() != slots.Count)
-            exerciseErrors.Add("Một bài tập không được lặp lại trong cùng một đề.");
+            exerciseErrors.Add("An exercise cannot be repeated in the same test.");
         foreach (var slot in slots.OrderBy(slot => slot.Part).ThenBy(slot => slot.SequenceNumber))
         {
-            var label = $"Part {slot.Part} · bài {slot.SequenceNumber}";
+            var label = $"Part {slot.Part} · exercise {slot.SequenceNumber}";
             if (slot.ExerciseId is not { } exerciseId || !exercises.TryGetValue(exerciseId, out var exercise))
-                exerciseErrors.Add($"{label}: bài tập không tồn tại.");
+                exerciseErrors.Add($"{label}: exercise does not exist.");
             else if (exercise.Part != slot.Part)
-                exerciseErrors.Add($"{label}: bài tập {exercise.Code} thuộc Part {exercise.Part}.");
+                exerciseErrors.Add($"{label}: exercise {exercise.Code} belongs to Part {exercise.Part}.");
             else if (exercise.Status != SpeakingExerciseStatus.Published)
-                exerciseErrors.Add($"{label}: bài tập {exercise.Code} chưa được công bố.");
+                exerciseErrors.Add($"{label}: exercise {exercise.Code} is not published yet.");
         }
         if (exerciseErrors.Count > 0)
             errors["Exercises"] = exerciseErrors.ToArray();
@@ -250,19 +250,19 @@ public sealed class PublishSpeakingTestCommandHandler(ISpeakingAdminRepository r
     {
         var errors = new Dictionary<string, string[]>();
         if (string.IsNullOrWhiteSpace(test.Code))
-            errors["Code"] = ["Đề cần có mã."];
+            errors["Code"] = ["Test code is required."];
         if (string.IsNullOrWhiteSpace(test.Title))
-            errors["Title"] = ["Đề cần có tên."];
+            errors["Title"] = ["Test title is required."];
         for (var part = SpeakingTiming.MinPart; part <= SpeakingTiming.MaxPart; part++)
         {
             var expected = SpeakingTiming.SlotsPerPart(part);
             var sequence = slots.Where(slot => slot.Part == part && slot.ContentJson is not null)
                 .Select(slot => slot.SequenceNumber).Order().ToArray();
             if (!sequence.SequenceEqual(Enumerable.Range(1, expected)))
-                errors[$"Part{part}"] = [$"Part {part} cần đúng {expected} nội dung, đánh số liên tục từ 1."];
+                errors[$"Part{part}"] = [$"Part {part} requires exactly {expected} items, numbered consecutively from 1."];
         }
         if (slots.Any(slot => slot.ExerciseId is not null || slot.ContentJson is null))
-            errors["Questions"] = ["Đề trực tiếp chỉ được chứa nội dung thuộc chính đề."];
+            errors["Questions"] = ["A direct test may only contain test-owned content."];
         return errors;
     }
 
@@ -287,7 +287,7 @@ public sealed class PublishSpeakingTestCommandHandler(ISpeakingAdminRepository r
             }
             catch (JsonException)
             {
-                AddErrors(errors, key, ["Nội dung bản nháp không đọc được."]);
+                AddErrors(errors, key, ["Draft content could not be read."]);
             }
         }
         var contentErrors = await SpeakingTestContentRules.CheckAsync(slots
@@ -330,7 +330,7 @@ internal static class SpeakingTestInputs
         mode == SpeakingTestContentMode.Direct;
 
     public static ValidationException MissingExercises() => new([
-        new ValidationFailure("Exercises", "Danh sách bài tập là bắt buộc.")
+        new ValidationFailure("Exercises", "Exercise list is required.")
     ]);
 
     /// <summary>Draft slots may be incomplete, but each chosen exercise must exist in the matching Part.</summary>
@@ -343,7 +343,7 @@ internal static class SpeakingTestInputs
         var failures = slots.Where(slot => !exercises.TryGetValue(slot.ExerciseId, out var exercise) ||
                                            exercise.Part != slot.Part)
             .Select(slot => new ValidationFailure("Exercises",
-                $"Part {slot.Part} · bài {slot.SequenceNumber}: bài tập không tồn tại hoặc không thuộc Part {slot.Part}."))
+                $"Part {slot.Part} · exercise {slot.SequenceNumber}: exercise does not exist or does not belong to Part {slot.Part}."))
             .ToArray();
         if (failures.Length > 0)
             throw new ValidationException(failures);
@@ -396,13 +396,13 @@ internal static class SpeakingTestInputs
     }
 
     internal static SpeakingExerciseInput ToDirectExerciseInput(int part, SpeakingTestQuestionContentDto content) =>
-        new(part, "DIRECT", "Nội dung đề", "MEDIUM", "DRAFT", content.RubricNotes, content.ModelAnswer,
+        new(part, "DIRECT", "Test content", "MEDIUM", "DRAFT", content.RubricNotes, content.ModelAnswer,
             content.Passage, content.ImageAssetId, content.ImageAlt, content.Context, content.Questions,
             content.DocumentTitle, content.DocumentRows?.Select(row => new SpeakingInfoRowInput(row.Label,
                 row.Value)).ToArray(), content.CallerIntro, content.Prompt);
 
     private static SpeakingExerciseInput ToDirectExerciseInput(int part, SpeakingTestQuestionContentInput content) =>
-        new(part, "DIRECT", "Nội dung đề", "MEDIUM", "DRAFT", content.RubricNotes, content.ModelAnswer,
+        new(part, "DIRECT", "Test content", "MEDIUM", "DRAFT", content.RubricNotes, content.ModelAnswer,
             content.Passage, content.ImageAssetId, content.ImageAlt, content.Context, content.Questions,
             content.DocumentTitle, content.DocumentRows, content.CallerIntro, content.Prompt);
 
@@ -427,7 +427,7 @@ internal static class SpeakingTestInputs
                 AddLimit(errors, "DocumentTitle", content.DocumentTitle, 200);
                 AddLimit(errors, "CallerIntro", content.CallerIntro, 400);
                 if (content.DocumentRows?.Count > 20)
-                    errors.Add(new ValidationFailure("DocumentRows", "Tài liệu tối đa 20 dòng."));
+                    errors.Add(new ValidationFailure("DocumentRows", "Document must not exceed 20 rows."));
                 foreach (var row in content.DocumentRows ?? [])
                 {
                     AddLimit(errors, "DocumentRows", row?.Label, 40);
@@ -446,7 +446,7 @@ internal static class SpeakingTestInputs
     private static void AddQuestionLimits(List<ValidationFailure> errors, IReadOnlyList<string?>? questions)
     {
         if (questions?.Count > 3)
-            errors.Add(new ValidationFailure("Questions", "Tối đa 3 câu hỏi."));
+            errors.Add(new ValidationFailure("Questions", "Maximum 3 questions allowed."));
         foreach (var question in questions ?? [])
             AddLimit(errors, "Questions", question, 300);
     }
@@ -454,6 +454,6 @@ internal static class SpeakingTestInputs
     private static void AddLimit(List<ValidationFailure> errors, string field, string? value, int maximum)
     {
         if (value?.Trim().Length > maximum)
-            errors.Add(new ValidationFailure(field, $"{field} tối đa {maximum} ký tự."));
+            errors.Add(new ValidationFailure(field, $"{field} must not exceed {maximum} characters."));
     }
 }

@@ -22,7 +22,7 @@ public sealed class DeleteAdminUserCommandHandler(IAdminUserRepository repositor
     {
         if (request.ActorUserId == request.TargetUserId)
             throw new AdminUserOperationConflictException("CANNOT_DELETE_SELF",
-                "Không thể tự xóa tài khoản quản trị của chính mình.");
+                "Cannot delete your own admin account.");
 
         var avatarObjectKey = await repository.DeleteAsync(request.ActorUserId, request.TargetUserId, cancellationToken);
         if (avatarObjectKey is not null)

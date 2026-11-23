@@ -8,16 +8,16 @@ public sealed class RegisterCommandValidator : AbstractValidator<RegisterCommand
     public RegisterCommandValidator()
     {
         RuleFor(command => command.DisplayName).Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Tên hiển thị là bắt buộc.")
+            .NotEmpty().WithMessage("Display name is required.")
             .Must(displayName => displayName.Trim().Length <= 100)
-            .WithMessage("Tên hiển thị không được vượt quá 100 ký tự.");
+            .WithMessage("Display name must not exceed 100 characters.");
         RuleFor(command => command.Email).Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Email là bắt buộc.")
-            .Must(email => email.Trim().Length <= 254).WithMessage("Email không hợp lệ.")
-            .Must(email => new EmailAddressAttribute().IsValid(email.Trim())).WithMessage("Email không hợp lệ.");
+            .NotEmpty().WithMessage("Email is required.")
+            .Must(email => email.Trim().Length <= 254).WithMessage("Invalid email.")
+            .Must(email => new EmailAddressAttribute().IsValid(email.Trim())).WithMessage("Invalid email.");
         RuleFor(command => command.Password)
-            .NotEmpty().WithMessage("Mật khẩu là bắt buộc.")
-            .MinimumLength(8).WithMessage("Mật khẩu cần từ 8 đến 128 ký tự.")
-            .MaximumLength(128).WithMessage("Mật khẩu cần từ 8 đến 128 ký tự.");
+            .NotEmpty().WithMessage("Password is required.")
+            .MinimumLength(8).WithMessage("Password must be between 8 and 128 characters.")
+            .MaximumLength(128).WithMessage("Password must be between 8 and 128 characters.");
     }
 }

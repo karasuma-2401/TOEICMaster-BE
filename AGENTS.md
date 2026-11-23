@@ -1,29 +1,29 @@
-# AI Guidance — TOEICMaster Backend
+# AI Guidance - TOEICMaster Backend
 
 This file is the top-level entrypoint for AI coding assistants. Read this file first, then route to the required documentation before editing code. In the two-repository workspace, also read `../AGENTS.md`.
 
 ---
 
-## 1. AI Context Routing Matrix (Tài liệu bắt buộc theo tác vụ)
+## 1. AI Context Routing Matrix (Required Documents by Task)
 
 Do not scan entire folders. Load only the targeted document required for your active task:
 
-| Nhiệm vụ / Task | Tài liệu bắt buộc nạp / Required Context |
+| Task | Required Context |
 | :--- | :--- |
-| **Phát triển tính năng (Feature Work)** | `docs/features/<feature>/spec.md` + `docs/contracts/api-contract.md` |
-| **Quy trình code & Testing mẫu** | `docs/foundations/feature-development.md` |
-| **Giao ước API (API Contracts / BFF)** | `docs/contracts/api-contract.md` |
-| **Kiến trúc hệ thống & Layering** | `docs/foundations/architecture.md` |
-| **Giao diện Figma & Design Tokens** | `docs/ui-ux/screens-inventory.md` + `docs/ui-ux/design-tokens.md` |
-| **Quyết định kiến trúc lịch sử (ADR)** | `docs/decisions/` (e.g. `001-admin-lr-exam-revisions.md`) |
-| **Kịch bản kiểm thử UAT & Vận hành** | `docs/runbooks/` (e.g. `writing-uat-runbook.md`) |
-| **Đặc tả toàn dự án (PRD tổng thể)** | `docs/specs/prd-mvp.md` |
+| **Feature Work** | `docs/features/<feature>/spec.md` + `docs/contracts/api-contract.md` |
+| **Code Workflow & Testing Patterns** | `docs/foundations/feature-development.md` |
+| **API Contracts / BFF** | `docs/contracts/api-contract.md` |
+| **System Architecture & Layering** | `docs/foundations/architecture.md` |
+| **Figma UI & Design Tokens** | `docs/ui-ux/screens-inventory.md` + `docs/ui-ux/design-tokens.md` |
+| **Architecture Decision Records (ADR)** | `docs/decisions/` (e.g. `001-admin-lr-exam-revisions.md`) |
+| **UAT & Operations Runbooks** | `docs/runbooks/` (e.g. `writing-uat-runbook.md`) |
+| **Project-Wide Specs (Master PRD)** | `docs/specs/prd-mvp.md` |
 
 *(To start a new feature, clone `docs/features/_template/` to `docs/features/<feature-name>/`).*
 
 ---
 
-## 2. Hard Architectural & Safety Guardrails (Lệnh cấm tuyệt đối)
+## 2. Hard Architectural & Safety Guardrails (Zero-Tolerance Rules)
 
 AI assistants MUST strictly comply with these zero-tolerance guardrails:
 
@@ -44,7 +44,7 @@ AI assistants MUST strictly comply with these zero-tolerance guardrails:
 
 ---
 
-## 3. Standard Verification Commands (Kiểm chứng kết quả)
+## 3. Standard Verification Commands
 
 Always run these commands from the backend repository root before completing a code change:
 

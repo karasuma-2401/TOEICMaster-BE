@@ -22,12 +22,12 @@ public sealed class GetAdminKnowledgeCategoriesQueryValidator : AbstractValidato
         {
             RuleFor(x => x.Filter.PageNumber).Cascade(CascadeMode.Stop).GreaterThanOrEqualTo(1)
                 .Must((query, pageNumber) => KnowledgePagination.CanRepresentOffset(pageNumber, query.Filter.PageSize))
-                .WithMessage("Số trang vượt quá giới hạn cho kích thước trang đã chọn.");
+                .WithMessage("Page number exceeds the limit for the selected page size.");
             RuleFor(x => x.Filter.PageSize).InclusiveBetween(1, 100);
             RuleFor(x => x.Filter.Query).MaximumLength(100);
             RuleFor(x => x.Filter.Sort)
                 .Must(sort => string.IsNullOrWhiteSpace(sort) || AllowedSorts.Contains(sort.Trim()))
-                .WithMessage("Kiểu sắp xếp danh mục không hợp lệ.");
+                .WithMessage("Invalid category sort option.");
         });
     }
 }
@@ -55,7 +55,7 @@ public sealed class CreateKnowledgeCategoryCommandValidator : AbstractValidator<
             RuleFor(x => x.Input.Slug).MaximumLength(120)
                 .Must(slug => string.IsNullOrWhiteSpace(slug) ||
                               KnowledgeSlug.IsValid(slug.Trim().ToLowerInvariant(), 120))
-                .WithMessage("Slug chỉ gồm chữ thường không dấu, số và dấu gạch ngang.");
+                .WithMessage("Slug may only contain lowercase unaccented letters, numbers, and hyphens.");
             RuleFor(x => x.Input.Description).MaximumLength(500);
             RuleFor(x => x.Input.DisplayOrder).GreaterThanOrEqualTo(0);
         });
@@ -71,10 +71,10 @@ public sealed class CreateKnowledgeCategoryCommandHandler(
     {
         var slug = KnowledgeSlug.Resolve(request.Input.Slug, request.Input.Name, 120);
         if (!KnowledgeSlug.IsValid(slug, 120))
-            throw new InvalidKnowledgeContentException("Không thể tạo slug hợp lệ từ tên danh mục. Hãy nhập slug thủ công.", "slug");
+            throw new InvalidKnowledgeContentException("Could not generate a valid slug from the category name. Please enter a slug manually.", "slug");
 
         if (await repository.CategorySlugExistsAsync(slug, null, cancellationToken))
-            throw new KnowledgeConflictException($"Slug danh mục '{slug}' đã tồn tại.");
+            throw new KnowledgeConflictException($"Category slug '{slug}' already exists.");
 
         var now = timeProvider.GetUtcNow();
         var category = KnowledgeCategory.Create(request.Input.Name, slug, request.Input.Description,
@@ -107,7 +107,7 @@ public sealed class UpdateKnowledgeCategoryCommandValidator : AbstractValidator<
             RuleFor(x => x.Input.Slug).MaximumLength(120)
                 .Must(slug => string.IsNullOrWhiteSpace(slug) ||
                               KnowledgeSlug.IsValid(slug.Trim().ToLowerInvariant(), 120))
-                .WithMessage("Slug chỉ gồm chữ thường không dấu, số và dấu gạch ngang.");
+                .WithMessage("Slug may only contain lowercase unaccented letters, numbers, and hyphens.");
             RuleFor(x => x.Input.Description).MaximumLength(500);
             RuleFor(x => x.Input.DisplayOrder).GreaterThanOrEqualTo(0);
         });
@@ -122,16 +122,16 @@ public sealed class UpdateKnowledgeCategoryCommandHandler(
         CancellationToken cancellationToken)
     {
         var category = await repository.FindCategoryForUpdateAsync(request.CategoryId, cancellationToken)
-            ?? throw new KnowledgeNotFoundException("Không tìm thấy danh mục kiến thức.");
+            ?? throw new KnowledgeNotFoundException("Knowledge category not found.");
         if (category.Version != request.Version)
-            throw new KnowledgeConflictException("Danh mục đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
+            throw new KnowledgeConflictException("Category was updated by another user. Please reload the data.");
 
         var slug = KnowledgeSlug.Resolve(request.Input.Slug, request.Input.Name, 120);
         if (!KnowledgeSlug.IsValid(slug, 120))
-            throw new InvalidKnowledgeContentException("Không thể tạo slug hợp lệ từ tên danh mục. Hãy nhập slug thủ công.", "slug");
+            throw new InvalidKnowledgeContentException("Could not generate a valid slug from the category name. Please enter a slug manually.", "slug");
 
         if (await repository.CategorySlugExistsAsync(slug, category.Id, cancellationToken))
-            throw new KnowledgeConflictException($"Slug danh mục '{slug}' đã tồn tại.");
+            throw new KnowledgeConflictException($"Category slug '{slug}' already exists.");
 
         category.Update(request.Input.Name, slug, request.Input.Description, request.Input.DisplayOrder,
             request.ActorUserId, timeProvider.GetUtcNow());
@@ -160,13 +160,13 @@ public sealed class DeleteKnowledgeCategoryCommandHandler(IKnowledgeAdminReposit
     public async Task Handle(DeleteKnowledgeCategoryCommand request, CancellationToken cancellationToken)
     {
         var category = await repository.FindCategoryForUpdateAsync(request.CategoryId, cancellationToken)
-            ?? throw new KnowledgeNotFoundException("Không tìm thấy danh mục kiến thức.");
+            ?? throw new KnowledgeNotFoundException("Knowledge category not found.");
         if (category.Version != request.Version)
-            throw new KnowledgeConflictException("Danh mục đã được cập nhật bởi người khác. Hãy tải lại dữ liệu.");
+            throw new KnowledgeConflictException("Category was updated by another user. Please reload the data.");
 
         if (await repository.CategoryHasArticlesAsync(category.Id, cancellationToken))
             throw new KnowledgeConflictException(
-                "Không thể xóa danh mục đang có bài viết thuộc về nó. Hãy chuyển các bài viết sang danh mục khác trước.");
+                "Cannot delete a category that still contains articles. Move the articles to another category first.");
 
         repository.RemoveCategory(category);
         await repository.SaveChangesAsync(cancellationToken);

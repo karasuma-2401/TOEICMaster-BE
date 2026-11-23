@@ -11,9 +11,9 @@ public static class KnowledgeImageSignature
     public static ValidatedKnowledgeImage Validate(byte[] content)
     {
         if (content is null || content.Length == 0)
-            throw new InvalidKnowledgeMediaException("Tệp hình ảnh không được để trống.");
+            throw new InvalidKnowledgeMediaException("Image file cannot be empty.");
         if (content.Length > MaxBytes)
-            throw new KnowledgeMediaTooLargeException("Hình ảnh vượt quá giới hạn tối đa 5 MiB.");
+            throw new KnowledgeMediaTooLargeException("Image exceeds the maximum limit of 5 MiB.");
 
         string? contentType = null;
         string? extension = null;
@@ -35,7 +35,7 @@ public static class KnowledgeImageSignature
         }
 
         if (contentType is null || extension is null)
-            throw new InvalidKnowledgeMediaException("Hình ảnh phải là định dạng PNG, JPEG hoặc WebP hợp lệ.");
+            throw new InvalidKnowledgeMediaException("Image must be a valid PNG, JPEG, or WebP format.");
 
         var sha256 = Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
         return new ValidatedKnowledgeImage(contentType, extension, sha256);

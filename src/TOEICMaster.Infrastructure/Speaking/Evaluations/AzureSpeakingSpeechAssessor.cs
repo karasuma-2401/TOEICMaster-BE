@@ -25,7 +25,7 @@ public sealed class AzureSpeakingSpeechAssessor(HttpClient httpClient, IOptions<
         var configuration = options.Value;
         if (!configuration.Enabled || string.IsNullOrWhiteSpace(configuration.Key))
             throw new SpeakingEvaluatorException("NOT_CONFIGURED",
-                "Dịch vụ chấm AI Speaking chưa được cấu hình. Bài làm của bạn vẫn được lưu.", false);
+                "Speaking AI evaluation service is not configured. Your attempt is still saved.", false);
 
         var chunks = await converter.ToWavChunksAsync(audio, contentType, cancellationToken);
         var results = new List<ChunkResult>();
@@ -84,13 +84,13 @@ public sealed class AzureSpeakingSpeechAssessor(HttpClient httpClient, IOptions<
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
             throw new SpeakingEvaluatorException("SPEECH_TIMEOUT",
-                "Nhận diện giọng nói đang mất nhiều thời gian hơn dự kiến. Hệ thống sẽ thử lại.", true,
+                "Speech recognition is taking longer than expected. The system will retry.", true,
                 innerException: exception);
         }
         catch (HttpRequestException exception)
         {
             throw new SpeakingEvaluatorException("SPEECH_NETWORK_ERROR",
-                "Không thể kết nối dịch vụ nhận diện giọng nói. Hệ thống sẽ thử lại.", true, innerException: exception);
+                "Could not connect to the speech recognition service. The system will retry.", true, innerException: exception);
         }
 
         using (response)
@@ -134,7 +134,7 @@ public sealed class AzureSpeakingSpeechAssessor(HttpClient httpClient, IOptions<
     {
         if (status == HttpStatusCode.BadRequest)
             throw new SpeakingEvaluatorException("SPEECH_REJECTED",
-                "Dịch vụ nhận diện giọng nói không xử lý được bản ghi này.", false);
+                "The speech recognition service could not process this recording.", false);
     }
 
     internal static ChunkResult Recognition(JsonElement root, double seconds, bool requireScores)
@@ -144,7 +144,7 @@ public sealed class AzureSpeakingSpeechAssessor(HttpClient httpClient, IOptions<
             return ChunkResult.Silent(seconds);
         if (status != "Success")
             throw new SpeakingEvaluatorException("SPEECH_PROVIDER_ERROR",
-                "Dịch vụ nhận diện giọng nói đang gặp sự cố. Hệ thống sẽ thử lại.", true);
+                "The speech recognition service is experiencing an issue. The system will retry.", true);
         if (!root.TryGetProperty("NBest", out var candidates) || candidates.ValueKind != JsonValueKind.Array ||
             candidates.GetArrayLength() == 0)
             return ChunkResult.Silent(seconds);
@@ -159,7 +159,7 @@ public sealed class AzureSpeakingSpeechAssessor(HttpClient httpClient, IOptions<
         var pronunciation = Score(best, "PronScore");
         if (requireScores && (accuracy is null || fluency is null || pronunciation is null))
             throw new SpeakingEvaluatorException("PRONUNCIATION_UNAVAILABLE",
-                "Dịch vụ nhận diện giọng nói không trả về điểm phát âm. Hãy kiểm tra cấu hình Azure Speech.", false);
+                "The speech recognition service did not return pronunciation scores. Please check the Azure Speech configuration.", false);
 
         var issues = new List<SpeakingWordIssue>();
         if (best.TryGetProperty("Words", out var words) && words.ValueKind == JsonValueKind.Array)
@@ -225,16 +225,16 @@ public sealed class AzureSpeakingSpeechAssessor(HttpClient httpClient, IOptions<
             (int)response.StatusCode >= 500)
             return new SpeakingEvaluatorException(
                 response.StatusCode == HttpStatusCode.TooManyRequests ? "SPEECH_QUOTA" : "SPEECH_PROVIDER_ERROR",
-                "Dịch vụ nhận diện giọng nói đang bận. Hệ thống sẽ thử lại.", true, response.Headers.RetryAfter?.Delta);
+                "The speech recognition service is busy. The system will retry.", true, response.Headers.RetryAfter?.Delta);
         if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             return new SpeakingEvaluatorException("SPEECH_AUTHENTICATION",
-                "Dịch vụ nhận diện giọng nói chưa được cấu hình đúng.", false);
+                "The speech recognition service is not configured properly.", false);
         return new SpeakingEvaluatorException("SPEECH_REJECTED",
-            "Dịch vụ nhận diện giọng nói không xử lý được bản ghi này.", false);
+            "The speech recognition service could not process this recording.", false);
     }
 
     private static SpeakingEvaluatorException InvalidResponse(Exception innerException) => new(
-        "SPEECH_INVALID_RESPONSE", "Dịch vụ nhận diện giọng nói trả về kết quả không hợp lệ. Hệ thống sẽ thử lại.",
+        "SPEECH_INVALID_RESPONSE", "The speech recognition service returned an invalid response. The system will retry.",
         true, innerException: innerException);
 
     internal sealed record ChunkResult(bool Recognized, string Display, string Lexical, double Seconds,
