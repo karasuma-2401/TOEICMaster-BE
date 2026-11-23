@@ -14,7 +14,3 @@ coverage/
 
 # Local working notes (not committed)
 report.md
-
-# Local AI agent skills (not committed)
-.agents/
-skills-lock.json
