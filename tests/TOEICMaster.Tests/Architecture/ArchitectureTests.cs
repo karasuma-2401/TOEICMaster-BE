@@ -227,13 +227,15 @@ public sealed class ArchitectureTests
     }
 
     [Fact]
-    public void Application_and_infrastructure_use_TimeProvider_instead_of_DateTime_UtcNow_or_Now()
+    public void All_layers_use_TimeProvider_instead_of_DateTime_UtcNow_or_Now()
     {
         var root = FindRepoRoot();
         string[] targetDirs =
         [
+            Path.Combine(root.FullName, "src", "TOEICMaster.Domain"),
             Path.Combine(root.FullName, "src", "TOEICMaster.Application"),
-            Path.Combine(root.FullName, "src", "TOEICMaster.Infrastructure")
+            Path.Combine(root.FullName, "src", "TOEICMaster.Infrastructure"),
+            Path.Combine(root.FullName, "src", "TOEICMaster.Api")
         ];
 
         var pattern = new Regex(@"\bDateTime(?:Offset)?\.(?:UtcNow|Now)\b", RegexOptions.Compiled);
@@ -254,6 +256,35 @@ public sealed class ArchitectureTests
         }
 
         Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void Infrastructure_multi_collection_includes_use_AsSplitQuery()
+    {
+        var root = FindRepoRoot();
+        var persistenceDir = Path.Combine(root.FullName, "src", "TOEICMaster.Infrastructure", "Persistence");
+        var files = Directory.GetFiles(persistenceDir, "*.cs", SearchOption.AllDirectories);
+        Assert.NotEmpty(files);
+
+        var violations = new List<string>();
+        foreach (var file in files)
+        {
+            var text = File.ReadAllText(file);
+            var statements = Regex.Matches(text, @"(?:return\s+|await\s+|var\s+\w+\s*=\s*)([^;]+);", RegexOptions.Singleline);
+            foreach (Match statement in statements)
+            {
+                var expression = statement.Groups[1].Value;
+                var includeCount = Regex.Matches(expression, @"\.Include\s*\(").Count;
+                if (includeCount >= 2 && !expression.Contains(".AsSplitQuery(", StringComparison.Ordinal))
+                {
+                    var line = text[..statement.Index].Count(character => character == '\n') + 1;
+                    violations.Add($"{Path.GetRelativePath(root.FullName, file)}:{line}");
+                }
+            }
+        }
+
+        Assert.True(violations.Count == 0,
+            $"Multi-collection include queries must call .AsSplitQuery() to prevent Cartesian explosion.{Environment.NewLine}{string.Join(Environment.NewLine, violations)}");
     }
 
     [Fact]

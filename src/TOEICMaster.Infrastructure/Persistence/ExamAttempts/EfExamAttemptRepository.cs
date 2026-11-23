@@ -55,10 +55,12 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
     public async Task<ExamRevision?> FindPublishedRevisionForExamAsync(Guid examId, CancellationToken cancellationToken)
     {
         return await db.ExamRevisions
+            .AsNoTracking()
             .Include(r => r.Blocks)
                 .ThenInclude(b => b.Questions)
             .Include(r => r.Blocks)
                 .ThenInclude(b => b.ContextBlocks)
+            .AsSplitQuery()
             .Where(r => r.ExamId == examId && r.Status == ExamRevisionStatus.Published)
             .OrderByDescending(r => r.VersionNumber)
             .FirstOrDefaultAsync(cancellationToken);
@@ -67,16 +69,19 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
     public async Task<ExamRevision?> FindRevisionAsync(Guid revisionId, CancellationToken cancellationToken)
     {
         return await db.ExamRevisions
+            .AsNoTracking()
             .Include(r => r.Blocks)
                 .ThenInclude(b => b.Questions)
             .Include(r => r.Blocks)
                 .ThenInclude(b => b.ContextBlocks)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(r => r.Id == revisionId, cancellationToken);
     }
 
     public async Task<ScoreProfile?> FindScoreProfileAsync(Guid scoreProfileId, CancellationToken cancellationToken)
     {
         return await db.ScoreProfiles
+            .AsNoTracking()
             .Include(s => s.Conversions)
             .FirstOrDefaultAsync(s => s.Id == scoreProfileId, cancellationToken);
     }

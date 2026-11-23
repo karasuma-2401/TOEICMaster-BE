@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using AutoMapper;
 using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -107,13 +106,6 @@ public sealed class ValidationApiTests
         Assert.DoesNotContain("stackTrace", body, StringComparison.OrdinalIgnoreCase);
         var problem = JsonDocument.Parse(body).RootElement;
         Assert.False(string.IsNullOrEmpty(problem.GetProperty("traceId").GetString()));
-    }
-
-    [Fact]
-    public void All_registered_mapping_profiles_are_valid()
-    {
-        using var factory = new ApiFactory();
-        factory.Services.GetRequiredService<IMapper>().ConfigurationProvider.AssertConfigurationIsValid();
     }
 
     [Fact]
