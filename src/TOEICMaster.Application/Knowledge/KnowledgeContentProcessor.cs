@@ -150,7 +150,9 @@ public static partial class KnowledgeContentProcessor
             var isSafe = href.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
                          href.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                          href.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) ||
-                         href.StartsWith("/", StringComparison.Ordinal) ||
+                         (href.StartsWith("/", StringComparison.Ordinal) &&
+                          !href.StartsWith("//", StringComparison.Ordinal) &&
+                          !href.StartsWith("/\\", StringComparison.Ordinal)) ||
                          href.StartsWith("#", StringComparison.Ordinal);
             if (!isSafe)
                 throw InvalidContent("Links in articles only accept http, https, mailto, or internal paths.");

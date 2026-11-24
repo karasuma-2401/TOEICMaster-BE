@@ -118,6 +118,34 @@ public sealed class KnowledgeAdminApplicationTests
 
         Assert.Throws<InvalidKnowledgeContentException>(() => KnowledgeContentProcessor.Process(unsafeLink));
         Assert.Throws<InvalidKnowledgeContentException>(() =>
+            KnowledgeContentProcessor.Process(ParseJson("""
+            {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    { "type": "text", "text": "Redirect", "marks": [{ "type": "link", "attrs": { "href": "//evil.example" } }] }
+                  ]
+                }
+              ]
+            }
+            """)));
+        Assert.Throws<InvalidKnowledgeContentException>(() =>
+            KnowledgeContentProcessor.Process(ParseJson("""
+            {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    { "type": "text", "text": "Backslash", "marks": [{ "type": "link", "attrs": { "href": "/\\evil.example" } }] }
+                  ]
+                }
+              ]
+            }
+            """)));
+        Assert.Throws<InvalidKnowledgeContentException>(() =>
             KnowledgeContentProcessor.Process(ParseJson("""{"type":"paragraph"}""")));
     }
 
