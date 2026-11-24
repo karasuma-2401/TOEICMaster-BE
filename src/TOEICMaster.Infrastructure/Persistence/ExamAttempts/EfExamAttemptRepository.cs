@@ -54,6 +54,7 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
     public async Task<ExamRevision?> FindPublishedRevisionForExamAsync(Guid examId, CancellationToken cancellationToken)
     {
         return await db.ExamRevisions
+            .AsNoTracking()
             .Include(r => r.Blocks)
                 .ThenInclude(b => b.Questions)
             .Include(r => r.Blocks)
@@ -67,6 +68,7 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
     public async Task<ExamRevision?> FindRevisionAsync(Guid revisionId, CancellationToken cancellationToken)
     {
         return await db.ExamRevisions
+            .AsNoTracking()
             .Include(r => r.Blocks)
                 .ThenInclude(b => b.Questions)
             .Include(r => r.Blocks)
@@ -78,6 +80,7 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
     public async Task<ScoreProfile?> FindScoreProfileAsync(Guid scoreProfileId, CancellationToken cancellationToken)
     {
         return await db.ScoreProfiles
+            .AsNoTracking()
             .Include(s => s.Conversions)
             .FirstOrDefaultAsync(s => s.Id == scoreProfileId, cancellationToken);
     }

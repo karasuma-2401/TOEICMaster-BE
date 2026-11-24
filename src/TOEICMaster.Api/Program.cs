@@ -40,8 +40,7 @@ builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = 
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddExceptionHandler(options => options.StatusCodeSelector = _ => StatusCodes.Status500InternalServerError);
-builder.Services.AddApplication(builder.Configuration["MediatR:LicenseKey"],
-    builder.Configuration["AutoMapper:LicenseKey"], typeof(Program).Assembly);
+builder.Services.AddApplication(builder.Configuration["MediatR:LicenseKey"]);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddPronunciation(builder.Configuration);
 builder.Services.AddAuthorization(options => options.AddPolicy("AccountAdministration",
