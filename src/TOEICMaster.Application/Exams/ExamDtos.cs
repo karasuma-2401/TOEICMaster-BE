@@ -50,7 +50,7 @@ public sealed record ExamRevisionDetailDto(Guid ExamId, string Code, string Titl
 }
 
 public sealed record ExamBlockDto(string Key, int Part, ExamBlockType Type, int FirstQuestionNumber,
-    Guid? AudioAssetId, IReadOnlyList<ExamContextBlockDto> ContextBlocks, IReadOnlyList<ExamQuestionDto> Questions,
+    Guid? AudioAssetId, IReadOnlyList<AdminExamContextBlockDto> ContextBlocks, IReadOnlyList<ExamQuestionDto> Questions,
     int? AudioDurationMs = null)
 {
     public static ExamBlockDto From(ExamBlock block, IReadOnlyDictionary<Guid, int?>? mediaDurations = null)
@@ -61,16 +61,16 @@ public sealed record ExamBlockDto(string Key, int Part, ExamBlockType Type, int 
             ? durationMs
             : null;
         return new(block.Key, block.Part, block.Type, block.FirstQuestionNumber, block.AudioAssetId,
-            block.ContextBlocks.OrderBy(context => context.Ordinal).Select(ExamContextBlockDto.From).ToArray(),
+            block.ContextBlocks.OrderBy(context => context.Ordinal).Select(AdminExamContextBlockDto.From).ToArray(),
             block.Questions.OrderBy(question => question.Number).Select(ExamQuestionDto.From).ToArray(),
             audioDurationMs);
     }
 }
 
-public sealed record ExamContextBlockDto(int Ordinal, ExamContextType Type, string? Text, Guid? ImageAssetId,
+public sealed record AdminExamContextBlockDto(int Ordinal, ExamContextType Type, string? Text, Guid? ImageAssetId,
     string? AltText, bool ImageRequired)
 {
-    public static ExamContextBlockDto From(ExamContextBlock context) => new(context.Ordinal, context.Type, context.Text,
+    public static AdminExamContextBlockDto From(ExamContextBlock context) => new(context.Ordinal, context.Type, context.Text,
         context.ImageAssetId, context.AltText, context.ImageRequired);
 }
 

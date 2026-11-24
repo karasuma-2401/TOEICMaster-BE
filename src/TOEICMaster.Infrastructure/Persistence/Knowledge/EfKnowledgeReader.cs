@@ -5,7 +5,7 @@ using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Infrastructure.Persistence.Knowledge;
 
-public sealed class EfKnowledgeReader(ToeicDbContext db, IKnowledgeAdminRepository admin, TimeProvider timeProvider) : IKnowledgeReader
+public sealed class EfKnowledgeReader(ToeicDbContext db, TimeProvider timeProvider) : IKnowledgeReader
 {
     public Task<Guid?> FindPublishedAsync(string slug, CancellationToken ct) => db.KnowledgeArticles
         .Where(a => a.Status == KnowledgeArticleStatus.Published && a.Slug == slug)
@@ -13,29 +13,30 @@ public sealed class EfKnowledgeReader(ToeicDbContext db, IKnowledgeAdminReposito
 
     public async Task<IReadOnlyList<KnowledgeArticleSummaryDto>> RelatedAsync(Guid articleId, CancellationToken ct)
     {
-        var current = await db.KnowledgeArticles.AsNoTracking().SingleAsync(a => a.Id == articleId, ct);
+        var currentCategory = db.KnowledgeArticles.Where(a => a.Id == articleId).Select(a => a.CategoryId);
         var tags = db.KnowledgeArticleTags.Where(t => t.ArticleId == articleId).Select(t => t.TagId);
-        var ids = await db.KnowledgeArticles.Where(a => a.Status == KnowledgeArticleStatus.Published && a.Id != articleId)
+        return await db.KnowledgeArticles.AsNoTracking().AsSingleQuery()
+            .Where(a => a.Status == KnowledgeArticleStatus.Published && a.Id != articleId)
             .Select(a => new
             {
-                a.Id,
-                a.CategoryId,
-                a.PublishedAtUtc,
+                Article = a,
+                SameCategory = currentCategory.Contains(a.CategoryId),
                 Matches = a.ArticleTags.Count(t => tags.Contains(t.TagId))
             })
-            .Where(a => a.Matches > 0 || a.CategoryId == current.CategoryId)
-            .OrderByDescending(a => a.Matches).ThenByDescending(a => a.CategoryId == current.CategoryId)
-            .ThenByDescending(a => a.PublishedAtUtc).ThenBy(a => a.Id).Take(3).Select(a => a.Id).ToListAsync(ct);
-        var result = new List<KnowledgeArticleSummaryDto>();
-        foreach (var id in ids)
-        {
-            var a = await admin.GetArticleDetailAsync(id, ct);
-            if (a is not { Status: "Published" }) continue;
-            result.Add(new(a.Id, a.Title, a.Slug, a.Summary, a.Skill, a.CategoryId, a.CategoryName,
-                a.CoverImageAssetId, a.CoverImageUrl, a.CoverImageAlt, a.EstimatedReadMinutes, a.Status,
-                a.PublishedAtUtc, a.Tags, a.CreatedAtUtc, a.UpdatedAtUtc, a.Version));
-        }
-        return result;
+            .Where(a => a.Matches > 0 || a.SameCategory)
+            .OrderByDescending(a => a.Matches).ThenByDescending(a => a.SameCategory)
+            .ThenByDescending(a => a.Article.PublishedAtUtc).ThenBy(a => a.Article.Id).Take(3)
+            .Select(row => new KnowledgeArticleSummaryDto(row.Article.Id, row.Article.Title, row.Article.Slug,
+                row.Article.Summary, row.Article.Skill.ToString(), row.Article.CategoryId,
+                db.KnowledgeCategories.Where(c => c.Id == row.Article.CategoryId).Select(c => c.Name).First(),
+                row.Article.CoverImageAssetId, null, row.Article.CoverImageAlt, row.Article.EstimatedReadMinutes,
+                row.Article.Status.ToString(), row.Article.PublishedAtUtc,
+                (from link in db.KnowledgeArticleTags
+                 join tag in db.KnowledgeTags on link.TagId equals tag.Id
+                 where link.ArticleId == row.Article.Id
+                 orderby tag.Name
+                 select new KnowledgeTagDto(tag.Id, tag.Name, tag.Slug)).ToArray(),
+                row.Article.CreatedAtUtc, row.Article.UpdatedAtUtc, row.Article.Version)).ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<KnowledgeCategoryDto>> CategoriesAsync(CancellationToken ct) =>
@@ -48,19 +49,39 @@ public sealed class EfKnowledgeReader(ToeicDbContext db, IKnowledgeAdminReposito
     public Task<bool> IsPublicMediaAsync(Guid assetId, CancellationToken ct) => db.KnowledgeArticles.AnyAsync(a =>
         a.Status == KnowledgeArticleStatus.Published && (a.CoverImageAssetId == assetId || a.MediaAssets.Any(m => m.MediaAssetId == assetId)), ct);
 
-    public async Task<IReadOnlyList<SavedKnowledgeArticle>> SavedAsync(Guid userId, CancellationToken ct) =>
-        await (from b in db.Set<KnowledgeBookmark>().AsNoTracking()
-               join a in db.KnowledgeArticles on b.ArticleId equals a.Id
-               where b.UserId == userId
-               orderby b.SavedAtUtc descending
-               select new SavedKnowledgeArticle(a.Id, a.Status == KnowledgeArticleStatus.Published ? a.Title : "Lesson is no longer available",
-                   "/knowledge/" + a.Slug, a.Status == KnowledgeArticleStatus.Published)).ToListAsync(ct);
+    public async Task<SavedKnowledgeArticlePage> SavedAsync(Guid userId, int pageNumber, int pageSize,
+        Guid? articleId, CancellationToken ct)
+    {
+        var bookmarks = db.Set<KnowledgeBookmark>().AsNoTracking()
+            .Where(b => b.UserId == userId && (articleId == null || b.ArticleId == articleId));
+        var totalCount = await bookmarks.CountAsync(ct);
+        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+        var items = await (from b in bookmarks
+                           join a in db.KnowledgeArticles on b.ArticleId equals a.Id
+                           orderby b.SavedAtUtc descending, b.ArticleId
+                           select new SavedKnowledgeArticle(a.Id,
+                               a.Status == KnowledgeArticleStatus.Published ? a.Title : "Lesson is no longer available",
+                               a.Status == KnowledgeArticleStatus.Published ? "/knowledge/" + a.Slug : null,
+                               a.Status == KnowledgeArticleStatus.Published))
+            .Skip(checked((pageNumber - 1) * pageSize)).Take(pageSize).ToListAsync(ct);
+        return new(items, pageNumber, pageSize, totalCount, totalPages, pageNumber < totalPages, pageNumber > 1);
+    }
 
     public async Task SaveAsync(Guid userId, Guid articleId, CancellationToken ct)
     {
-        if (!await db.KnowledgeArticles.AnyAsync(a => a.Id == articleId && a.Status == KnowledgeArticleStatus.Published, ct))
+        // Lock publication state through the insert so concurrent unpublish/delete cannot create an invalid bookmark.
+        var available = await db.Database.SqlQuery<bool>($"""
+            WITH available AS (
+                SELECT id FROM knowledge_articles WHERE id = {articleId}
+                    AND status = {(short)KnowledgeArticleStatus.Published} FOR SHARE
+            ), saved AS (
+                INSERT INTO knowledge_bookmarks (user_id, article_id, saved_at_utc)
+                SELECT {userId}, id, {timeProvider.GetUtcNow()} FROM available ON CONFLICT DO NOTHING
+            )
+            SELECT EXISTS (SELECT 1 FROM available) AS "Value"
+            """).ToListAsync(ct);
+        if (!available.Single())
             throw new KnowledgeNotFoundException("Lesson not found.");
-        await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO knowledge_bookmarks (user_id, article_id, saved_at_utc) VALUES ({userId}, {articleId}, {timeProvider.GetUtcNow()}) ON CONFLICT DO NOTHING", ct);
     }
 
     public Task RemoveAsync(Guid userId, Guid articleId, CancellationToken ct) => db.Set<KnowledgeBookmark>()

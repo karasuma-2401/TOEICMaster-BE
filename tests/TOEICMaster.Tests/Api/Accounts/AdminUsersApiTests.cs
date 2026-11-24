@@ -309,6 +309,16 @@ public sealed class AdminUsersApiTests(AdminUsersApiFactory factory) : IClassFix
         Assert.Equal("USER", (await demoteUser.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("role").GetString());
         Assert.True(await dbHost.AllSessionsRevokedAsync(activeId));
 
+        using var staleActor = dbHost.CreateAdminClient(activeId);
+        using var selfPromotion = await staleActor.PatchAsJsonAsync($"{Path}/{activeId}", new { role = "ADMIN" });
+        Assert.Equal(HttpStatusCode.Conflict, selfPromotion.StatusCode);
+        Assert.Equal("CANNOT_CHANGE_SELF_ROLE",
+            (await selfPromotion.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        using var selfUnlock = await staleActor.DeleteAsync($"{Path}/{activeId}/lock");
+        Assert.Equal(HttpStatusCode.Conflict, selfUnlock.StatusCode);
+        Assert.Equal("CANNOT_UNLOCK_SELF",
+            (await selfUnlock.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+
         // Second admin trying to demote last active admin (only PrimaryAdmin is active admin, or PrimaryAdmin tries to lock/delete self vs another admin demoting PrimaryAdmin)
         await dbHost.SeedSecondaryAdminAsync();
         using var secondAdminClient = dbHost.CreateAdminClient(dbHost.SecondaryAdminId);

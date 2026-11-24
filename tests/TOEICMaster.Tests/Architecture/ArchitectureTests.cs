@@ -75,12 +75,6 @@ public sealed class ArchitectureTests
 
         Assert.NotEmpty(controllers);
 
-        // TODO(HIGH-12): Migrate KnowledgeController reads from IKnowledgeReader to MediatR queries in Wave 3.
-        HashSet<(string Controller, string Dependency)> allowed =
-        [
-            ("KnowledgeController", "IKnowledgeReader")
-        ];
-
         var violations = new List<string>();
         foreach (var controller in controllers)
         {
@@ -94,7 +88,7 @@ public sealed class ArchitectureTests
                                       paramType.Name.EndsWith("Repository", StringComparison.Ordinal) ||
                                       paramType.Name.EndsWith("Reader", StringComparison.Ordinal);
 
-                    if (isForbidden && !allowed.Contains((controller.Name, paramType.Name)))
+                    if (isForbidden)
                     {
                         violations.Add($"{controller.Name} injects {paramType.FullName}");
                     }
