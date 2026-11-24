@@ -22,7 +22,7 @@ public interface IFlashcardRepository
         FlashcardCardInput input,
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken);
-    Task<UserFlashcardProgress> UpsertProgressAtomicAsync(
+    Task<UserFlashcardProgress?> UpsertProgressAtomicAsync(
         Guid userId,
         Guid cardId,
         string status,

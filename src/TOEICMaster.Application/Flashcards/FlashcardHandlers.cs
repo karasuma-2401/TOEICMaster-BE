@@ -176,7 +176,7 @@ public sealed class UpsertFlashcardProgressCommandHandler(
             timeProvider.GetUtcNow(),
             cancellationToken);
 
-        return FlashcardMapper.ToDto(saved);
+        return saved is null ? null : FlashcardMapper.ToDto(saved);
     }
 }
 

@@ -89,7 +89,7 @@ public sealed class FlashcardHandlersTests
             return Task.FromResult<FlashcardDeckAddCardResult?>(new FlashcardDeckAddCardResult(deck.Slug, card));
         }
 
-        public Task<UserFlashcardProgress> UpsertProgressAtomicAsync(
+        public Task<UserFlashcardProgress?> UpsertProgressAtomicAsync(
             Guid userId,
             Guid cardId,
             string status,
@@ -102,11 +102,11 @@ public sealed class FlashcardHandlersTests
             {
                 var created = UserFlashcardProgress.Create(userId, cardId, status, starred, nowUtc);
                 Progress.Add(created);
-                return Task.FromResult(created);
+                return Task.FromResult<UserFlashcardProgress?>(created);
             }
 
             existing.Update(status, starred, nowUtc);
-            return Task.FromResult(existing);
+            return Task.FromResult<UserFlashcardProgress?>(existing);
         }
 
         public Task<(UserFlashcardMatchRecord Record, bool IsNewRecord)> RecordMatchAtomicAsync(

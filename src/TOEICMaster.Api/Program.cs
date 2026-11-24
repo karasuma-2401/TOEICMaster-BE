@@ -58,7 +58,8 @@ builder.Services.AddCors(options => options.AddPolicy("Frontend", policy =>
 }));
 
 var app = builder.Build();
-if (app.Environment.IsDevelopment() && !app.Configuration.GetValue<bool>("Startup:SkipSeeders"))
+if (app.Environment.IsDevelopment() && !runAdminSeed && !runFlashcardSeed
+    && !app.Configuration.GetValue<bool>("Startup:SkipSeeders"))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ToeicDbContext>();

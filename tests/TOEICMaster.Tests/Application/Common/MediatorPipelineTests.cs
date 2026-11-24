@@ -295,9 +295,9 @@ public sealed class MediatorPipelineTests
         public Task<FlashcardDeckAddCardResult?> AddCardToOwnedDeckAsync(
             Guid userId, Guid deckId, FlashcardCardInput input, DateTimeOffset nowUtc, CancellationToken cancellationToken) =>
             Task.FromResult<FlashcardDeckAddCardResult?>(null);
-        public Task<UserFlashcardProgress> UpsertProgressAtomicAsync(
+        public Task<UserFlashcardProgress?> UpsertProgressAtomicAsync(
             Guid userId, Guid cardId, string status, bool starred, DateTimeOffset nowUtc, CancellationToken cancellationToken) =>
-            Task.FromResult(UserFlashcardProgress.Create(userId, cardId, status, starred, nowUtc));
+            Task.FromResult<UserFlashcardProgress?>(UserFlashcardProgress.Create(userId, cardId, status, starred, nowUtc));
         public Task<(UserFlashcardMatchRecord Record, bool IsNewRecord)> RecordMatchAtomicAsync(
             Guid userId, Guid deckId, int elapsedMs, int maxCombo, DateTimeOffset nowUtc, CancellationToken cancellationToken) =>
             Task.FromResult((UserFlashcardMatchRecord.Create(userId, deckId, elapsedMs, maxCombo, nowUtc), true));

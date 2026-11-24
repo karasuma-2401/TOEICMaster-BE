@@ -143,7 +143,7 @@ public sealed class EfFlashcardRepository(ToeicDbContext dbContext) : IFlashcard
         }, cancellationToken);
     }
 
-    public async Task<UserFlashcardProgress> UpsertProgressAtomicAsync(
+    public async Task<UserFlashcardProgress?> UpsertProgressAtomicAsync(
         Guid userId,
         Guid cardId,
         string status,
@@ -157,7 +157,10 @@ public sealed class EfFlashcardRepository(ToeicDbContext dbContext) : IFlashcard
         var rows = await dbContext.UserFlashcardProgress
             .FromSqlInterpolated($@"
                 INSERT INTO user_flashcard_progress (""Id"", ""UserId"", ""CardId"", ""Status"", ""Starred"", ""ReviewCount"", ""UpdatedAtUtc"")
-                VALUES ({id}, {userId}, {cardId}, {status}, {starred}, {initialReviewCount}, {nowUtc})
+                SELECT {id}, {userId}, card.""Id"", {status}, {starred}, {initialReviewCount}, {nowUtc}
+                FROM flashcard_cards AS card
+                WHERE card.""Id"" = {cardId}
+                FOR KEY SHARE OF card
                 ON CONFLICT (""UserId"", ""CardId"") DO UPDATE
                 SET ""ReviewCount"" = CASE
                         WHEN EXCLUDED.""Status"" <> {FlashcardMasteryStatus.New}
@@ -174,7 +177,7 @@ public sealed class EfFlashcardRepository(ToeicDbContext dbContext) : IFlashcard
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
-        return rows[0];
+        return rows.SingleOrDefault();
     }
 
     public async Task<(UserFlashcardMatchRecord Record, bool IsNewRecord)> RecordMatchAtomicAsync(
@@ -185,15 +188,23 @@ public sealed class EfFlashcardRepository(ToeicDbContext dbContext) : IFlashcard
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken)
     {
-        var previousBest = await dbContext.UserFlashcardMatchRecords
-            .AsNoTracking()
-            .Where(record => record.UserId == userId && record.DeckId == deckId)
-            .Select(record => (int?)record.BestTimeMs)
-            .FirstOrDefaultAsync(cancellationToken);
+        var lockKey = $"flashcard-match:{userId:N}:{deckId:N}";
+        var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+        return await executionStrategy.ExecuteAsync(async retryToken =>
+        {
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(retryToken);
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))", retryToken);
 
-        var id = Guid.NewGuid();
-        var rows = await dbContext.UserFlashcardMatchRecords
-            .FromSqlInterpolated($@"
+            var previousBest = await dbContext.UserFlashcardMatchRecords
+                .AsNoTracking()
+                .Where(record => record.UserId == userId && record.DeckId == deckId)
+                .Select(record => (int?)record.BestTimeMs)
+                .FirstOrDefaultAsync(retryToken);
+
+            var id = Guid.NewGuid();
+            var rows = await dbContext.UserFlashcardMatchRecords
+                .FromSqlInterpolated($@"
                 INSERT INTO user_flashcard_match_records (""Id"", ""UserId"", ""DeckId"", ""BestTimeMs"", ""BestCombo"", ""PlayCount"", ""UpdatedAtUtc"")
                 VALUES ({id}, {userId}, {deckId}, {elapsedMs}, {maxCombo}, 1, {nowUtc})
                 ON CONFLICT (""UserId"", ""DeckId"") DO UPDATE
@@ -203,12 +214,14 @@ public sealed class EfFlashcardRepository(ToeicDbContext dbContext) : IFlashcard
                     ""UpdatedAtUtc"" = EXCLUDED.""UpdatedAtUtc""
                 RETURNING ""Id"", ""UserId"", ""DeckId"", ""BestTimeMs"", ""BestCombo"", ""PlayCount"", ""UpdatedAtUtc""
             ")
-            .AsNoTracking()
-            .ToListAsync(cancellationToken);
+                .AsNoTracking()
+                .ToListAsync(retryToken);
 
-        var saved = rows[0];
-        var isNewRecord = previousBest is null || elapsedMs < previousBest.Value;
-        return (saved, isNewRecord);
+            await transaction.CommitAsync(retryToken);
+            var saved = rows[0];
+            var isNewRecord = previousBest is null || elapsedMs < previousBest.Value;
+            return (saved, isNewRecord);
+        }, cancellationToken);
     }
 
     public Task DeleteDeckProgressAsync(
