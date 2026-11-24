@@ -15,10 +15,10 @@ public static class ExamAttemptMapper
     private static IEnumerable<ExamBlock> Ordered(ExamRevision revision) =>
         revision.Blocks.OrderBy(block => block.Part).ThenBy(block => block.FirstQuestionNumber);
 
-    private static List<ExamContextBlockDto> Contexts(ExamBlock block) =>
+    private static List<ExamAttemptContextBlockDto> Contexts(ExamBlock block) =>
         block.ContextBlocks
             .OrderBy(context => context.Ordinal)
-            .Select(context => new ExamContextBlockDto(context.Id, context.Ordinal, context.Text, context.ImageAssetId))
+            .Select(context => new ExamAttemptContextBlockDto(context.Id, context.Ordinal, context.Text, context.ImageAssetId))
             .ToList();
 
     public static int CountQuestions(ExamRevision revision) => revision.Blocks.Sum(block => block.Questions.Count);

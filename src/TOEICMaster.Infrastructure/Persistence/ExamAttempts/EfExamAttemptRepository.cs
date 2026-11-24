@@ -8,17 +8,16 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
 {
     public async Task<IReadOnlyList<PublishedLrExamDto>> GetPublishedExamsAsync(CancellationToken cancellationToken)
     {
-        var revisions = await db.ExamRevisions
+        var latest = await db.ExamRevisions
             .AsNoTracking()
-            .Where(revision => revision.Status == ExamRevisionStatus.Published)
+            .Where(revision => revision.Status == ExamRevisionStatus.Published
+                && !db.ExamRevisions.Any(newer =>
+                    newer.ExamId == revision.ExamId
+                    && newer.Status == ExamRevisionStatus.Published
+                    && newer.VersionNumber > revision.VersionNumber))
+            .OrderByDescending(revision => revision.CreatedAtUtc)
             .Select(revision => new { revision.Id, revision.ExamId, revision.VersionNumber, revision.CreatedAtUtc })
             .ToListAsync(cancellationToken);
-
-        var latest = revisions
-            .GroupBy(revision => revision.ExamId)
-            .Select(group => group.OrderByDescending(revision => revision.VersionNumber).First())
-            .OrderByDescending(revision => revision.CreatedAtUtc)
-            .ToList();
         if (latest.Count == 0) return [];
 
         var examIds = latest.Select(revision => revision.ExamId).ToList();
@@ -59,6 +58,7 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
                 .ThenInclude(b => b.Questions)
             .Include(r => r.Blocks)
                 .ThenInclude(b => b.ContextBlocks)
+            .AsSplitQuery()
             .Where(r => r.ExamId == examId && r.Status == ExamRevisionStatus.Published)
             .OrderByDescending(r => r.VersionNumber)
             .FirstOrDefaultAsync(cancellationToken);
@@ -71,6 +71,7 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
                 .ThenInclude(b => b.Questions)
             .Include(r => r.Blocks)
                 .ThenInclude(b => b.ContextBlocks)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(r => r.Id == revisionId, cancellationToken);
     }
 
@@ -227,7 +228,12 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
             query = query.Where(a => db.ExamRevisions.Any(r => r.Id == a.RevisionId && r.ExamId == examId.Value));
         }
 
+        var safePageIndex = Math.Max(1, pageIndex);
+        var safePageSize = Math.Clamp(pageSize, 1, 100);
         var totalCount = await query.CountAsync(cancellationToken);
+        var offset = (long)(safePageIndex - 1) * safePageSize;
+        if (offset >= totalCount || offset > int.MaxValue)
+            return ([], totalCount);
 
         var rawItems = await (
             from a in query
@@ -242,8 +248,8 @@ public sealed class EfExamAttemptRepository(ToeicDbContext db) : IExamAttemptRep
                 ExamCode = e.Code
             }
         )
-        .Skip((pageIndex - 1) * pageSize)
-        .Take(pageSize)
+        .Skip((int)offset)
+        .Take(safePageSize)
         .ToListAsync(cancellationToken);
 
         var items = rawItems.Select(x => new ExamAttemptHistoryItemDto(

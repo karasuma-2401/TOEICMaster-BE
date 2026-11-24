@@ -62,6 +62,8 @@ public sealed record FlashcardCardInput(
 
 public sealed class FlashcardDeck
 {
+    public const int MaxCardsPerDeck = 200;
+
     private readonly List<FlashcardCard> _cards = [];
 
     private FlashcardDeck()
@@ -162,6 +164,8 @@ public sealed class FlashcardDeck
 
         if (cards.Count == 0)
             throw new ArgumentException("At least one card is required.", nameof(cards));
+        if (cards.Count > MaxCardsPerDeck)
+            throw new ArgumentException($"Each deck can contain at most {MaxCardsPerDeck} cards.", nameof(cards));
 
         var cleanTitle = title.Trim();
         var cleanDescription = string.IsNullOrWhiteSpace(description)
@@ -199,6 +203,9 @@ public sealed class FlashcardDeck
             throw new InvalidOperationException("Cannot add cards to a built-in flashcard deck.");
 
         ArgumentNullException.ThrowIfNull(input);
+
+        if (_cards.Count >= MaxCardsPerDeck)
+            throw new InvalidOperationException($"Each deck can contain at most {MaxCardsPerDeck} cards.");
 
         var nextOrdinal = _cards.Count == 0 ? 1 : _cards.Max(card => card.Ordinal) + 1;
         var card = FlashcardCard.Create(Guid.NewGuid(), Id, nextOrdinal, input);
