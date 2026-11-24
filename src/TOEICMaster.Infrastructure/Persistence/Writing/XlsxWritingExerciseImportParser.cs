@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using System.Xml.Linq;
+using TOEICMaster.Application.Common.Xml;
 using TOEICMaster.Application.Writing.Admin;
-using TOEICMaster.Infrastructure.Common;
 
 namespace TOEICMaster.Infrastructure.Persistence.Writing;
 

@@ -142,16 +142,23 @@ public sealed class ArchitectureTests
         var files = Directory.GetFiles(controllersDir, "*.cs", SearchOption.AllDirectories);
         Assert.NotEmpty(files);
 
-        var forbidden = new Regex(@"\bnew\s+(?:\w+\.)*ProblemDetails\b|\bOk\s*\(\s*new\s*\{|\bCreated\s*\([^;]*?,\s*new\s*\{",
-            RegexOptions.Compiled);
+        var forbidden = new Regex(
+            @"\bnew\s+(?:\w+\.)*(?:Validation)?ProblemDetails\b|" +
+            @"\bOk\s*\(\s*new\s*\{|" +
+            @"\bBadRequest\s*\(\s*new\s*\{|" +
+            @"\bStatusCode\s*\([^;]*?,\s*new\s*\{|" +
+            @"\bCreated\s*\([^;]*?,\s*new\s*\{|" +
+            @"\bCreatedAtAction\s*\((?:[^,;]+,\s*){1,2}new\s*\{[^}]*\}\s*\)",
+            RegexOptions.Singleline | RegexOptions.Compiled);
         var violations = new List<string>();
         foreach (var file in files)
         {
-            var content = File.ReadAllText(file);
-            foreach (Match match in forbidden.Matches(content))
+            var fileContent = File.ReadAllText(file);
+            foreach (Match match in forbidden.Matches(fileContent))
             {
-                var line = content[..match.Index].Count(character => character == '\n') + 1;
-                violations.Add($"{Path.GetRelativePath(root.FullName, file)}:{line}: {match.Value}");
+                var line = fileContent[..match.Index].Count(character => character == '\n') + 1;
+                var matchedText = match.Value.Split('\n')[0].Trim();
+                violations.Add($"{Path.GetRelativePath(root.FullName, file).Replace('\\', '/')}:{line}: {matchedText}");
             }
         }
 
@@ -270,15 +277,37 @@ public sealed class ArchitectureTests
         foreach (var file in files)
         {
             var text = File.ReadAllText(file);
-            var statements = Regex.Matches(text, @"(?:return\s+|await\s+|var\s+\w+\s*=\s*)([^;]+);", RegexOptions.Singleline);
-            foreach (Match statement in statements)
+            var relative = Path.GetRelativePath(root.FullName, file).Replace('\\', '/');
+
+            var rawStatements = text.Split(';');
+            var currentPos = 0;
+            foreach (var rawStatement in rawStatements)
             {
-                var expression = statement.Groups[1].Value;
+                var parts = Regex.Split(rawStatement, @"[{}]+");
+                var expression = parts[^1];
                 var includeCount = Regex.Matches(expression, @"\.Include\s*\(").Count;
                 if (includeCount >= 2 && !expression.Contains(".AsSplitQuery(", StringComparison.Ordinal))
                 {
-                    var line = text[..statement.Index].Count(character => character == '\n') + 1;
-                    violations.Add($"{Path.GetRelativePath(root.FullName, file)}:{line}");
+                    var line = text[..currentPos].Count(c => c == '\n') + 1;
+                    violations.Add($"{relative}:{line}: multi-include expression missing .AsSplitQuery()");
+                }
+                currentPos += rawStatement.Length + 1;
+            }
+
+            var methodPattern = new Regex(
+                @"(?:public|private|internal|protected)\s+(?:async\s+)?[\w<>\[\]?,\s]+\s+(\w+)\s*\([^)]*\)\s*(?:=>\s*([^;]+);|\{((?:[^{}]|\{[^{}]*\})*)\})",
+                RegexOptions.Singleline | RegexOptions.Compiled);
+            foreach (Match match in methodPattern.Matches(text))
+            {
+                var methodName = match.Groups[1].Value;
+                var body = !string.IsNullOrEmpty(match.Groups[2].Value) ? match.Groups[2].Value : match.Groups[3].Value;
+                var includeCount = Regex.Matches(body, @"\.Include\s*\(").Count;
+                if (includeCount >= 2 && !body.Contains(".AsSplitQuery(", StringComparison.Ordinal))
+                {
+                    var line = text[..match.Index].Count(c => c == '\n') + 1;
+                    var entry = $"{relative}:{line}: method {methodName} missing .AsSplitQuery()";
+                    if (!violations.Contains(entry))
+                        violations.Add(entry);
                 }
             }
         }
@@ -292,8 +321,10 @@ public sealed class ArchitectureTests
     {
         var root = FindRepoRoot();
         var srcDir = Path.Combine(root.FullName, "src");
+        var canonicalSafeXmlLoader = Path.GetFullPath(
+            Path.Combine(root.FullName, "src", "TOEICMaster.Application", "Common", "Xml", "SafeXmlLoader.cs"));
         var files = Directory.GetFiles(srcDir, "*.cs", SearchOption.AllDirectories)
-            .Where(path => !Path.GetFileName(path).Equals("SafeXmlLoader.cs", StringComparison.OrdinalIgnoreCase))
+            .Where(path => !string.Equals(Path.GetFullPath(path), canonicalSafeXmlLoader, StringComparison.OrdinalIgnoreCase))
             .ToArray();
         Assert.NotEmpty(files);
 

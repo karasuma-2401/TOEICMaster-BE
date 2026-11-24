@@ -1,8 +1,8 @@
 using System.IO.Compression;
 using System.Xml;
 using System.Xml.Linq;
+using TOEICMaster.Application.Common.Xml;
 using TOEICMaster.Application.ExerciseBank;
-using TOEICMaster.Infrastructure.Common;
 
 namespace TOEICMaster.Infrastructure.Persistence.ExerciseBank;
 
@@ -200,7 +200,7 @@ public sealed class XlsxLrExerciseBankImportParser : ILrExerciseBankImportParser
     private static XDocument LoadXml(ZipArchiveEntry entry)
     {
         using var stream = entry.Open();
-        return SafeXmlLoader.Load(stream);
+        return SafeXmlLoader.Load(stream, maxCharactersInDocument: MaximumArchiveEntryBytes);
     }
 
     private static IEnumerable<SpreadsheetRow> ReadRows(XDocument worksheet, IReadOnlyList<string> sharedStrings)

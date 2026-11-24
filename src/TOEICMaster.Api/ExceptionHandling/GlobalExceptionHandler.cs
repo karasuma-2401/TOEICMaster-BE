@@ -189,11 +189,12 @@ public sealed class GlobalExceptionHandler(
         _ => null
     };
 
-    private static ProblemDetails Simple(int status, string title, string type) => new()
+    private static ProblemDetails Simple(int status, string title, string type, string? detail = null) => new()
     {
         Status = status,
         Title = title,
-        Type = type
+        Type = type,
+        Detail = detail ?? title
     };
 
     private static ProblemDetails WithCode(int status, string title, string type, string code)

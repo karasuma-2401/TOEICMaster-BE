@@ -115,15 +115,15 @@ public sealed class SpeakingAttemptsController(ISender sender) : ControllerBase
     {
         var owner = CurrentOwner();
         if (file is null || file.Length == 0)
-            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Recording is empty and cannot be uploaded.");
+            return this.BadRequestProblem("Recording is empty and cannot be uploaded.");
         if (file.Length > SpeakingMediaRules.MaxRecordingBytes)
-            return Problem(statusCode: StatusCodes.Status413PayloadTooLarge,
-                title: "Recording exceeds the allowed size.");
+            return this.ProblemResponse(StatusCodes.Status413PayloadTooLarge,
+                "Recording exceeds the allowed size.");
         if (durationSeconds is null)
-            return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]>
+            return this.ValidationProblemResponse(new Dictionary<string, string[]>
             {
                 ["DurationSeconds"] = ["Recording duration is required."]
-            }));
+            });
         return Ok(await sender.Send(new UploadSpeakingRecordingCommand(owner, attemptId, position,
             await AdminSpeakingController.ReadAsync(file, cancellationToken), file.ContentType,
             durationSeconds.Value), cancellationToken));

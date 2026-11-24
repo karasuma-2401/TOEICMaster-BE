@@ -12,9 +12,16 @@ public static class SafeXmlLoader
         XmlResolver = null
     };
 
-    public static XDocument Load(Stream stream, LoadOptions options = LoadOptions.None)
+    public static XDocument Load(Stream stream, LoadOptions options = LoadOptions.None, long? maxCharactersInDocument = null)
     {
-        using var reader = XmlReader.Create(stream, SafeSettings);
+        var settings = SafeSettings;
+        if (maxCharactersInDocument.HasValue)
+        {
+            settings = SafeSettings.Clone();
+            settings.MaxCharactersInDocument = maxCharactersInDocument.Value;
+        }
+
+        using var reader = XmlReader.Create(stream, settings);
         return XDocument.Load(reader, options);
     }
 }
