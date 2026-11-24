@@ -14,6 +14,7 @@ public sealed class EfExamRepository(ToeicDbContext context) : IExamRepository
         .ThenInclude(block => block.Questions)
         .Include(exam => exam.Revisions).ThenInclude(revision => revision.Blocks)
         .ThenInclude(block => block.ContextBlocks)
+        .AsSplitQuery()
         .SingleOrDefaultAsync(exam => exam.Id == examId, cancellationToken);
 
     public async Task<ExamPageDto> GetExamPageAsync(ExamRevisionStatus? status, int pageNumber, int pageSize,
@@ -39,7 +40,7 @@ public sealed class EfExamRepository(ToeicDbContext context) : IExamRepository
     }
 
     public Task<ScoreProfile?> FindScoreProfileAsync(Guid scoreProfileId, CancellationToken cancellationToken) => context
-        .ScoreProfiles.Include(profile => profile.Conversions).SingleOrDefaultAsync(profile => profile.Id == scoreProfileId,
+        .ScoreProfiles.AsNoTracking().Include(profile => profile.Conversions).SingleOrDefaultAsync(profile => profile.Id == scoreProfileId,
             cancellationToken);
 
     public async Task<IReadOnlyList<ScoreProfileDto>> GetScoreProfilesAsync(CancellationToken cancellationToken) =>

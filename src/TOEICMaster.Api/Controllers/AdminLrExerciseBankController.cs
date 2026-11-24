@@ -38,11 +38,12 @@ public sealed class AdminLrExerciseBankController(ISender sender, IWebHostEnviro
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024 + 64 * 1024)]
     [ProducesResponseType<LrExerciseImportResultDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<LrExerciseImportResultDto>> ImportItems(int part, [FromForm] IFormFile? file,
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length is <= 0 or > 10 * 1024 * 1024)
-            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid import file." });
+            return this.BadRequestProblem("Invalid import file.");
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         var result = await sender.Send(new ImportLrExerciseItemsCommand(CurrentUserId(), part, file.FileName,

@@ -65,11 +65,12 @@ public sealed class ProfileController(ISender sender) : ControllerBase
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(2 * 1024 * 1024 + 64 * 1024)]
     [ProducesResponseType<ProfileDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ProfileDto>> UploadAvatar([FromForm] IFormFile file,
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0 || file.Length > UploadProfileAvatarCommandHandler.MaxBytes)
-            return BadRequest(new ProblemDetails { Status = 400, Title = "Invalid avatar image." });
+            return this.BadRequestProblem("Invalid avatar image.");
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         var profile = await sender.Send(

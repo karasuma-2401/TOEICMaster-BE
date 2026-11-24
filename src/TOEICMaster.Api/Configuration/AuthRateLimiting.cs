@@ -75,6 +75,7 @@ public static class AuthRateLimitingExtensions
         {
             Status = StatusCodes.Status429TooManyRequests,
             Title = "Too many requests. Please try again later.",
+            Detail = "Too many requests. Please try again later.",
             Type = "https://tools.ietf.org/html/rfc6585#section-4"
         };
         problem.Extensions["traceId"] = Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;

@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text;
 using System.Xml.Linq;
+using TOEICMaster.Application.Common.Xml;
 using TOEICMaster.Application.Writing.Admin;
 
 namespace TOEICMaster.Infrastructure.Persistence.Writing;
@@ -134,13 +135,13 @@ public sealed class XlsxWritingTestImportParser : IWritingTestImportParser
     {
         var entry = archive.GetEntry(path) ?? throw new InvalidWritingImportException($"The file is missing {path}.");
         using var stream = entry.Open();
-        return XDocument.Load(stream);
+        return SafeXmlLoader.Load(stream);
     }
 
     private static string[] ReadShared(ZipArchiveEntry entry)
     {
         using var stream = entry.Open();
-        return XDocument.Load(stream).Descendants().Where(item => item.Name.LocalName == "si")
+        return SafeXmlLoader.Load(stream).Descendants().Where(item => item.Name.LocalName == "si")
             .Select(item => string.Concat(item.Descendants().Where(child => child.Name.LocalName == "t")
                 .Select(child => child.Value))).ToArray();
     }
