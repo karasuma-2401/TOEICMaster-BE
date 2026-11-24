@@ -224,7 +224,13 @@ cmd_cleanup() {
     docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
   fi
 
+  local run_dir="/tmp/toeicmaster-be-verify-${port}"
   rm -f "$sf"
+  rm -f "${run_dir}/server.log"
+  if [[ -d "$run_dir" ]]; then
+    find "$run_dir" -mindepth 1 -maxdepth 1 ! -name "evidence" -exec rm -rf {} +
+    rmdir "$run_dir" 2>/dev/null || true
+  fi
   echo "[control-be] Cleanup finished for instance on port ${port}."
 }
 

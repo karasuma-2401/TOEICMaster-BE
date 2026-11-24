@@ -35,37 +35,37 @@ The API instance must be running on `http://127.0.0.1:15100` with the standard s
   curl -s -X GET http://127.0.0.1:15100/api/v1/exams/lr \
     -H "Authorization: Bearer $TOKEN"
   ```
-  Observable result: HTTP 200 returning a JSON array containing at least one exam with `code`, `title`, and `totalQuestions`.
+  Observable result: HTTP 200 returning a JSON array of `PublishedLrExamDto` objects with `examId`, `code`, `title`, and `totalQuestions`.
 
 - Inspect exam structural overview:
   ```bash
   curl -s -X GET "http://127.0.0.1:15100/api/v1/exams/${EXAM_ID}/lr-overview" \
     -H "Authorization: Bearer $TOKEN"
   ```
-  Observable result: HTTP 200 with JSON details of total parts, listening questions, and reading questions.
+  Observable result: HTTP 200 returning `LrExamOverviewDto` with total parts, listening questions, reading questions, and active attempt ID.
 
 - Start an exam attempt:
   ```bash
   curl -s -X POST "http://127.0.0.1:15100/api/v1/exams/${EXAM_ID}/attempts" \
     -H "Authorization: Bearer $TOKEN"
   ```
-  Observable result: HTTP 200 returning attempt details with `attemptId`, `status: "InProgress"`, and `startedAtUtc`.
+  Observable result: HTTP 200 returning `ExamAttemptSheetDto` with `attemptId`, `examCode`, `phase: "listening"`, `timeLimitSeconds`, and `startedAtUtc`.
 
 - Save answers during attempt:
   ```bash
   curl -s -X PUT "http://127.0.0.1:15100/api/v1/exam-attempts/${ATTEMPT_ID}/answers" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
-    -d "{\"answers\":[{\"questionId\":\"${QUESTION_ID}\",\"selectedOption\":\"A\"}]}"
+    -d '[{"questionId":"'"${QUESTION_ID}"'","selectedKey":"A"}]'
   ```
-  Observable result: HTTP 200 confirming saved answers.
+  Observable result: HTTP 204 No Content confirming saved answers.
 
 - Submit attempt for score evaluation:
   ```bash
   curl -s -X POST "http://127.0.0.1:15100/api/v1/exam-attempts/${ATTEMPT_ID}/submit" \
     -H "Authorization: Bearer $TOKEN"
   ```
-  Observable result: HTTP 200 returning `status: "Completed"`, `listeningScaledScore`, and `readingScaledScore`.
+  Observable result: HTTP 200 returning `ExamAttemptResultDto` with `listeningScaledScore`, `readingScaledScore`, `totalScaledScore`, `totalCorrect`, and `durationSeconds`.
 
 ## Gotchas
 

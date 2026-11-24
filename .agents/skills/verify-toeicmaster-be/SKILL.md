@@ -8,6 +8,15 @@ description: Launch, health-check, drive via HTTP, and verify TOEICMaster-BE ASP
 This skill provides deterministic verification for the TOEICMaster ASP.NET Core backend.
 It operates against disposable local PostgreSQL instances and never touches Neon, production, or external databases.
 
+## Stand-in Dependencies and Service Stubs
+
+The local verification instance runs in a fully self-contained environment using these stand-ins:
+- **PostgreSQL**: An isolated ephemeral `postgres:16-alpine` Docker container hosting a fresh test database with all EF Core migrations and built-in seeds applied.
+- **Redis**: Stubbed connection string (`127.0.0.1:1,abortConnect=false,connectTimeout=100,syncTimeout=100`) allowing the API to gracefully fall back to in-memory caching and avoid remote dependencies.
+- **MinIO / S3**: Stubbed endpoints (`127.0.0.1:1`) for media storage; avatar and exercise image uploads operate in memory or use local mock endpoints.
+- **SMTP**: Stubbed local host (`127.0.0.1:1`); account registrations and password resets complete deterministically without outbound emails.
+- **External AI Services (Gemini / Azure Speech)**: External third-party integrations are disabled or bypassed during verification, ensuring zero external network calls.
+
 ## Launch
 
 Start an isolated verification instance backed by a disposable Docker container.
@@ -133,8 +142,8 @@ curl -s -X GET http://127.0.0.1:15100/api/v1/admin/users \
 
 ## Evidence
 
-Store all captured outputs in an evidence directory outside the temporary runtime scratch path so evidence survives teardown.
-The standard directory for verification evidence is `/home/phamhoangthai/Documents/project/TOEICMaster/.pipeline/poteto-correct-verify/outputs/be-evidence/`.
+Store all captured outputs in an evidence directory outside transient runtime state, such as `/tmp/toeicmaster-be-verify-${PORT}/evidence` or a custom path specified via `$VERIFY_EVIDENCE_DIR`.
+Teardown and cleanup routines preserve the `evidence/` directory while wiping transient runtime scratch files and server logs.
 
 Every verified feature should produce:
 
@@ -146,6 +155,7 @@ Every verified feature should produce:
 ## Cleanup
 
 Cleanup terminates only the specific processes and containers initialized for that run.
+It preserves any captured evidence in `/tmp/toeicmaster-be-verify-${PORT}/evidence` (or `$VERIFY_EVIDENCE_DIR`) while removing temporary runtime state files and server logs.
 It never runs destructive sweeps such as `pkill dotnet` and never touches external containers or Neon databases:
 
 ```bash
@@ -161,7 +171,9 @@ source /tmp/toeicmaster-be-verify-15100/state.env
 # Terminate exact server process
 kill -TERM "$SERVER_PID" 2>/dev/null || true
 docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
-rm -rf /tmp/toeicmaster-be-verify-15100
+# Remove runtime state and logs while keeping evidence
+find /tmp/toeicmaster-be-verify-15100 -mindepth 1 -maxdepth 1 ! -name "evidence" -exec rm -rf {} +
+rmdir /tmp/toeicmaster-be-verify-15100 2>/dev/null || true
 ```
 
 Confirm evidence files in the evidence output directory remain intact after cleanup completes.
