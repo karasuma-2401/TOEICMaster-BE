@@ -11,7 +11,10 @@ using TOEICMaster.Infrastructure.Persistence;
 using TOEICMaster.Infrastructure.Persistence.Seeders;
 
 var runAdminSeed = args.Any(argument => argument.Equals("--seed-admin", StringComparison.OrdinalIgnoreCase));
-var configurationArgs = args.Where(argument => !argument.Equals("--seed-admin", StringComparison.OrdinalIgnoreCase))
+var runFlashcardSeed = args.Any(argument => argument.Equals("--seed-flashcards", StringComparison.OrdinalIgnoreCase));
+var configurationArgs = args.Where(argument =>
+    !argument.Equals("--seed-admin", StringComparison.OrdinalIgnoreCase) &&
+    !argument.Equals("--seed-flashcards", StringComparison.OrdinalIgnoreCase))
     .ToArray();
 var builder = WebApplication.CreateBuilder(configurationArgs);
 var dotEnvPath = DotEnvConfiguration.FindFile(Directory.GetCurrentDirectory(), builder.Environment.ContentRootPath);
@@ -55,7 +58,8 @@ builder.Services.AddCors(options => options.AddPolicy("Frontend", policy =>
 }));
 
 var app = builder.Build();
-if (app.Environment.IsDevelopment() && !app.Configuration.GetValue<bool>("Startup:SkipSeeders"))
+if (app.Environment.IsDevelopment() && !runAdminSeed && !runFlashcardSeed
+    && !app.Configuration.GetValue<bool>("Startup:SkipSeeders"))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ToeicDbContext>();
@@ -103,6 +107,15 @@ if (runAdminSeed)
     var result = await scope.ServiceProvider.GetRequiredService<IAdminBootstrapSeeder>()
         .SeedAsync(CancellationToken.None);
     app.Logger.LogInformation("Admin bootstrap completed with action {Action}.", result.Action);
+    return;
+}
+
+if (runFlashcardSeed)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<ToeicDbContext>();
+    await FlashcardDataSeeder.SeedBuiltInDecksAsync(db, CancellationToken.None);
+    app.Logger.LogInformation("Built-in flashcard decks seeding completed.");
     return;
 }
 

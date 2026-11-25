@@ -17,17 +17,7 @@ internal static class FlashcardMapper
             deck.IsCustom,
             deck.Cards
                 .OrderBy(card => card.Ordinal)
-                .Select(card => new FlashcardCardDto(
-                    card.Id,
-                    card.Term,
-                    card.Phonetic,
-                    card.PartOfSpeech,
-                    card.MeaningVi,
-                    card.ExampleEn,
-                    card.ExampleVi,
-                    card.GetCollocations(),
-                    card.ToeicPart,
-                    card.Level))
+                .Select(ToDto)
                 .ToArray());
 
     public static FlashcardCardDto ToDto(FlashcardCard card) =>
@@ -154,18 +144,10 @@ public sealed class CreateFlashcardDeckCommandHandler(
 public sealed class DeleteFlashcardDeckCommandHandler(IFlashcardRepository repository)
     : IRequestHandler<DeleteFlashcardDeckCommand, bool>
 {
-    public async Task<bool> Handle(
+    public Task<bool> Handle(
         DeleteFlashcardDeckCommand command,
-        CancellationToken cancellationToken)
-    {
-        var deck = await repository.GetDeckByIdAsync(command.DeckId, cancellationToken);
-        if (deck is null || deck.OwnerUserId != command.UserId)
-            return false;
-
-        repository.RemoveDeck(deck);
-        await repository.SaveChangesAsync(cancellationToken);
-        return true;
-    }
+        CancellationToken cancellationToken) =>
+        repository.DeleteOwnedDeckAsync(command.UserId, command.DeckId, cancellationToken);
 }
 
 public sealed class UpsertFlashcardProgressCommandHandler(
@@ -185,29 +167,16 @@ public sealed class UpsertFlashcardProgressCommandHandler(
         if (!exists)
             return null;
 
-        var now = timeProvider.GetUtcNow();
-        var existing = await repository.GetCardProgressAsync(
+        var normalizedStatus = FlashcardMasteryStatus.Normalize(command.Request.Status);
+        var saved = await repository.UpsertProgressAtomicAsync(
             command.UserId,
             command.CardId,
+            normalizedStatus,
+            command.Request.Starred,
+            timeProvider.GetUtcNow(),
             cancellationToken);
 
-        if (existing is null)
-        {
-            existing = UserFlashcardProgress.Create(
-                command.UserId,
-                command.CardId,
-                command.Request.Status,
-                command.Request.Starred,
-                now);
-            await repository.AddProgressAsync(existing, cancellationToken);
-        }
-        else
-        {
-            existing.Update(command.Request.Status, command.Request.Starred, now);
-        }
-
-        await repository.SaveChangesAsync(cancellationToken);
-        return FlashcardMapper.ToDto(existing);
+        return saved is null ? null : FlashcardMapper.ToDto(saved);
     }
 }
 
@@ -218,12 +187,15 @@ public sealed class ResetFlashcardDeckProgressCommandHandler(IFlashcardRepositor
         ResetFlashcardDeckProgressCommand command,
         CancellationToken cancellationToken)
     {
-        var deck = await repository.GetDeckByIdAsync(command.DeckId, cancellationToken);
-        if (deck is null || (deck.OwnerUserId.HasValue && deck.OwnerUserId != command.UserId))
+        var visible = await repository.DeckVisibleToUserAsync(
+            command.UserId,
+            command.DeckId,
+            cancellationToken);
+
+        if (!visible)
             return false;
 
         await repository.DeleteDeckProgressAsync(command.UserId, command.DeckId, cancellationToken);
-        await repository.SaveChangesAsync(cancellationToken);
         return true;
     }
 }
@@ -231,16 +203,12 @@ public sealed class ResetFlashcardDeckProgressCommandHandler(IFlashcardRepositor
 public sealed class AddFlashcardCardCommandHandler(
     IFlashcardRepository repository,
     TimeProvider timeProvider)
-    : IRequestHandler<AddFlashcardCardCommand, FlashcardCardDto?>
+    : IRequestHandler<AddFlashcardCardCommand, AddFlashcardCardResult?>
 {
-    public async Task<FlashcardCardDto?> Handle(
+    public async Task<AddFlashcardCardResult?> Handle(
         AddFlashcardCardCommand command,
         CancellationToken cancellationToken)
     {
-        var deck = await repository.GetDeckByIdAsync(command.DeckId, cancellationToken);
-        if (deck is null || deck.OwnerUserId != command.UserId)
-            return null;
-
         var input = new FlashcardCardInput(
             command.Request.Term,
             command.Request.Phonetic,
@@ -252,11 +220,16 @@ public sealed class AddFlashcardCardCommandHandler(
             command.Request.ToeicPart,
             command.Request.Level);
 
-        var card = deck.AddCard(input, timeProvider.GetUtcNow());
-        await repository.AddCardAsync(card, cancellationToken);
-        await repository.SaveChangesAsync(cancellationToken);
+        var added = await repository.AddCardToOwnedDeckAsync(
+            command.UserId,
+            command.DeckId,
+            input,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
 
-        return FlashcardMapper.ToDto(card);
+        return added is null
+            ? null
+            : new AddFlashcardCardResult(added.DeckSlug, FlashcardMapper.ToDto(added.Card));
     }
 }
 
@@ -269,31 +242,22 @@ public sealed class RecordFlashcardMatchCommandHandler(
         RecordFlashcardMatchCommand command,
         CancellationToken cancellationToken)
     {
-        var deck = await repository.GetDeckByIdAsync(command.DeckId, cancellationToken);
-        if (deck is null || (deck.OwnerUserId.HasValue && deck.OwnerUserId != command.UserId))
+        var visible = await repository.DeckVisibleToUserAsync(
+            command.UserId,
+            command.DeckId,
+            cancellationToken);
+
+        if (!visible)
             return null;
 
-        var now = timeProvider.GetUtcNow();
-        var existing = await repository.GetMatchRecordAsync(command.UserId, command.DeckId, cancellationToken);
-        bool isNewRecord;
+        var (record, isNewRecord) = await repository.RecordMatchAtomicAsync(
+            command.UserId,
+            command.DeckId,
+            command.Request.ElapsedMs,
+            command.Request.MaxCombo,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
 
-        if (existing is null)
-        {
-            existing = UserFlashcardMatchRecord.Create(
-                command.UserId,
-                command.DeckId,
-                command.Request.ElapsedMs,
-                command.Request.MaxCombo,
-                now);
-            await repository.AddMatchRecordAsync(existing, cancellationToken);
-            isNewRecord = true;
-        }
-        else
-        {
-            isNewRecord = existing.RecordRun(command.Request.ElapsedMs, command.Request.MaxCombo, now);
-        }
-
-        await repository.SaveChangesAsync(cancellationToken);
-        return FlashcardMapper.ToDto(existing, isNewRecord);
+        return FlashcardMapper.ToDto(record, isNewRecord);
     }
 }

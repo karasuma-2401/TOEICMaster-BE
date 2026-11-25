@@ -62,12 +62,12 @@ public sealed record ExamBlockSheetDto(
     int Part,
     int FirstQuestionNumber,
     Guid? AudioAssetId,
-    IReadOnlyList<ExamContextBlockDto> ContextBlocks,
+    IReadOnlyList<ExamAttemptContextBlockDto> ContextBlocks,
     IReadOnlyList<ExamQuestionSheetDto> Questions,
     int? AudioDurationMs = null
 );
 
-public sealed record ExamContextBlockDto(
+public sealed record ExamAttemptContextBlockDto(
     Guid Id,
     int Ordinal,
     string? Text,
@@ -137,7 +137,7 @@ public sealed record ExamAttemptReviewBlockDto(
     Guid Id,
     int Part,
     int FirstQuestionNumber,
-    IReadOnlyList<ExamContextBlockDto> ContextBlocks,
+    IReadOnlyList<ExamAttemptContextBlockDto> ContextBlocks,
     IReadOnlyList<ExamAttemptReviewQuestionDto> Questions,
     Guid? AudioAssetId = null,
     int? AudioDurationMs = null
