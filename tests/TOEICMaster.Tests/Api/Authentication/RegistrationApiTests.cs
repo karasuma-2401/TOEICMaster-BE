@@ -55,7 +55,7 @@ public sealed class RegistrationApiTests
         Assert.Equal(0, response.Content.Headers.ContentLength);
         Assert.Equal("Nguyen Van A", factory.Repository.AddedUser?.DisplayName);
         Assert.Equal(" password ", factory.PasswordHasher.Password);
-        Assert.Single(factory.MailSender.Messages);
+        Assert.Single(factory.Repository.QueuedMessages);
     }
 
     [Fact]
@@ -171,9 +171,9 @@ public sealed class RegistrationApiTests
             new { email = "missing@example.com" });
 
         Assert.Equal(HttpStatusCode.Accepted, pendingResponse.StatusCode);
-        Assert.Single(pendingFactory.MailSender.Messages);
+        Assert.Single(pendingFactory.Repository.QueuedMessages);
         Assert.Equal(HttpStatusCode.Accepted, missingResponse.StatusCode);
-        Assert.Empty(missingFactory.MailSender.Messages);
+        Assert.Empty(missingFactory.Repository.QueuedMessages);
     }
 
     private sealed record RegistrationProblem(string? Title, Dictionary<string, string[]> Errors,

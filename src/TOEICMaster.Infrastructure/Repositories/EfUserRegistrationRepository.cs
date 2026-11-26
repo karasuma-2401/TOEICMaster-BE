@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using TOEICMaster.Application.Common.Interfaces;
+using TOEICMaster.Application.Email;
 using TOEICMaster.Domain.Entities;
 using TOEICMaster.Infrastructure.Persistence;
 
@@ -20,10 +21,16 @@ public sealed class EfUserRegistrationRepository(ToeicDbContext dbContext) : IUs
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<bool> TryAddAsync(User user, EmailVerificationChallenge challenge,
-        CancellationToken cancellationToken)
+        MailMessage? outboxMessage, CancellationToken cancellationToken)
     {
         dbContext.Users.Add(user);
         dbContext.EmailVerificationChallenges.Add(challenge);
+        if (outboxMessage is not null)
+        {
+            dbContext.EmailOutboxMessages.Add(EmailOutboxMessage.Create(outboxMessage.To, outboxMessage.Subject,
+                outboxMessage.TextBody, challenge.SentAtUtc));
+        }
+
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -37,37 +44,118 @@ public sealed class EfUserRegistrationRepository(ToeicDbContext dbContext) : IUs
         }
     }
 
+    public async Task<bool> TryReplacePendingRegistrationAsync(Guid userId, string codeHash,
+        string pendingDisplayName, string pendingPasswordHash, DateTimeOffset sentAtUtc,
+        DateTimeOffset expiresAtUtc, MailMessage? outboxMessage, CancellationToken cancellationToken)
+    {
+        var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+        return await executionStrategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+            var isPending = await dbContext.Users.AsNoTracking()
+                .AnyAsync(user => user.Id == userId && !user.IsActive && user.EmailVerifiedAtUtc == null,
+                    cancellationToken);
+            if (!isPending)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            var updated = await dbContext.EmailVerificationChallenges
+                .Where(item => item.UserId == userId)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(item => item.CodeHash, codeHash)
+                    .SetProperty(item => item.PendingDisplayName, pendingDisplayName)
+                    .SetProperty(item => item.PendingPasswordHash, pendingPasswordHash)
+                    .SetProperty(item => item.SentAtUtc, sentAtUtc)
+                    .SetProperty(item => item.ExpiresAtUtc, expiresAtUtc)
+                    .SetProperty(item => item.FailedAttempts, 0), cancellationToken);
+            if (updated == 0)
+            {
+                dbContext.EmailVerificationChallenges.Add(EmailVerificationChallenge.Create(userId, codeHash,
+                    sentAtUtc, expiresAtUtc, pendingDisplayName, pendingPasswordHash));
+            }
+
+            if (outboxMessage is not null)
+            {
+                dbContext.EmailOutboxMessages.Add(EmailOutboxMessage.Create(outboxMessage.To, outboxMessage.Subject,
+                    outboxMessage.TextBody, sentAtUtc));
+            }
+
+            try
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return true;
+            }
+            catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+            { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                dbContext.ChangeTracker.Clear();
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+        });
+    }
+
     public async Task<bool> TryReplaceVerificationAsync(Guid userId, string codeHash,
         DateTimeOffset sentAtUtc, DateTimeOffset expiresAtUtc, TimeSpan cooldown,
-        CancellationToken cancellationToken)
+        MailMessage? outboxMessage, CancellationToken cancellationToken)
     {
-        var cooldownThreshold = sentAtUtc - cooldown;
-        var updated = await dbContext.EmailVerificationChallenges
-            .Where(item => item.UserId == userId && item.SentAtUtc <= cooldownThreshold)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(item => item.CodeHash, codeHash)
-                .SetProperty(item => item.SentAtUtc, sentAtUtc)
-                .SetProperty(item => item.ExpiresAtUtc, expiresAtUtc)
-                .SetProperty(item => item.FailedAttempts, 0), cancellationToken);
-        if (updated == 1)
-            return true;
-        if (await dbContext.EmailVerificationChallenges.AsNoTracking()
-                .AnyAsync(item => item.UserId == userId, cancellationToken))
-            return false;
+        var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+        return await executionStrategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+            var cooldownThreshold = sentAtUtc - cooldown;
+            var updated = await dbContext.EmailVerificationChallenges
+                .Where(item => item.UserId == userId && item.SentAtUtc <= cooldownThreshold)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(item => item.CodeHash, codeHash)
+                    .SetProperty(item => item.SentAtUtc, sentAtUtc)
+                    .SetProperty(item => item.ExpiresAtUtc, expiresAtUtc)
+                    .SetProperty(item => item.FailedAttempts, 0), cancellationToken);
+            if (updated == 1)
+            {
+                if (outboxMessage is not null)
+                {
+                    dbContext.EmailOutboxMessages.Add(EmailOutboxMessage.Create(outboxMessage.To, outboxMessage.Subject,
+                        outboxMessage.TextBody, sentAtUtc));
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
 
-        dbContext.EmailVerificationChallenges.Add(EmailVerificationChallenge.Create(userId, codeHash,
-            sentAtUtc, expiresAtUtc));
-        try
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-            return true;
-        }
-        catch (DbUpdateException exception) when (exception.InnerException is PostgresException
-        { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            dbContext.ChangeTracker.Clear();
-            return false;
-        }
+                await transaction.CommitAsync(cancellationToken);
+                return true;
+            }
+
+            if (await dbContext.EmailVerificationChallenges.AsNoTracking()
+                    .AnyAsync(item => item.UserId == userId, cancellationToken))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            dbContext.EmailVerificationChallenges.Add(EmailVerificationChallenge.Create(userId, codeHash,
+                sentAtUtc, expiresAtUtc));
+            if (outboxMessage is not null)
+            {
+                dbContext.EmailOutboxMessages.Add(EmailOutboxMessage.Create(outboxMessage.To, outboxMessage.Subject,
+                    outboxMessage.TextBody, sentAtUtc));
+            }
+
+            try
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return true;
+            }
+            catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+            { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                dbContext.ChangeTracker.Clear();
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+        });
     }
 
     public async Task ReleaseVerificationCooldownAsync(Guid userId, DateTimeOffset sentAtUtc,
@@ -102,7 +190,7 @@ public sealed class EfUserRegistrationRepository(ToeicDbContext dbContext) : IUs
             return EmailVerificationAttempt.Invalid;
         }
 
-        account.User.VerifyEmail(nowUtc);
+        account.User.VerifyEmail(nowUtc, account.Challenge.PendingDisplayName, account.Challenge.PendingPasswordHash);
         dbContext.EmailVerificationChallenges.Remove(account.Challenge);
         await dbContext.SaveChangesAsync(cancellationToken);
         return EmailVerificationAttempt.Verified;

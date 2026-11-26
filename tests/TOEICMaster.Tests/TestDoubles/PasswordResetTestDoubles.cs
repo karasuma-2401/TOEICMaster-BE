@@ -1,5 +1,6 @@
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
+using TOEICMaster.Application.Email;
 
 namespace TOEICMaster.Tests.TestDoubles;
 
@@ -18,6 +19,7 @@ public sealed class FakePasswordResetRepository : IPasswordResetRepository
     public string? NewPasswordHash { get; private set; }
     public DateTimeOffset? ResetAtUtc { get; private set; }
     public bool CooldownReleased { get; private set; }
+    public List<MailMessage> QueuedMessages { get; } = [];
 
     public Task<PasswordResetAccount?> FindEligibleAccountAsync(string normalizedEmail,
         CancellationToken cancellationToken)
@@ -35,6 +37,17 @@ public sealed class FakePasswordResetRepository : IPasswordResetRepository
     {
         cancellationToken.ThrowIfCancellationRequested();
         IssuedCodeHash = codeHash;
+        return Task.FromResult(ReplaceSucceeds);
+    }
+
+    public Task<bool> TryReplaceChallengeWithEmailAsync(Guid userId, string codeHash, DateTimeOffset sentAtUtc,
+        DateTimeOffset expiresAtUtc, TimeSpan cooldown, MailMessage outboxMessage,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        IssuedCodeHash = codeHash;
+        if (ReplaceSucceeds)
+            QueuedMessages.Add(outboxMessage);
         return Task.FromResult(ReplaceSucceeds);
     }
 

@@ -62,7 +62,9 @@ public sealed class EfProfileRepository(ToeicDbContext dbContext) : IProfileRepo
             await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
             var updated = await dbContext.Users
                 .Where(user => user.Id == userId && user.IsActive && user.PasswordHash == currentHash)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(user => user.PasswordHash, newHash),
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(user => user.PasswordHash, newHash)
+                    .SetProperty(user => user.SecurityStamp, Guid.NewGuid()),
                     cancellationToken);
             if (updated != 1)
                 return false;

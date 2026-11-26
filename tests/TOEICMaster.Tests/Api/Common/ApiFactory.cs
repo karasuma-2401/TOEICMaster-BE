@@ -1,14 +1,22 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using TOEICMaster.Application.Common.Security;
+using TOEICMaster.Tests.TestDoubles;
 
 namespace TOEICMaster.Tests.Api.Common;
 
 public class ApiFactory : WebApplicationFactory<Program>
 {
+    protected virtual bool UseDatabaseAccessTokenValidation => false;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        base.ConfigureWebHost(builder);
         builder.UseEnvironment("Development");
         builder.ConfigureLogging(logging => logging.ClearProviders());
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
@@ -36,5 +44,13 @@ public class ApiFactory : WebApplicationFactory<Program>
                 ["Google:ClientId"] = "test-client.apps.googleusercontent.com",
                 ["EmailVerification:HashKey"] = "test-email-verification-key-32-characters"
             }));
+        if (!UseDatabaseAccessTokenValidation)
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IAccessTokenPrincipalValidator>();
+                services.AddSingleton<IAccessTokenPrincipalValidator, AlwaysValidAccessTokenPrincipalValidator>();
+            });
+        }
     }
 }

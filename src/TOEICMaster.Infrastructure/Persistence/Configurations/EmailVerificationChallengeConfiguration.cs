@@ -11,6 +11,8 @@ public sealed class EmailVerificationChallengeConfiguration : IEntityTypeConfigu
         builder.ToTable("email_verification_challenges");
         builder.HasKey(challenge => challenge.UserId);
         builder.Property(challenge => challenge.CodeHash).HasMaxLength(64).IsFixedLength().IsRequired();
+        builder.Property(challenge => challenge.PendingDisplayName).HasMaxLength(100);
+        builder.Property(challenge => challenge.PendingPasswordHash).HasMaxLength(100);
         builder.Property(challenge => challenge.SentAtUtc).IsRequired();
         builder.Property(challenge => challenge.ExpiresAtUtc).IsRequired();
         builder.Property(challenge => challenge.FailedAttempts).IsRequired();

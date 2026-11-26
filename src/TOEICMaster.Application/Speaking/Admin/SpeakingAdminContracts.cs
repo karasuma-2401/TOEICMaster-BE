@@ -92,15 +92,15 @@ public sealed record SpeakingTestQuestionInput(int Part, int SequenceNumber,
 public sealed record SpeakingTestQuestionContentDto(
     string RubricNotes,
     string ModelAnswer,
-    string? Passage = null,
-    Guid? ImageAssetId = null,
-    string? ImageAlt = null,
-    string? Context = null,
-    IReadOnlyList<string?>? Questions = null,
-    string? DocumentTitle = null,
-    IReadOnlyList<SpeakingInfoRowDto>? DocumentRows = null,
-    string? CallerIntro = null,
-    string? Prompt = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Passage = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Guid? ImageAssetId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ImageAlt = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Context = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string?>? Questions = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? DocumentTitle = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<SpeakingInfoRowDto>? DocumentRows = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? CallerIntro = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Prompt = null)
 {
     public SpeakingContentDto ToContent(int part) => new(part, Passage, ImageAssetId, ImageAlt, Context, Questions,
         DocumentTitle, DocumentRows, CallerIntro, Prompt);

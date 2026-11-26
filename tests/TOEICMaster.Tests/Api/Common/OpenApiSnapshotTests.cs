@@ -161,5 +161,53 @@ public sealed class OpenApiSnapshotTests
         var examAttemptStatusValues = schemas.GetProperty("ExamAttemptStatus")
             .GetProperty("enum").EnumerateArray().Select(e => e.GetString()).ToArray();
         Assert.Equal(new[] { "InProgress", "Completed", "Abandoned" }, examAttemptStatusValues);
+
+        // File upload operations emit multipart/form-data with binary string schema, never exploded IFormFile metadata.
+        (string Path, string Method, string FileField)[] uploadOperations =
+        [
+            ("/api/v1/admin/exam-media/images", "post", "file"),
+            ("/api/v1/admin/exams/import", "post", "workbook"),
+            ("/api/v1/admin/knowledge/media/images", "post", "file"),
+            ("/api/v1/admin/lr-exercise-bank/parts/{part}/imports", "post", "file"),
+            ("/api/v1/admin/speaking/media/images", "post", "file"),
+            ("/api/v1/admin/writing/exercises/imports/validate", "post", "file"),
+            ("/api/v1/admin/writing/exercises/import", "post", "file"),
+            ("/api/v1/admin/writing/media/images", "post", "file"),
+            ("/api/v1/admin/writing/tests/imports/validate", "post", "file"),
+            ("/api/v1/admin/writing/tests/import", "post", "file"),
+            ("/api/v1/profile/avatar", "put", "file"),
+            ("/api/v1/users/me/avatar", "put", "file"),
+            ("/api/v1/pronunciation/assessments", "post", "file"),
+            ("/api/v1/speaking/attempts/{attemptId}/recordings/{position}", "put", "file")
+        ];
+        foreach (var (path, method, fileField) in uploadOperations)
+        {
+            var operation = paths.GetProperty(path).GetProperty(method);
+            var content = operation.GetProperty("requestBody").GetProperty("content");
+            Assert.False(content.TryGetProperty("application/x-www-form-urlencoded", out _),
+                $"{method.ToUpperInvariant()} {path} should not emit application/x-www-form-urlencoded.");
+            var schema = content.GetProperty("multipart/form-data").GetProperty("schema");
+            var field = schema.GetProperty("properties").GetProperty(fileField);
+            Assert.Equal("string", field.GetProperty("type").GetString());
+            Assert.Equal("binary", field.GetProperty("format").GetString());
+        }
+
+        // Rate-limited endpoints declare 429 ProblemDetails responses.
+        (string Path, string Method)[] rateLimitedOperations =
+        [
+            ("/api/v1/profile/password", "put"),
+            ("/api/v1/profile/password", "post"),
+            ("/api/v1/users/me/password", "put"),
+            ("/api/v1/users/me/password", "post"),
+            ("/api/v1/speaking/attempts/{attemptId}/evaluation-consent", "post"),
+            ("/api/v1/speaking/attempts/{attemptId}/recordings/{position}", "put"),
+            ("/api/v1/pronunciation/assessments", "post")
+        ];
+        foreach (var (path, method) in rateLimitedOperations)
+        {
+            var responses = paths.GetProperty(path).GetProperty(method).GetProperty("responses");
+            Assert.True(responses.TryGetProperty("429", out _),
+                $"{method.ToUpperInvariant()} {path} must declare a 429 response in OpenAPI.");
+        }
     }
 }

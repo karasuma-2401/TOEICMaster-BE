@@ -56,9 +56,9 @@ public sealed class PasswordResetApiTests
             new { email = "missing@example.com" });
 
         Assert.Equal(HttpStatusCode.Accepted, existingResponse.StatusCode);
-        Assert.Single(existingFactory.MailSender.Messages);
+        Assert.Single(existingFactory.Repository.QueuedMessages);
         Assert.Equal(HttpStatusCode.Accepted, missingResponse.StatusCode);
-        Assert.Empty(missingFactory.MailSender.Messages);
+        Assert.Empty(missingFactory.Repository.QueuedMessages);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class PasswordResetApiTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.NotNull(problem);
         Assert.Contains("Email", problem.Errors.Keys);
-        Assert.Empty(factory.MailSender.Messages);
+        Assert.Empty(factory.Repository.QueuedMessages);
     }
 
     [Fact]

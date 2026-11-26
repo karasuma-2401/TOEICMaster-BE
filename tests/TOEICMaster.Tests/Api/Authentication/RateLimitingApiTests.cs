@@ -26,7 +26,7 @@ public sealed class RateLimitingApiTests
         using var rejected = await RegisterAsync(client, "blocked@example.com");
 
         Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
-        Assert.Equal(5, factory.MailSender.Messages.Count);
+        Assert.Equal(5, factory.Repository.QueuedMessages.Count);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class RateLimitingApiTests
             new { email = "learner@example.com" });
 
         Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
-        Assert.Equal(5, factory.MailSender.Messages.Count);
+        Assert.Equal(5, factory.Repository.QueuedMessages.Count);
     }
 
     [Fact]
@@ -187,6 +187,7 @@ public sealed class RateLimitingApiTests
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
                 new Dictionary<string, string?>
                 {
+                    ["AllowedHosts"] = "api.toeicmaster.test",
                     ["Minio:PublicEndpoint"] = "localhost:9000",
                     ["Startup:SkipSeeders"] = "true"
                 }));

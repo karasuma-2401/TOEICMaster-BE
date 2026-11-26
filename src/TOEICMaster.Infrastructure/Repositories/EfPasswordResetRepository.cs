@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using TOEICMaster.Application.Common.Interfaces;
+using TOEICMaster.Application.Email;
 using TOEICMaster.Domain.Entities;
 using TOEICMaster.Infrastructure.Persistence;
 
@@ -51,6 +52,60 @@ public sealed class EfPasswordResetRepository(ToeicDbContext dbContext) : IPassw
             dbContext.ChangeTracker.Clear();
             return false;
         }
+    }
+
+    public async Task<bool> TryReplaceChallengeWithEmailAsync(Guid userId, string codeHash,
+        DateTimeOffset sentAtUtc, DateTimeOffset expiresAtUtc, TimeSpan cooldown, MailMessage outboxMessage,
+        CancellationToken cancellationToken)
+    {
+        var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+        return await executionStrategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+            var cooldownThreshold = sentAtUtc - cooldown;
+            var updated = await dbContext.PasswordResetChallenges
+                .Where(item => item.UserId == userId && item.SentAtUtc <= cooldownThreshold)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(item => item.CodeHash, codeHash)
+                    .SetProperty(item => item.SentAtUtc, sentAtUtc)
+                    .SetProperty(item => item.ExpiresAtUtc, expiresAtUtc)
+                    .SetProperty(item => item.FailedAttempts, 0)
+                    .SetProperty(item => item.ResetTokenHash, (string?)null)
+                    .SetProperty(item => item.ResetTokenExpiresAtUtc, (DateTimeOffset?)null), cancellationToken);
+            if (updated == 1)
+            {
+                dbContext.EmailOutboxMessages.Add(EmailOutboxMessage.Create(outboxMessage.To, outboxMessage.Subject,
+                    outboxMessage.TextBody, sentAtUtc));
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return true;
+            }
+
+            if (await dbContext.PasswordResetChallenges.AsNoTracking()
+                    .AnyAsync(item => item.UserId == userId, cancellationToken))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            dbContext.PasswordResetChallenges.Add(PasswordResetChallenge.Create(userId, codeHash,
+                sentAtUtc, expiresAtUtc));
+            dbContext.EmailOutboxMessages.Add(EmailOutboxMessage.Create(outboxMessage.To, outboxMessage.Subject,
+                outboxMessage.TextBody, sentAtUtc));
+            try
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return true;
+            }
+            catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+            { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                dbContext.ChangeTracker.Clear();
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+        });
     }
 
     public async Task ReleaseChallengeCooldownAsync(Guid userId, DateTimeOffset sentAtUtc,
@@ -124,7 +179,9 @@ public sealed class EfPasswordResetRepository(ToeicDbContext dbContext) : IPassw
             var updated = await dbContext.Users
                 .Where(user => user.Id == challenge.UserId && user.IsActive &&
                                user.EmailVerifiedAtUtc != null && user.PasswordHash != null)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(user => user.PasswordHash, passwordHash),
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(user => user.PasswordHash, passwordHash)
+                    .SetProperty(user => user.SecurityStamp, Guid.NewGuid()),
                     cancellationToken);
             if (updated != 1)
             {
