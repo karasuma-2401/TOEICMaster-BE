@@ -4,8 +4,10 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using TOEICMaster.Application.Common.Security;
+using TOEICMaster.Infrastructure.Email;
 using TOEICMaster.Tests.TestDoubles;
 
 namespace TOEICMaster.Tests.Api.Common;
@@ -44,13 +46,20 @@ public class ApiFactory : WebApplicationFactory<Program>
                 ["Google:ClientId"] = "test-client.apps.googleusercontent.com",
                 ["EmailVerification:HashKey"] = "test-email-verification-key-32-characters"
             }));
-        if (!UseDatabaseAccessTokenValidation)
+        builder.ConfigureTestServices(services =>
         {
-            builder.ConfigureTestServices(services =>
+            var outboxWorker = services.Where(descriptor =>
+                    descriptor.ServiceType == typeof(IHostedService) &&
+                    descriptor.ImplementationType == typeof(EmailOutboxWorker))
+                .ToArray();
+            foreach (var descriptor in outboxWorker)
+                services.Remove(descriptor);
+
+            if (!UseDatabaseAccessTokenValidation)
             {
                 services.RemoveAll<IAccessTokenPrincipalValidator>();
                 services.AddSingleton<IAccessTokenPrincipalValidator, AlwaysValidAccessTokenPrincipalValidator>();
-            });
-        }
+            }
+        });
     }
 }

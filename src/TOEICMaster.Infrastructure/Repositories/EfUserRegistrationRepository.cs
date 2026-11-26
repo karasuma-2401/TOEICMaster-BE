@@ -86,6 +86,7 @@ public sealed class EfUserRegistrationRepository(ToeicDbContext dbContext) : IUs
             {
                 await dbContext.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+                dbContext.ChangeTracker.Clear();
                 return true;
             }
             catch (DbUpdateException exception) when (exception.InnerException is PostgresException
@@ -124,6 +125,7 @@ public sealed class EfUserRegistrationRepository(ToeicDbContext dbContext) : IUs
                 }
 
                 await transaction.CommitAsync(cancellationToken);
+                dbContext.ChangeTracker.Clear();
                 return true;
             }
 
@@ -146,6 +148,7 @@ public sealed class EfUserRegistrationRepository(ToeicDbContext dbContext) : IUs
             {
                 await dbContext.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+                dbContext.ChangeTracker.Clear();
                 return true;
             }
             catch (DbUpdateException exception) when (exception.InnerException is PostgresException
@@ -166,6 +169,7 @@ public sealed class EfUserRegistrationRepository(ToeicDbContext dbContext) : IUs
             .Where(item => item.UserId == userId && item.SentAtUtc == sentAtUtc)
             .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.SentAtUtc, releasedAtUtc),
                 cancellationToken);
+        dbContext.ChangeTracker.Clear();
     }
 
     public async Task<EmailVerificationAttempt> VerifyEmailAsync(string normalizedEmail, string codeHash,

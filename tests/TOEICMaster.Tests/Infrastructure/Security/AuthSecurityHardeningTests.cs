@@ -195,50 +195,76 @@ public sealed class AuthSecurityHardeningTests
 
         try
         {
-            await using var db = CreateDbContext(connectionString);
-            var repo = new EfUserRegistrationRepository(db);
-            var registerHandler = new RegisterCommandHandler(repo, hasher, codeService, time);
-            var verifyHandler = new VerifyEmailCommandHandler(repo, codeService, time);
-
             // Attacker pre-registers victim's email with attacker password.
-            await registerHandler.Handle(new RegisterCommand("Attacker", email, "AttackerPass123!"),
-                CancellationToken.None);
+            await using (var db = CreateDbContext(connectionString))
+            {
+                var repo = new EfUserRegistrationRepository(db);
+                var registerHandler = new RegisterCommandHandler(repo, hasher, codeService, time);
+                await registerHandler.Handle(new RegisterCommand("Attacker", email, "AttackerPass123!"),
+                    CancellationToken.None);
+            }
 
-            var attackerOutbox = await db.EmailOutboxMessages.AsNoTracking()
-                .Where(m => m.To == email)
-                .OrderBy(m => m.CreatedAtUtc)
-                .SingleAsync();
-            var attackerCode = ExtractSixDigitCode(attackerOutbox.TextBody);
+            string attackerCode;
+            await using (var db = CreateDbContext(connectionString))
+            {
+                var attackerOutbox = await db.EmailOutboxMessages.AsNoTracking()
+                    .Where(m => m.To == email)
+                    .OrderBy(m => m.CreatedAtUtc)
+                    .SingleAsync();
+                attackerCode = ExtractSixDigitCode(attackerOutbox.TextBody);
+            }
 
             // Victim registers same email 5 seconds later (within cooldown) with their own password.
             time.Advance(5);
-            await registerHandler.Handle(new RegisterCommand("Real Victim", email, "VictimPass456!"),
-                CancellationToken.None);
+            await using (var db = CreateDbContext(connectionString))
+            {
+                var repo = new EfUserRegistrationRepository(db);
+                var registerHandler = new RegisterCommandHandler(repo, hasher, codeService, time);
+                await registerHandler.Handle(new RegisterCommand("Real Victim", email, "VictimPass456!"),
+                    CancellationToken.None);
+            }
 
             // Attacker's old OTP must no longer work.
-            await Assert.ThrowsAsync<InvalidEmailVerificationException>(() =>
-                verifyHandler.Handle(new VerifyEmailCommand(email, attackerCode), CancellationToken.None));
+            await using (var db = CreateDbContext(connectionString))
+            {
+                var repo = new EfUserRegistrationRepository(db);
+                var verifyHandler = new VerifyEmailCommandHandler(repo, codeService, time);
+                await Assert.ThrowsAsync<InvalidEmailVerificationException>(() =>
+                    verifyHandler.Handle(new VerifyEmailCommand(email, attackerCode), CancellationToken.None));
+            }
 
-            var latestOutbox = await db.EmailOutboxMessages.AsNoTracking()
-                .Where(m => m.To == email)
-                .OrderByDescending(m => m.CreatedAtUtc)
-                .FirstAsync();
-            var victimCode = ExtractSixDigitCode(latestOutbox.TextBody);
+            string victimCode;
+            await using (var db = CreateDbContext(connectionString))
+            {
+                var latestOutbox = await db.EmailOutboxMessages.AsNoTracking()
+                    .Where(m => m.To == email)
+                    .OrderByDescending(m => m.CreatedAtUtc)
+                    .FirstAsync();
+                victimCode = ExtractSixDigitCode(latestOutbox.TextBody);
+            }
 
-            await verifyHandler.Handle(new VerifyEmailCommand(email, victimCode), CancellationToken.None);
+            await using (var db = CreateDbContext(connectionString))
+            {
+                var repo = new EfUserRegistrationRepository(db);
+                var verifyHandler = new VerifyEmailCommandHandler(repo, codeService, time);
+                await verifyHandler.Handle(new VerifyEmailCommand(email, victimCode), CancellationToken.None);
+            }
 
-            var verifiedUser = await db.Users.AsNoTracking().SingleAsync(u => u.NormalizedEmail == normalized);
-            Assert.True(verifiedUser.IsActive);
-            Assert.Equal("Real Victim", verifiedUser.DisplayName);
-            Assert.False(hasher.Verify("AttackerPass123!", verifiedUser.PasswordHash));
-            Assert.True(hasher.Verify("VictimPass456!", verifiedUser.PasswordHash));
+            await using (var db = CreateDbContext(connectionString))
+            {
+                var verifiedUser = await db.Users.AsNoTracking().SingleAsync(u => u.NormalizedEmail == normalized);
+                Assert.True(verifiedUser.IsActive);
+                Assert.Equal("Real Victim", verifiedUser.DisplayName);
+                Assert.False(hasher.Verify("AttackerPass123!", verifiedUser.PasswordHash));
+                Assert.True(hasher.Verify("VictimPass456!", verifiedUser.PasswordHash));
 
-            // Outbox processor delivers pending messages via IMailSender.
-            var sender = new RecordingMailSender();
-            var processor = new EmailOutboxProcessor(db, sender, time, NullLogger<EmailOutboxProcessor>.Instance);
-            var delivered = await processor.ProcessDueAsync(20, CancellationToken.None);
-            Assert.True(delivered >= 2);
-            Assert.Contains(sender.Messages, m => m.To == email && m.TextBody.Contains(victimCode));
+                // Outbox processor delivers pending messages via IMailSender.
+                var sender = new RecordingMailSender();
+                var processor = new EmailOutboxProcessor(db, sender, time, NullLogger<EmailOutboxProcessor>.Instance);
+                var delivered = await processor.ProcessDueAsync(20, CancellationToken.None);
+                Assert.True(delivered >= 2);
+                Assert.Contains(sender.Messages, m => m.To == email && m.TextBody.Contains(victimCode));
+            }
         }
         finally
         {
