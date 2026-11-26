@@ -20,7 +20,7 @@ public sealed class ExamRevisionEditingTests
         Assert.Null(question.OptionD);
 
         revision.Publish();
-        Assert.Throws<InvalidOperationException>(() => revision.UpdateQuestion(7, content));
+        Assert.Throws<ExamRevisionStateConflictException>(() => revision.UpdateQuestion(7, content));
     }
 
     [Fact]

@@ -26,6 +26,7 @@ public sealed class ExamRevisionConfiguration : IEntityTypeConfiguration<ExamRev
     {
         builder.ToTable("exam_revisions");
         builder.HasKey(revision => revision.Id);
+        builder.Property(revision => revision.Id).ValueGeneratedNever();
         builder.Property(revision => revision.VersionNumber).IsRequired();
         builder.Property(revision => revision.Status).HasConversion<string>().HasMaxLength(16).IsRequired();
         builder.Property(revision => revision.CreatedAtUtc).IsRequired();
@@ -45,6 +46,7 @@ public sealed class ExamBlockConfiguration : IEntityTypeConfiguration<ExamBlock>
     {
         builder.ToTable("exam_blocks");
         builder.HasKey(block => block.Id);
+        builder.Property(block => block.Id).ValueGeneratedNever();
         builder.Property(block => block.Key).HasMaxLength(32).IsRequired();
         builder.Property(block => block.Type).HasConversion<string>().HasMaxLength(16).IsRequired();
         builder.HasOne<ExamMediaAsset>().WithMany().HasForeignKey(block => block.AudioAssetId)
@@ -66,6 +68,7 @@ public sealed class ExamQuestionConfiguration : IEntityTypeConfiguration<ExamQue
     {
         builder.ToTable("exam_questions");
         builder.HasKey(question => question.Id);
+        builder.Property(question => question.Id).ValueGeneratedNever();
         builder.Property(question => question.Code).HasMaxLength(80);
         builder.Property(question => question.Stem).HasColumnType("text");
         builder.Property(question => question.OptionA).HasColumnType("text");
@@ -88,6 +91,7 @@ public sealed class ExamContextBlockConfiguration : IEntityTypeConfiguration<Exa
     {
         builder.ToTable("exam_context_blocks");
         builder.HasKey(context => context.Id);
+        builder.Property(context => context.Id).ValueGeneratedNever();
         builder.Property(context => context.Type).HasConversion<string>().HasMaxLength(16).IsRequired();
         builder.Property(context => context.Text).HasColumnType("text");
         builder.Property(context => context.AltText).HasMaxLength(500);
