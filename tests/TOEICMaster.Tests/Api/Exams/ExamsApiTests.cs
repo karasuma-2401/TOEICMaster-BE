@@ -77,6 +77,70 @@ public sealed class ExamsApiTests(ExamsApiFactory factory) : IClassFixture<Exams
         return (result.GetProperty("examId").GetGuid(), result.GetProperty("revisionId").GetGuid());
     }
 
+    [Fact]
+    public async Task Published_revision_can_be_forked()
+    {
+        using var client = CreateAdminClient();
+        var (examId, revisionId) = await CreateDraftAsync(client, $"LR-FORK-{Guid.NewGuid():N}");
+        var exam = (await factory.Repository.FindExamAsync(examId, CancellationToken.None))!;
+        var published = exam.Revisions.Single();
+        published.ReplaceContextBlocks("P3-G32", [new ExamContextContent(1, ExamContextType.Text, "Passage", null, null)]);
+        exam.PublishDraft(revisionId);
+
+        using var response = await client.PostAsJsonAsync($"/api/v1/admin/exams/{examId}/revisions",
+            new { sourceRevisionId = revisionId });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.NotEqual(revisionId, body.GetProperty("revisionId").GetGuid());
+        Assert.Equal("Draft", body.GetProperty("status").GetString());
+        Assert.Equal(2, body.GetProperty("versionNumber").GetInt32());
+        Assert.Equal(ExamRevisionStatus.Published, published.Status);
+
+    }
+
+    [Fact]
+    public async Task Draft_revision_cannot_be_forked()
+    {
+        using var client = CreateAdminClient();
+        var (examId, revisionId) = await CreateDraftAsync(client, $"LR-FORK-{Guid.NewGuid():N}");
+        using var response = await client.PostAsJsonAsync($"/api/v1/admin/exams/{examId}/revisions",
+            new { sourceRevisionId = revisionId });
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Published_revision_cannot_be_published_again()
+    {
+        using var client = CreateAdminClient();
+        var (examId, revisionId) = await CreateDraftAsync(client, $"LR-PUBLISH-{Guid.NewGuid():N}");
+        var exam = (await factory.Repository.FindExamAsync(examId, CancellationToken.None))!;
+        exam.PublishDraft(revisionId);
+        using var response = await client.PostAsJsonAsync(
+            $"/api/v1/admin/exams/{examId}/revisions/{revisionId}/publish", new { });
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(ExamRevisionStatus.Published)]
+    [InlineData(ExamRevisionStatus.Superseded)]
+    public async Task Non_draft_revision_cannot_be_edited(ExamRevisionStatus status)
+    {
+        using var client = CreateAdminClient();
+        var (examId, revisionId) = await CreateDraftAsync(client, $"LR-EDIT-{Guid.NewGuid():N}");
+        var exam = (await factory.Repository.FindExamAsync(examId, CancellationToken.None))!;
+        exam.PublishDraft(revisionId);
+        if (status == ExamRevisionStatus.Superseded)
+        {
+            var next = exam.CreateDraftRevision(revisionId, DateTimeOffset.UtcNow);
+            exam.PublishDraft(next.Id);
+        }
+        using var response = await client.PutAsJsonAsync(
+            $"/api/v1/admin/exams/{examId}/revisions/{revisionId}/questions/1",
+            new { code = "Q1", stem = "Stem", optionA = "A", optionB = "B", optionC = "C", optionD = "D", correctKey = "A" });
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
     [Theory]
     [InlineData(null, HttpStatusCode.Unauthorized)]
     [InlineData("User", HttpStatusCode.Forbidden)]

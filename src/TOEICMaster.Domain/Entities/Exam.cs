@@ -7,6 +7,8 @@ public enum ExamRevisionStatus
     Superseded = 3
 }
 
+public sealed class ExamRevisionStateConflictException(string message) : Exception(message);
+
 public enum ExamBlockType
 {
     Single = 1,
@@ -62,7 +64,7 @@ public sealed class Exam
         var source = _revisions.SingleOrDefault(revision => revision.Id == sourceRevisionId)
             ?? throw new InvalidOperationException("The source revision does not belong to this exam.");
         if (source.Status != ExamRevisionStatus.Published)
-            throw new InvalidOperationException("Only a published revision can be forked.");
+            throw new ExamRevisionStateConflictException("Only a published revision can be forked.");
 
         var draft = source.Clone(Guid.NewGuid(), _revisions.Max(revision => revision.VersionNumber) + 1, createdAtUtc);
         _revisions.Add(draft);
@@ -74,7 +76,7 @@ public sealed class Exam
         var draft = _revisions.SingleOrDefault(revision => revision.Id == revisionId)
             ?? throw new InvalidOperationException("The revision does not belong to this exam.");
         if (draft.Status != ExamRevisionStatus.Draft)
-            throw new InvalidOperationException("Only a draft revision can be published.");
+            throw new ExamRevisionStateConflictException("Only a draft revision can be published.");
 
         foreach (var published in _revisions.Where(revision => revision.Status == ExamRevisionStatus.Published))
             published.Supersede();
@@ -126,7 +128,7 @@ public sealed class ExamRevision
     public void Publish()
     {
         if (Status != ExamRevisionStatus.Draft)
-            throw new InvalidOperationException("Only a draft revision can be published.");
+            throw new ExamRevisionStateConflictException("Only a draft revision can be published.");
         Status = ExamRevisionStatus.Published;
     }
 
@@ -241,7 +243,7 @@ public sealed class ExamRevision
     private void EnsureDraft()
     {
         if (Status != ExamRevisionStatus.Draft)
-            throw new InvalidOperationException("Only a draft revision can be edited.");
+            throw new ExamRevisionStateConflictException("Only a draft revision can be edited.");
     }
 
     private ExamBlock FindBlock(string blockKey) => _blocks.SingleOrDefault(candidate => candidate.Key == blockKey)

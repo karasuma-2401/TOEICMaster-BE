@@ -1,4 +1,5 @@
 using MediatR;
+using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Application.Exams.Commands.PublishExamRevision;
 
@@ -12,6 +13,8 @@ public sealed class PublishExamRevisionCommandHandler(IExamRepository repository
         var exam = await repository.FindExamAsync(request.ExamId, cancellationToken) ?? throw new ExamNotFoundException();
         var revision = exam.Revisions.SingleOrDefault(candidate => candidate.Id == request.RevisionId)
             ?? throw new ExamNotFoundException();
+        if (revision.Status != ExamRevisionStatus.Draft)
+            throw new ExamRevisionStateConflictException("Only a draft revision can be published.");
         var profile = await repository.FindScoreProfileAsync(revision.ScoreProfileId, cancellationToken)
             ?? throw new ExamNotFoundException();
         var errors = revision.GetPublicationErrors(profile.IsComplete);

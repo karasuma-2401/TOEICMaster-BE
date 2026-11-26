@@ -15,6 +15,7 @@ using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.Speaking;
 using TOEICMaster.Application.Writing.Admin;
 using TOEICMaster.Application.Writing.Attempts;
+using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Api.ExceptionHandling;
 
@@ -103,6 +104,8 @@ public sealed class GlobalExceptionHandler(
         },
 
         // Exams
+        ExamRevisionStateConflictException conflict => Simple(StatusCodes.Status409Conflict,
+            conflict.Message, ConflictType),
         ExamNotFoundException => Simple(StatusCodes.Status404NotFound,
             "Requested exam, revision, or scoring rubric not found.", NotFoundType),
         ExamConflictException => Simple(StatusCodes.Status409Conflict,
