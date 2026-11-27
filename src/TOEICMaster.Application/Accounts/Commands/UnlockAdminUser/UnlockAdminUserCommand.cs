@@ -17,6 +17,10 @@ public sealed class UnlockAdminUserCommandValidator : AbstractValidator<UnlockAd
 public sealed class UnlockAdminUserCommandHandler(IAdminUserRepository repository)
     : IRequestHandler<UnlockAdminUserCommand>
 {
-    public Task Handle(UnlockAdminUserCommand request, CancellationToken cancellationToken) =>
-        repository.UnlockAsync(request.TargetUserId, cancellationToken);
+    public Task Handle(UnlockAdminUserCommand request, CancellationToken cancellationToken)
+    {
+        if (request.ActorUserId == request.TargetUserId)
+            throw new AdminUserOperationConflictException("CANNOT_UNLOCK_SELF", "Cannot unlock your own account.");
+        return repository.UnlockAsync(request.TargetUserId, cancellationToken);
+    }
 }

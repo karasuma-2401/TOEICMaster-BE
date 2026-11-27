@@ -20,6 +20,17 @@ namespace TOEICMaster.Tests.Application.Accounts;
 public sealed class AdminUserCommandsTests
 {
     [Fact]
+    public async Task Unlock_rejects_self_and_allows_other_users()
+    {
+        var actorId = Guid.NewGuid();
+        var handler = new UnlockAdminUserCommandHandler(new InMemoryAdminUserRepository());
+        var error = await Assert.ThrowsAsync<AdminUserOperationConflictException>(() =>
+            handler.Handle(new UnlockAdminUserCommand(actorId, actorId), CancellationToken.None));
+        Assert.Equal("CANNOT_UNLOCK_SELF", error.Code);
+        await handler.Handle(new UnlockAdminUserCommand(actorId, Guid.NewGuid()), CancellationToken.None);
+    }
+
+    [Fact]
     public void Create_validator_accepts_valid_payload()
     {
         var result = new CreateAdminUserCommandValidator().Validate(

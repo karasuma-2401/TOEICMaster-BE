@@ -49,6 +49,32 @@ public sealed class OpenApiSnapshotFactory : WebApplicationFactory<Program>
 
 public sealed class OpenApiSnapshotTests
 {
+    [Fact]
+    public async Task Knowledge_responses_and_admin_learner_context_schemas_are_distinct()
+    {
+        using var factory = new OpenApiSnapshotFactory();
+        using var client = factory.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync("/openapi/v1.json"));
+        var root = document.RootElement;
+        var media = root.GetProperty("paths").GetProperty("/api/v1/knowledge/media/{assetId}")
+            .GetProperty("get").GetProperty("responses").GetProperty("200");
+        Assert.DoesNotContain("FileContentResult", media.GetRawText());
+        var saved = root.GetProperty("paths").GetProperty("/api/v1/knowledge/saved/{articleId}");
+        foreach (var method in new[] { "put", "delete" })
+        {
+            var responses = saved.GetProperty(method).GetProperty("responses");
+            Assert.True(responses.TryGetProperty("204", out _));
+            Assert.False(responses.TryGetProperty("200", out _));
+        }
+        var schemas = root.GetProperty("components").GetProperty("schemas");
+        var admin = schemas.GetProperty("AdminExamContextBlockDto").GetProperty("properties");
+        var learner = schemas.GetProperty("ExamAttemptContextBlockDto").GetProperty("properties");
+        Assert.True(admin.TryGetProperty("imageRequired", out _));
+        Assert.False(learner.TryGetProperty("imageRequired", out _));
+        Assert.True(learner.TryGetProperty("id", out _));
+        Assert.False(admin.TryGetProperty("id", out _));
+    }
+
     private static readonly JsonSerializerOptions CanonicalJsonOptions = new()
     {
         WriteIndented = true,

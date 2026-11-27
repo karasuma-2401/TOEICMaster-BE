@@ -4,6 +4,20 @@ using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Tests.TestDoubles;
 
+public sealed class EmptyKnowledgeReader : IKnowledgeReader
+{
+    public Task<Guid?> FindPublishedAsync(string slug, CancellationToken ct) => Task.FromResult<Guid?>(null);
+    public Task<IReadOnlyList<KnowledgeArticleSummaryDto>> RelatedAsync(Guid articleId, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<KnowledgeArticleSummaryDto>>([]);
+    public Task<IReadOnlyList<KnowledgeCategoryDto>> CategoriesAsync(CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<KnowledgeCategoryDto>>([]);
+    public Task<bool> IsPublicMediaAsync(Guid assetId, CancellationToken ct) => Task.FromResult(false);
+    public Task<SavedKnowledgeArticlePage> SavedAsync(Guid userId, int pageNumber, int pageSize, Guid? articleId, CancellationToken ct) =>
+        Task.FromResult(new SavedKnowledgeArticlePage([], pageNumber, pageSize, 0, 0, false, pageNumber > 1));
+    public Task SaveAsync(Guid userId, Guid articleId, CancellationToken ct) => throw new KnowledgeNotFoundException("Lesson not found.");
+    public Task RemoveAsync(Guid userId, Guid articleId, CancellationToken ct) => Task.CompletedTask;
+}
+
 public sealed class InMemoryKnowledgeAdminRepository : IKnowledgeAdminRepository
 {
     public List<KnowledgeCategory> Categories { get; } = [];

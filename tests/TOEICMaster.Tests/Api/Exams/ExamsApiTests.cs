@@ -77,6 +77,52 @@ public sealed class ExamsApiTests(ExamsApiFactory factory) : IClassFixture<Exams
         return (result.GetProperty("examId").GetGuid(), result.GetProperty("revisionId").GetGuid());
     }
 
+    [Fact]
+    public async Task Published_revision_can_be_forked_without_changing_the_source()
+    {
+        using var client = CreateAdminClient();
+        var (examId, revisionId) = await CreateDraftAsync(client, $"FORK-{Guid.NewGuid():N}"[..16]);
+        var exam = await factory.Repository.FindExamAsync(examId, CancellationToken.None);
+        exam!.PublishDraft(revisionId);
+
+        using var response = await client.PostAsJsonAsync($"/api/v1/admin/exams/{examId}/revisions",
+            new { sourceRevisionId = revisionId });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Draft", result.GetProperty("status").GetString());
+        Assert.Equal(2, result.GetProperty("versionNumber").GetInt32());
+        Assert.NotEqual(revisionId, result.GetProperty("revisionId").GetGuid());
+        Assert.Equal(ExamRevisionStatus.Published, exam.Revisions.Single(revision => revision.Id == revisionId).Status);
+    }
+
+    [Fact]
+    public async Task Forking_a_draft_returns_conflict()
+    {
+        using var client = CreateAdminClient();
+        var (examId, revisionId) = await CreateDraftAsync(client, $"FORK-{Guid.NewGuid():N}"[..16]);
+
+        using var response = await client.PostAsJsonAsync($"/api/v1/admin/exams/{examId}/revisions",
+            new { sourceRevisionId = revisionId });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Editing_a_published_revision_returns_conflict()
+    {
+        using var client = CreateAdminClient();
+        var (examId, revisionId) = await CreateDraftAsync(client, $"EDIT-{Guid.NewGuid():N}"[..16]);
+        var exam = await factory.Repository.FindExamAsync(examId, CancellationToken.None);
+        exam!.PublishDraft(revisionId);
+
+        using var response = await client.PutAsJsonAsync(
+            $"/api/v1/admin/exams/{examId}/revisions/{revisionId}/score-profile",
+            new { scoreProfileId = factory.ScoreProfile.Id });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
     [Theory]
     [InlineData(null, HttpStatusCode.Unauthorized)]
     [InlineData("User", HttpStatusCode.Forbidden)]

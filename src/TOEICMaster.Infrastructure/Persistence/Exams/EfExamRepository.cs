@@ -10,6 +10,7 @@ public sealed class EfExamRepository(ToeicDbContext context) : IExamRepository
         .AnyAsync(exam => exam.Code == code, cancellationToken);
 
     public Task<Exam?> FindExamAsync(Guid examId, CancellationToken cancellationToken) => context.Exams
+        .AsSplitQuery()
         .Include(exam => exam.Revisions).ThenInclude(revision => revision.Blocks)
         .ThenInclude(block => block.Questions)
         .Include(exam => exam.Revisions).ThenInclude(revision => revision.Blocks)

@@ -15,6 +15,7 @@ using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.Speaking;
 using TOEICMaster.Application.Writing.Admin;
 using TOEICMaster.Application.Writing.Attempts;
+using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Api.ExceptionHandling;
 
@@ -107,6 +108,8 @@ public sealed class GlobalExceptionHandler(
             "Requested exam, revision, or scoring rubric not found.", NotFoundType),
         ExamConflictException => Simple(StatusCodes.Status409Conflict,
             "Exam code already exists.", ConflictType),
+        ExamRevisionStateConflictException conflict => Simple(StatusCodes.Status409Conflict,
+            conflict.Message, ConflictType),
         ExamPublicationException publication => Validation(StatusCodes.Status400BadRequest,
             "Exam does not meet publication requirements.", BadRequestType,
             new Dictionary<string, string[]> { ["exam"] = publication.Errors.ToArray() }),

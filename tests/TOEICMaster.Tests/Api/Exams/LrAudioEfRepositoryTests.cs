@@ -82,6 +82,13 @@ public sealed class LrAudioEfRepositoryTests(ApiFactory factory) : IClassFixture
         var emptyExamDurations = await examRepository.GetMediaDurationsAsync([], CancellationToken.None);
         Assert.Empty(emptyExamDurations);
 
+        var loadedExam = await examRepository.FindExamAsync(exam.Id, CancellationToken.None);
+        Assert.NotNull(loadedExam);
+        var loadedRevision = Assert.Single(loadedExam.Revisions);
+        Assert.Equal(200, loadedRevision.Blocks.Sum(block => block.Questions.Count));
+        Assert.Equal(p3ContextImage.Id,
+            Assert.Single(loadedRevision.Blocks.Single(block => block.Key == "P3-G32").ContextBlocks).ImageAssetId);
+
         var attemptDurations = await attemptRepository.GetMediaDurationsAsync(
             [p1Audio.Id, p2AudioNoDuration.Id], CancellationToken.None);
         Assert.Equal(19_200, attemptDurations[p1Audio.Id]);

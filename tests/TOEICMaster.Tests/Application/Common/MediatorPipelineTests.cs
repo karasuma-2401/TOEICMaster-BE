@@ -11,6 +11,7 @@ using TOEICMaster.Application.ExamAttempts;
 using TOEICMaster.Application.Exams;
 using TOEICMaster.Application.ExerciseBank;
 using TOEICMaster.Application.Flashcards;
+using TOEICMaster.Application.Knowledge;
 using TOEICMaster.Application.Knowledge.Admin;
 using TOEICMaster.Application.Profile;
 using TOEICMaster.Application.Speaking;
@@ -58,6 +59,7 @@ public sealed class MediatorPipelineTests
         services.AddSingleton<IFlashcardRepository, EmptyFlashcardRepository>();
         services.AddSingleton<ILrExerciseBankImportParser, EmptyLrExerciseBankImportParser>();
         services.AddSingleton<IKnowledgeAdminRepository, InMemoryKnowledgeAdminRepository>();
+        services.AddSingleton<IKnowledgeReader, EmptyKnowledgeReader>();
         services.AddSingleton<IKnowledgeMediaStore, InMemoryKnowledgeMediaStore>();
         services.AddSingleton<TOEICMaster.Application.Pronunciation.IPronunciationAssessor, SilentPronunciationAssessor>();
         services.AddSingleton<RecordingMailSender>();
@@ -103,6 +105,22 @@ public sealed class MediatorPipelineTests
         var mail = provider.GetRequiredService<RecordingMailSender>();
         Assert.Equal(new MailMessage(command.To, command.Subject, command.TextBody), Assert.Single(mail.Messages));
         Assert.Equal(cancellation.Token, mail.LastCancellationToken);
+    }
+
+    [Fact]
+    public async Task Public_saved_queries_validate_pagination_before_calling_the_reader()
+    {
+        using var provider = CreateServices();
+        using var scope = provider.CreateScope();
+        var sender = scope.ServiceProvider.GetRequiredService<ISender>();
+        foreach (var query in new[] {
+            new GetSavedKnowledgeArticlesQuery(Guid.NewGuid(), 0, 12),
+            new GetSavedKnowledgeArticlesQuery(Guid.NewGuid(), 1, 101),
+            new GetSavedKnowledgeArticlesQuery(Guid.NewGuid(), int.MaxValue, 100)
+        })
+            await Assert.ThrowsAsync<ValidationException>(() => sender.Send(query));
+        var page = await sender.Send(new GetSavedKnowledgeArticlesQuery(Guid.NewGuid()));
+        Assert.Empty(page.Items);
     }
 
     [Theory]

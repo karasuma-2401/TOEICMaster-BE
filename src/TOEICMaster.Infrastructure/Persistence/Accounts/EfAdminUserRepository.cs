@@ -56,12 +56,13 @@ public sealed class EfAdminUserRepository(ToeicDbContext dbContext) : IAdminUser
                 return;
             }
 
+            if (actorUserId == targetUserId)
+                throw new AdminUserOperationConflictException(
+                    role == UserRole.User ? "CANNOT_DEMOTE_SELF" : "CANNOT_CHANGE_SELF_ROLE",
+                    "Cannot change your own role.");
+
             if (user.Role == UserRole.Admin && role == UserRole.User)
             {
-                if (actorUserId == targetUserId)
-                    throw new AdminUserOperationConflictException("CANNOT_DEMOTE_SELF",
-                        "Cannot demote your own admin account.");
-
                 if (user.IsActive)
                 {
                     await EnsureAnotherActiveAdminExistsAsync(targetUserId,

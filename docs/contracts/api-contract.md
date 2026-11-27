@@ -113,12 +113,14 @@ Profile JSON:
   "phone": "0912345678",
   "dateOfBirth": "2001-06-15",
   "targetScore": 750,
+  "avatarVersion": "avatar-object-version",
   "hasPassword": true
 }
 ```
 
 - `avatarUrl`, `phone`, and `targetScore` are `null` if not set.
 - `avatarUrl` is a relative path requiring a Bearer token.
+- `avatarVersion` is the current avatar object's filename without its extension, or `null` when no avatar exists; use it to invalidate cached avatar URLs. `AdminUserDto` does not include this field.
 - Avatar size limit is 2 MiB, formats `image/png`, `image/jpeg`, or `image/webp`.
 - Changing password requires 8-128 characters and revokes all existing refresh sessions.
 
@@ -210,7 +212,7 @@ Response `200 OK`:
 
 - Response `200 OK`: updated `AdminUserDto` (idempotent if the role is unchanged).
   Demoting `ADMIN -> USER` revokes all active refresh sessions for that user.
-- Errors: `400 ValidationProblemDetails`, `404 Not Found`, `409 Conflict` (`code: "CANNOT_DEMOTE_SELF"` when demoting oneself; `code: "LAST_ACTIVE_ADMIN"` when demoting the last active administrator).
+- Errors: `400 ValidationProblemDetails`, `404 Not Found`, `409 Conflict` (`code: "CANNOT_DEMOTE_SELF"` when demoting oneself; `code: "CANNOT_CHANGE_SELF_ROLE"` when promoting oneself; `code: "LAST_ACTIVE_ADMIN"` when demoting the last active administrator). A request leaving one's role unchanged remains idempotent.
 
 ### 5. Delete user
 
@@ -231,14 +233,56 @@ Response `200 OK`:
 `DELETE /api/v1/admin/users/{id}/lock` (no request body)
 
 - Response `204 No Content`: sets `IsActive = true` (idempotent if already `ACTIVE`).
-- Errors: `404 Not Found`, `409 Conflict` (`code: "USER_PENDING_VERIFICATION"` when the account has not verified its email).
+- Errors: `404 Not Found`, `409 Conflict` (`code: "CANNOT_UNLOCK_SELF"` for one's own account; `code: "USER_PENDING_VERIFICATION"` when the account has not verified its email).
 
 ### 8. Send password reset for user
 
 `POST /api/v1/admin/users/{id}/reset-password` (no request body)
 
 - Response `204 No Content`: creates a password reset OTP and sends `PasswordResetMail` (mail-sending errors release the cooldown).
+- SMTP attempts delivery at most three times for explicit temporary SMTP failures (4xx) and connection failures before submission, with 250 ms then 500 ms backoff. Permanent failures and cancellation are not retried. A lost connection during submission has an uncertain delivery outcome and is not retried automatically; a failed QUIT after acceptance does not cause resubmission. Final delivery failures retain the existing cooldown cleanup.
 - Errors: `404 Not Found`, `409 Conflict` (`code: "PASSWORD_RESET_UNSUPPORTED_PROVIDER"` for Google-only accounts; `code: "USER_INACTIVE_OR_UNVERIFIED"` for locked or unverified accounts), `429 Too Many Requests` (`code: "PASSWORD_RESET_COOLDOWN"`).
+
+## Public Knowledge Library
+
+Guests may browse Published articles and their public images. The browser uses `/api/knowledge/...`; the BFF forwards to `/api/v1/knowledge/...`.
+
+| Method | Backend path                                | Success                            | Notes                                                                                                                                                     |
+| ------ | ------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/knowledge/articles`                | `200 KnowledgeArticlePageDto`      | Filters: `q`, `skill`, `categoryId`, `tag`, `sort`, `pageNumber` (default 1), `pageSize` (default 12, 1–100). Published only; invalid filters return 400. |
+| GET    | `/api/v1/knowledge/categories`              | `200 KnowledgeCategoryDto[]`       | Categories with Published articles only.                                                                                                                  |
+| GET    | `/api/v1/knowledge/articles/{slug}`         | `200 KnowledgeArticleDetailDto`    | Unavailable articles return 404.                                                                                                                          |
+| GET    | `/api/v1/knowledge/articles/{slug}/related` | `200 KnowledgeArticleSummaryDto[]` | Up to 3 Published articles, ranked by shared tags, same category, publication time, then ID.                                                              |
+| GET    | `/api/v1/knowledge/media/{assetId}`         | `200` image bytes                  | PNG/JPEG/WebP; media must be referenced by a Published article. 404 otherwise.                                                                            |
+| GET    | `/api/v1/knowledge/saved`                   | `200 SavedKnowledgeArticlePage`    | Requires authentication; pagination below.                                                                                                                |
+| PUT    | `/api/v1/knowledge/saved/{articleId}`       | `204`                              | Requires authentication; idempotent save of a Published article; unavailable article returns 404.                                                         |
+| DELETE | `/api/v1/knowledge/saved/{articleId}`       | `204`                              | Requires authentication; idempotent removal.                                                                                                              |
+
+Public article `coverImageUrl` values use `/api/knowledge/media/{assetId}`, or null without a cover; they can be loaded through the frontend BFF. Admin media URLs retain their admin route.
+
+Saved query parameters are `pageNumber` (default 1), `pageSize` (default 12, maximum 100), and optional `articleId`. The latter checks a specific bookmark without scanning all pages. Invalid paging, empty article IDs and offsets exceeding `Int32.MaxValue` return 400.
+
+The saved response is an object with `items`, `pageNumber`, `pageSize`, `totalCount`, `totalPages`, `hasNextPage`, and `hasPreviousPage`. Each item has `articleId`, `title`, `url`, and `available`. Draft/Archived entries remain removable but return `available: false`, a generic title and `url: null`; no unpublished slug is emitted. Ordering is newest saved time first, then article ID. This replaces the former unbounded array response; callers must consume `items` and pagination metadata.
+
+## Listening & Reading Exercise Bank (admin)
+
+All `/api/v1/admin/lr-exercise-bank` routes require `AccountAdministration`. The browser uses the corresponding `/api/admin/lr-exercise-bank` BFF routes.
+
+| Method | Suffix                  | Contract                                                                                                        |
+| ------ | ----------------------- | --------------------------------------------------------------------------------------------------------------- |
+| GET    | `/summary`              | Total question count, updated timestamp and per-Part statistics.                                                |
+| GET    | `/parts/{part}/items`   | `query`, `difficulty`, `status`, `pageNumber`, `pageSize` (1–100); returns paginated items and their questions. |
+| POST   | `/parts/{part}/items`   | Creates a single item or exercise group; returns 201.                                                           |
+| GET    | `/templates/{part}`     | Downloads the Part-specific XLSX template.                                                                      |
+| POST   | `/parts/{part}/imports` | Multipart `file`, XLSX up to 10 MiB; returns import counts and summary.                                         |
+
+Part is 1–7; difficulty is EASY/MEDIUM/HARD and status is DRAFT/PUBLISHED/ARCHIVED. Item/question IDs are GUID strings in 8-4-4-4-12 hexadecimal form, including seeded IDs with zero version/variant fields. They do not require RFC 4122 version bits.
+
+Admin exam BFF routes also support `POST /api/admin/score-profiles`, `POST /api/admin/exams/{examId}/revisions` and `PUT /api/admin/exams/{examId}/revisions/{revisionId}/score-profile`, forwarding the existing backend contracts. Superseded revisions can be read but cannot be edited or published. Only Published revisions may be forked.
+
+Exam workbook request caps include 10 MiB plus 128 KiB multipart overhead; image caps include 5 MiB plus 64 KiB overhead. The BFF stops reading streams when a cap is crossed, independent of Content-Length. JSON admin mutations use a 10 MiB body cap.
+
+OpenAPI names the six-field admin context schema `AdminExamContextBlockDto` and the four-field learner schema `ExamContextBlockDto`; their runtime JSON fields are unchanged.
 
 ## TOEIC Listening & Reading Mock Test (learner)
 
@@ -442,13 +486,14 @@ Response `200 OK`:
   "user": {
     "id": "00000000-0000-0000-0000-000000000000",
     "displayName": "Nguyen Van A",
-    "email": "learner@example.com"
+    "email": "learner@example.com",
+    "role": "User"
   }
 }
 ```
 
 - Access tokens live for 15 minutes.
-  The JWT contains `sub`, `email`, `name`, `jti`, `iss`, `aud`, `iat`, `nbf`, and `exp`; there is no role claim yet because the authorization model has not been finalized.
+  The JWT contains `sub`, `email`, `name`, `jti`, issuer/audience/time claims, and the role claim used by authorization. Authentication responses include `user.role` as `User` or `Admin`; the frontend session normalizes it to `USER` or `ADMIN`.
 - Refresh sessions live for 1 day when `rememberMe=false`, and 30 days when `rememberMe=true`.
 - PostgreSQL only stores the SHA-256 hash of the refresh token.
   The raw token only appears in the response when issued.
