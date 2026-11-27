@@ -1,9 +1,9 @@
-using System.Diagnostics;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using TOEICMaster.Api.Configuration;
+using TOEICMaster.Api.Extensions;
 using TOEICMaster.Application.Pronunciation;
 
 namespace TOEICMaster.Api.Controllers;
@@ -62,11 +62,6 @@ public sealed class PronunciationController(ISender sender) : ControllerBase
         }
     }
 
-    private ObjectResult Failure(int status, string code, string title)
-    {
-        var problem = new ProblemDetails { Status = status, Title = title };
-        problem.Extensions["code"] = code;
-        problem.Extensions["traceId"] = Activity.Current?.Id ?? HttpContext.TraceIdentifier;
-        return new ObjectResult(problem) { StatusCode = status, ContentTypes = { "application/problem+json" } };
-    }
+    private ObjectResult Failure(int status, string code, string title) =>
+        this.ProblemResponse(status, title, code: code);
 }

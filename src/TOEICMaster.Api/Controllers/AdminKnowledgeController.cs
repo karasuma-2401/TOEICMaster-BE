@@ -99,8 +99,8 @@ public sealed class AdminKnowledgeController(ISender sender) : ControllerBase
         }
         if (file.Length > KnowledgeImageSignature.MaxBytes)
         {
-            return StatusCode(StatusCodes.Status413PayloadTooLarge,
-                new ProblemDetails { Status = 413, Title = "Image exceeds the maximum limit of 5 MiB." });
+            return this.ProblemResponse(StatusCodes.Status413PayloadTooLarge,
+                "Image exceeds the maximum limit of 5 MiB.");
         }
 
         await using var stream = new MemoryStream();

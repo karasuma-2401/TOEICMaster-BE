@@ -129,6 +129,39 @@ public sealed class ArchitectureTests
     }
 
     [Fact]
+    public void Controllers_do_not_instantiate_raw_ProblemDetails_or_anonymous_ok_objects()
+    {
+        var root = FindRepoRoot();
+        var controllersDir = Path.Combine(root.FullName, "src", "TOEICMaster.Api", "Controllers");
+        var files = Directory.GetFiles(controllersDir, "*.cs", SearchOption.AllDirectories);
+        Assert.NotEmpty(files);
+
+        var forbidden = new Regex(
+            @"\bnew\s+(?:\w+\.)*(?:Validation)?ProblemDetails\b|" +
+            @"\bOk\s*\(\s*new\s*\{|" +
+            @"\bBadRequest\s*\(\s*new\s*\{|" +
+            @"\bStatusCode\s*\([^;]*?,\s*new\s*\{|" +
+            @"\bCreated\s*\([^;]*?,\s*new\s*\{|" +
+            @"\bCreatedAtAction\s*\((?:[^,;]+,\s*){1,2}new\s*\{[^}]*\}\s*\)",
+            RegexOptions.Singleline | RegexOptions.Compiled);
+        var violations = new List<string>();
+        foreach (var file in files)
+        {
+            var fileContent = File.ReadAllText(file);
+            foreach (Match match in forbidden.Matches(fileContent))
+            {
+                var line = fileContent[..match.Index].Count(character => character == '\n') + 1;
+                var matchedText = match.Value.Split('\n')[0].Trim();
+                violations.Add($"{Path.GetRelativePath(root.FullName, file).Replace('\\', '/')}:{line}: {matchedText}");
+            }
+        }
+
+        Assert.True(violations.Count == 0,
+            "Use ControllerProblemExtensions.BadRequestProblem or ProblemResponse for errors and a typed response " +
+            $"record such as ImportWritingItemsResponse for payloads.{Environment.NewLine}{string.Join(Environment.NewLine, violations)}");
+    }
+
+    [Fact]
     public void MediatR_commands_have_validators_unless_explicitly_allowlisted()
     {
         var appAssembly = typeof(TOEICMaster.Application.DependencyInjection).Assembly;
@@ -195,13 +228,15 @@ public sealed class ArchitectureTests
     }
 
     [Fact]
-    public void Application_and_infrastructure_use_TimeProvider_instead_of_DateTime_UtcNow_or_Now()
+    public void All_layers_use_TimeProvider_instead_of_DateTime_UtcNow_or_Now()
     {
         var root = FindRepoRoot();
         string[] targetDirs =
         [
+            Path.Combine(root.FullName, "src", "TOEICMaster.Domain"),
             Path.Combine(root.FullName, "src", "TOEICMaster.Application"),
-            Path.Combine(root.FullName, "src", "TOEICMaster.Infrastructure")
+            Path.Combine(root.FullName, "src", "TOEICMaster.Infrastructure"),
+            Path.Combine(root.FullName, "src", "TOEICMaster.Api")
         ];
 
         var pattern = new Regex(@"\bDateTime(?:Offset)?\.(?:UtcNow|Now)\b", RegexOptions.Compiled);
@@ -222,6 +257,89 @@ public sealed class ArchitectureTests
         }
 
         Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void Infrastructure_multi_collection_includes_use_AsSplitQuery()
+    {
+        var root = FindRepoRoot();
+        var persistenceDir = Path.Combine(root.FullName, "src", "TOEICMaster.Infrastructure", "Persistence");
+        var files = Directory.GetFiles(persistenceDir, "*.cs", SearchOption.AllDirectories);
+        Assert.NotEmpty(files);
+
+        var violations = new List<string>();
+        foreach (var file in files)
+        {
+            var text = File.ReadAllText(file);
+            var relative = Path.GetRelativePath(root.FullName, file).Replace('\\', '/');
+
+            var rawStatements = text.Split(';');
+            var currentPos = 0;
+            foreach (var rawStatement in rawStatements)
+            {
+                var parts = Regex.Split(rawStatement, @"[{}]+");
+                var expression = parts[^1];
+                var includeCount = Regex.Matches(expression, @"\.Include\s*\(").Count;
+                if (includeCount >= 2 && !expression.Contains(".AsSplitQuery(", StringComparison.Ordinal))
+                {
+                    var line = text[..currentPos].Count(c => c == '\n') + 1;
+                    violations.Add($"{relative}:{line}: multi-include expression missing .AsSplitQuery()");
+                }
+                currentPos += rawStatement.Length + 1;
+            }
+
+            var methodPattern = new Regex(
+                @"(?:public|private|internal|protected)\s+(?:async\s+)?[\w<>\[\]?,\s]+\s+(\w+)\s*\([^)]*\)\s*(?:=>\s*([^;]+);|\{((?:[^{}]|\{[^{}]*\})*)\})",
+                RegexOptions.Singleline | RegexOptions.Compiled);
+            foreach (Match match in methodPattern.Matches(text))
+            {
+                var methodName = match.Groups[1].Value;
+                var body = !string.IsNullOrEmpty(match.Groups[2].Value) ? match.Groups[2].Value : match.Groups[3].Value;
+                var includeCount = Regex.Matches(body, @"\.Include\s*\(").Count;
+                if (includeCount >= 2 && !body.Contains(".AsSplitQuery(", StringComparison.Ordinal))
+                {
+                    var line = text[..match.Index].Count(c => c == '\n') + 1;
+                    var entry = $"{relative}:{line}: method {methodName} missing .AsSplitQuery()";
+                    if (!violations.Contains(entry))
+                        violations.Add(entry);
+                }
+            }
+        }
+
+        Assert.True(violations.Count == 0,
+            $"Multi-collection include queries must call .AsSplitQuery() to prevent Cartesian explosion.{Environment.NewLine}{string.Join(Environment.NewLine, violations)}");
+    }
+
+    [Fact]
+    public void Infrastructure_and_Api_must_use_SafeXmlLoader_instead_of_XDocument_Load()
+    {
+        var root = FindRepoRoot();
+        var srcDir = Path.Combine(root.FullName, "src");
+        var canonicalSafeXmlLoader = Path.GetFullPath(
+            Path.Combine(root.FullName, "src", "TOEICMaster.Application", "Common", "Xml", "SafeXmlLoader.cs"));
+        var files = Directory.GetFiles(srcDir, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !string.Equals(Path.GetFullPath(path), canonicalSafeXmlLoader, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        Assert.NotEmpty(files);
+
+        var forbidden = new Regex(@"\b(?:XDocument|XmlDocument)\.Load\b|\bXmlReader\.Create\b", RegexOptions.Compiled);
+        var violations = new List<string>();
+
+        foreach (var file in files)
+        {
+            var lines = File.ReadAllLines(file);
+            for (var index = 0; index < lines.Length; index++)
+            {
+                if (forbidden.IsMatch(lines[index]))
+                {
+                    var relative = Path.GetRelativePath(root.FullName, file).Replace('\\', '/');
+                    violations.Add($"{relative}:{index + 1}: {lines[index].Trim()}");
+                }
+            }
+        }
+
+        Assert.True(violations.Count == 0,
+            $"XML parsers must use SafeXmlLoader.Load to prohibit DTD processing and prevent XXE attacks.{Environment.NewLine}{string.Join(Environment.NewLine, violations)}");
     }
 
     [Fact]

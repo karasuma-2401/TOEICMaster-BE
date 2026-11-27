@@ -21,7 +21,6 @@ public static class DotEnvConfiguration
             ["MINIO_ROOT_USER"] = "Minio:AccessKey",
             ["MINIO_ROOT_PASSWORD"] = "Minio:SecretKey",
             ["MEDIATR_LICENSE_KEY"] = "MediatR:LicenseKey",
-            ["AUTOMAPPER_LICENSE_KEY"] = "AutoMapper:LicenseKey",
             ["GEMINI_ENABLED"] = "Gemini:Enabled",
             ["GEMINI_USE_WRITING_REFERENCE_ANSWERS"] = "Gemini:UseWritingReferenceAnswers",
             ["GEMINI_API_KEY"] = "Gemini:ApiKey",

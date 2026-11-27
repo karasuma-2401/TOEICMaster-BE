@@ -70,7 +70,9 @@ public sealed class FlashcardsController(ISender sender) : ControllerBase
             new AddFlashcardCardCommand(userId.Value, deckId, request),
             cancellationToken);
 
-        return created is null ? NotFound() : StatusCode(StatusCodes.Status201Created, created);
+        return created is null
+            ? NotFound()
+            : CreatedAtAction(nameof(GetDeckBySlug), new { slug = created.DeckSlug }, created.Card);
     }
 
     [HttpDelete("decks/{deckId:guid}")]

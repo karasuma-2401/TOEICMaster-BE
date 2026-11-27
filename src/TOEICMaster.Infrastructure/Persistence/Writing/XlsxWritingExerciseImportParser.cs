@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Xml.Linq;
+using TOEICMaster.Application.Common.Xml;
 using TOEICMaster.Application.Writing.Admin;
 
 namespace TOEICMaster.Infrastructure.Persistence.Writing;
@@ -29,7 +30,7 @@ public sealed class XlsxWritingExerciseImportParser : IWritingExerciseImportPars
                 ?? throw new InvalidWritingImportException("The .xlsx file has no worksheet.");
             var sharedStrings = ReadSharedStrings(archive);
             using var worksheetStream = workbook.Open();
-            var worksheet = XDocument.Load(worksheetStream);
+            var worksheet = SafeXmlLoader.Load(worksheetStream);
             var rows = ReadRows(worksheet, sharedStrings).ToArray();
             if (rows.Length == 0)
                 throw new InvalidWritingImportException("The .xlsx file does not have a header row.");
@@ -118,7 +119,7 @@ public sealed class XlsxWritingExerciseImportParser : IWritingExerciseImportPars
         if (entry is null)
             return [];
         using var stream = entry.Open();
-        var document = XDocument.Load(stream);
+        var document = SafeXmlLoader.Load(stream);
         return document.Descendants().Where(element => element.Name.LocalName == "si")
             .Select(element => string.Concat(element.Descendants().Where(child => child.Name.LocalName == "t")
                 .Select(child => child.Value))).ToArray();

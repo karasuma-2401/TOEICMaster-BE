@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Xml;
 using System.Xml.Linq;
+using TOEICMaster.Application.Common.Xml;
 using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Application.Exams.Importing;
@@ -99,7 +100,7 @@ public static class XlsxExamWorkbookReader
         if (entry is null)
             return [];
         using var stream = entry.Open();
-        var document = XDocument.Load(stream, LoadOptions.None);
+        var document = SafeXmlLoader.Load(stream);
         return document.Root!.Elements(Spreadsheet + "si")
             .Select(item => string.Concat(item.Descendants(Spreadsheet + "t").Select(text => text.Value))).ToArray();
     }
@@ -143,7 +144,7 @@ public static class XlsxExamWorkbookReader
     {
         var entry = archive.GetEntry(entryPath) ?? throw new InvalidDataException();
         using var stream = entry.Open();
-        return XDocument.Load(stream, LoadOptions.None);
+        return SafeXmlLoader.Load(stream);
     }
 
     private static int GetColumnIndex(string reference)

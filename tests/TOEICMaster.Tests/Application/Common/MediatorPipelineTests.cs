@@ -299,24 +299,27 @@ public sealed class MediatorPipelineTests
             Task.FromResult<IReadOnlyList<FlashcardDeck>>([]);
         public Task<FlashcardDeck?> GetVisibleDeckBySlugAsync(string slug, Guid? userId, CancellationToken cancellationToken) =>
             Task.FromResult<FlashcardDeck?>(null);
-        public Task<FlashcardDeck?> GetDeckByIdAsync(Guid deckId, CancellationToken cancellationToken) =>
-            Task.FromResult<FlashcardDeck?>(null);
+        public Task<bool> DeckVisibleToUserAsync(Guid userId, Guid deckId, CancellationToken cancellationToken) =>
+            Task.FromResult(false);
         public Task<bool> CardExistsVisibleToUserAsync(Guid cardId, Guid userId, CancellationToken cancellationToken) =>
             Task.FromResult(false);
         public Task<IReadOnlyList<UserFlashcardProgress>> GetUserProgressAsync(Guid userId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<UserFlashcardProgress>>([]);
-        public Task<UserFlashcardProgress?> GetCardProgressAsync(Guid userId, Guid cardId, CancellationToken cancellationToken) =>
-            Task.FromResult<UserFlashcardProgress?>(null);
-        public Task AddDeckAsync(FlashcardDeck deck, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task AddCardAsync(FlashcardCard card, CancellationToken cancellationToken) => Task.CompletedTask;
-        public void RemoveDeck(FlashcardDeck deck) { }
-        public Task AddProgressAsync(UserFlashcardProgress progress, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task DeleteDeckProgressAsync(Guid userId, Guid deckId, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<IReadOnlyList<UserFlashcardMatchRecord>> GetUserMatchRecordsAsync(Guid userId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<UserFlashcardMatchRecord>>([]);
-        public Task<UserFlashcardMatchRecord?> GetMatchRecordAsync(Guid userId, Guid deckId, CancellationToken cancellationToken) =>
-            Task.FromResult<UserFlashcardMatchRecord?>(null);
-        public Task AddMatchRecordAsync(UserFlashcardMatchRecord record, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task AddDeckAsync(FlashcardDeck deck, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<bool> DeleteOwnedDeckAsync(Guid userId, Guid deckId, CancellationToken cancellationToken) =>
+            Task.FromResult(false);
+        public Task<FlashcardDeckAddCardResult?> AddCardToOwnedDeckAsync(
+            Guid userId, Guid deckId, FlashcardCardInput input, DateTimeOffset nowUtc, CancellationToken cancellationToken) =>
+            Task.FromResult<FlashcardDeckAddCardResult?>(null);
+        public Task<UserFlashcardProgress?> UpsertProgressAtomicAsync(
+            Guid userId, Guid cardId, string status, bool starred, DateTimeOffset nowUtc, CancellationToken cancellationToken) =>
+            Task.FromResult<UserFlashcardProgress?>(UserFlashcardProgress.Create(userId, cardId, status, starred, nowUtc));
+        public Task<(UserFlashcardMatchRecord Record, bool IsNewRecord)> RecordMatchAtomicAsync(
+            Guid userId, Guid deckId, int elapsedMs, int maxCombo, DateTimeOffset nowUtc, CancellationToken cancellationToken) =>
+            Task.FromResult((UserFlashcardMatchRecord.Create(userId, deckId, elapsedMs, maxCombo, nowUtc), true));
+        public Task DeleteDeckProgressAsync(Guid userId, Guid deckId, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 

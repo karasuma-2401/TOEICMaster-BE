@@ -306,6 +306,7 @@ public sealed class EfKnowledgeAdminRepository(ToeicDbContext context) : IKnowle
         context.KnowledgeArticles
             .Include(article => article.ArticleTags)
             .Include(article => article.MediaAssets)
+            .AsSplitQuery()
             .SingleOrDefaultAsync(article => article.Id == id, cancellationToken);
 
     public Task<bool> ArticleSlugExistsAsync(string slug, Guid? excludingId, CancellationToken cancellationToken)
