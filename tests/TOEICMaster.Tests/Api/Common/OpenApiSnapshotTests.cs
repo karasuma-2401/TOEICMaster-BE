@@ -123,6 +123,8 @@ public sealed class OpenApiSnapshotTests
 
         var expected = (await File.ReadAllTextAsync(snapshotPath, Encoding.UTF8))
             .Replace("\r\n", "\n", StringComparison.Ordinal);
+        if (expected != canonicalJson)
+            await File.WriteAllTextAsync(Path.Combine(AppContext.BaseDirectory, "openapi-actual.json"), canonicalJson);
         Assert.Equal(expected, canonicalJson);
 
         using var doc = JsonDocument.Parse(canonicalJson);
