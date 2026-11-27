@@ -1,3 +1,4 @@
+using TOEICMaster.Application.Email;
 using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Application.Common.Interfaces;
@@ -8,10 +9,15 @@ public interface IUserRegistrationRepository
         CancellationToken cancellationToken);
 
     Task<bool> TryAddAsync(User user, EmailVerificationChallenge challenge,
-        CancellationToken cancellationToken);
+        MailMessage? outboxMessage, CancellationToken cancellationToken);
+
+    Task<bool> TryReplacePendingRegistrationAsync(Guid userId, string codeHash, string pendingDisplayName,
+        string pendingPasswordHash, DateTimeOffset sentAtUtc, DateTimeOffset expiresAtUtc,
+        MailMessage? outboxMessage, CancellationToken cancellationToken);
 
     Task<bool> TryReplaceVerificationAsync(Guid userId, string codeHash, DateTimeOffset sentAtUtc,
-        DateTimeOffset expiresAtUtc, TimeSpan cooldown, CancellationToken cancellationToken);
+        DateTimeOffset expiresAtUtc, TimeSpan cooldown, MailMessage? outboxMessage,
+        CancellationToken cancellationToken);
 
     Task ReleaseVerificationCooldownAsync(Guid userId, DateTimeOffset sentAtUtc, TimeSpan cooldown,
         CancellationToken cancellationToken);

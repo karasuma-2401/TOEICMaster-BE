@@ -10,11 +10,13 @@ public sealed class UserSessionConfiguration : IEntityTypeConfiguration<UserSess
     {
         builder.ToTable("user_sessions");
         builder.HasKey(session => session.Id);
+        builder.Property(session => session.FamilyId).IsRequired();
         builder.Property(session => session.RefreshTokenHash).HasMaxLength(64).IsFixedLength().IsRequired();
         builder.Property(session => session.CreatedAtUtc).IsRequired();
         builder.Property(session => session.ExpiresAtUtc).IsRequired();
         builder.HasIndex(session => session.RefreshTokenHash).IsUnique();
         builder.HasIndex(session => new { session.UserId, session.ExpiresAtUtc });
+        builder.HasIndex(session => session.FamilyId);
         builder.HasOne<User>().WithMany().HasForeignKey(session => session.UserId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne<UserSession>().WithOne().HasForeignKey<UserSession>(session => session.ReplacedBySessionId)
             .OnDelete(DeleteBehavior.Restrict);

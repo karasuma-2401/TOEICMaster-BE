@@ -2,7 +2,6 @@ using MediatR;
 using TOEICMaster.Application.Common.Exceptions;
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
-using TOEICMaster.Application.Email;
 using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Application.Authentication.Commands.Register;
@@ -13,7 +12,6 @@ public sealed class RegisterCommandHandler(
     IUserRegistrationRepository userRepository,
     IPasswordHasher passwordHasher,
     IEmailVerificationCodeService codeService,
-    IMailSender mailSender,
     TimeProvider timeProvider) : IRequestHandler<RegisterCommand>
 {
     public async Task Handle(RegisterCommand request, CancellationToken cancellationToken)
@@ -27,59 +25,41 @@ public sealed class RegisterCommandHandler(
         {
             if (existing.IsActive || existing.IsEmailVerified)
                 throw new DuplicateEmailException();
-            await IssueForExistingAsync(existing, normalizedEmail, cancellationToken);
+            await ReplacePendingAsync(existing, displayName, normalizedEmail, request.Password, cancellationToken);
             return;
         }
 
         var nowUtc = timeProvider.GetUtcNow();
         var code = codeService.Issue(normalizedEmail);
-        var user = User.CreateLocal(displayName, email, normalizedEmail, passwordHasher.Hash(request.Password),
-            nowUtc);
+        var passwordHash = passwordHasher.Hash(request.Password);
+        var user = User.CreateLocal(displayName, email, normalizedEmail, passwordHash: null, nowUtc);
         var challenge = EmailVerificationChallenge.Create(user.Id, code.CodeHash, nowUtc,
-            nowUtc + codeService.Lifetime);
-        if (!await userRepository.TryAddAsync(user, challenge, cancellationToken))
+            nowUtc + codeService.Lifetime, displayName, passwordHash);
+        var mail = EmailVerificationMail.Create(email, code.Code, codeService.Lifetime);
+
+        if (!await userRepository.TryAddAsync(user, challenge, mail, cancellationToken))
         {
             existing = await userRepository.FindByNormalizedEmailAsync(normalizedEmail, cancellationToken);
             if (existing is null || existing.IsActive || existing.IsEmailVerified)
                 throw new DuplicateEmailException();
-            await IssueForExistingAsync(existing, normalizedEmail, cancellationToken);
-            return;
+            await ReplacePendingAsync(existing, displayName, normalizedEmail, request.Password, cancellationToken);
         }
-
-        await SendAsync(user.Id, email, code.Code, nowUtc, cancellationToken);
     }
 
-    private async Task IssueForExistingAsync(RegistrationAccount account, string normalizedEmail,
-        CancellationToken cancellationToken)
+    private async Task ReplacePendingAsync(RegistrationAccount account, string displayName, string normalizedEmail,
+        string password, CancellationToken cancellationToken)
     {
         var nowUtc = timeProvider.GetUtcNow();
         var code = codeService.Issue(normalizedEmail);
-        if (!await userRepository.TryReplaceVerificationAsync(account.UserId, code.CodeHash, nowUtc,
-                nowUtc + codeService.Lifetime, codeService.ResendCooldown, cancellationToken))
-            return;
-        await SendAsync(account.UserId, account.Email, code.Code, nowUtc, cancellationToken);
-    }
+        var passwordHash = passwordHasher.Hash(password);
+        var mail = EmailVerificationMail.Create(account.Email, code.Code, codeService.Lifetime);
 
-    private async Task SendAsync(Guid userId, string email, string code, DateTimeOffset sentAtUtc,
-        CancellationToken cancellationToken)
-    {
-        try
+        if (!await userRepository.TryReplacePendingRegistrationAsync(account.UserId, code.CodeHash, displayName,
+                passwordHash, nowUtc, nowUtc + codeService.Lifetime, mail, cancellationToken))
         {
-            await mailSender.SendAsync(EmailVerificationMail.Create(email, code, codeService.Lifetime),
-                cancellationToken);
-        }
-        catch
-        {
-            try
-            {
-                await userRepository.ReleaseVerificationCooldownAsync(userId, sentAtUtc,
-                    codeService.ResendCooldown, CancellationToken.None);
-            }
-            catch
-            {
-                // Preserve the mail delivery exception; cooldown release is a best-effort retry aid.
-            }
-            throw;
+            var refreshed = await userRepository.FindByNormalizedEmailAsync(normalizedEmail, cancellationToken);
+            if (refreshed is null || refreshed.IsActive || refreshed.IsEmailVerified)
+                throw new DuplicateEmailException();
         }
     }
 }

@@ -45,6 +45,7 @@ public sealed class JwtAuthenticationTokenService(IOptions<JwtOptions> options) 
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
                 new Claim(JwtRegisteredClaimNames.Name, user.DisplayName),
                 new Claim(ClaimTypes.Role, user.Role.ToString()),
+                new Claim(SecurityClaimTypes.SecurityStamp, user.SecurityStamp.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             ]),
             IssuedAt = issuedAtUtc.UtcDateTime,

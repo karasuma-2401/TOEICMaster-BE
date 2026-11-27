@@ -21,6 +21,16 @@ function Find-SeedItem($collection, $code) {
     @($page.items | Where-Object { $_.code -eq $code }) | Select-Object -First 1
 }
 
+function Test-SeedMediaExists($assetId) {
+    if (-not $assetId) { return $false }
+    try {
+        Invoke-WebRequest -Method Get -Uri "$admin/media/$assetId" -Headers $headers -TimeoutSec 30 | Out-Null
+        return $true
+    } catch {
+        return $false
+    }
+}
+
 $testCode = 'DEMO-WRITING-001'
 $existingTest = Find-SeedItem 'tests' $testCode
 $existingExercises = @{}
@@ -29,13 +39,15 @@ for ($i = 1; $i -le 8; $i++) {
     $existingExercises[$code] = Find-SeedItem 'exercises' $code
 }
 
-if ($existingTest -and $existingTest.status -eq 'PUBLISHED' -and @($existingExercises.Values | Where-Object { $null -eq $_ }).Count -eq 0) {
-    Write-Host 'Sample Writing data already exists; skipping creation.'
+# One deliberately simple, original illustration, reused for the related Part 1 prompts.
+$existingImageId = @($existingExercises.Values | Where-Object { $_ -and $_.part -eq 1 -and $_.imageAssetId } | Select-Object -First 1).imageAssetId
+$imageId = if (Test-SeedMediaExists $existingImageId) { $existingImageId } else { $null }
+
+if ($existingTest -and $existingTest.status -eq 'PUBLISHED' -and @($existingExercises.Values | Where-Object { $null -eq $_ }).Count -eq 0 -and $imageId) {
+    Write-Host 'Sample Writing data and MinIO media already exist; skipping creation.'
     return
 }
 
-# One deliberately simple, original illustration, reused for the related Part 1 prompts.
-$imageId = @($existingExercises.Values | Where-Object { $_ -and $_.part -eq 1 -and $_.imageAssetId } | Select-Object -First 1).imageAssetId
 if (-not $imageId) {
     Add-Type -AssemblyName System.Drawing
     $image = [System.Drawing.Bitmap]::new(800, 500)
@@ -109,6 +121,13 @@ for ($i = 1; $i -le 8; $i++) {
     if (-not $existingExercises[$input.code]) {
         $created = Invoke-SeedPost 'exercises' $input
         Write-Host "Created exercise $($created.code)."
+    } elseif ($part -eq 1 -and $existingExercises[$input.code].imageAssetId -ne $imageId) {
+        $existing = $existingExercises[$input.code]
+        $updated = Invoke-RestMethod -Method Put -Uri "$admin/exercises/$($existing.id)" -Headers $headers -ContentType 'application/json' -Body (@{
+            version = $existing.version
+            exercise = $input
+        } | ConvertTo-Json -Depth 20) -TimeoutSec 60
+        Write-Host "Repaired missing MinIO image reference on exercise $($updated.code)."
     } else {
         Write-Host "Exercise $($input.code) already exists; keeping existing."
     }

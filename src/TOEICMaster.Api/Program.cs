@@ -31,7 +31,8 @@ builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+    options.AddOperationTransformer<MultipartFormFileOpenApiTransformer>());
 builder.Services.AddForwardedHeadersConfiguration(builder.Configuration);
 builder.Services.AddAuthRateLimiting();
 builder.Services.AddSpeakingRateLimiting();
@@ -63,8 +64,8 @@ if (app.Environment.IsDevelopment() && !runAdminSeed && !runFlashcardSeed
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ToeicDbContext>();
-    await ExamDataSeeder.SeedSampleExamAsync(db);
-    await FlashcardDataSeeder.SeedBuiltInDecksAsync(db);
+    await ExamDataSeeder.SeedSampleExamAsync(db, app.Lifetime.ApplicationStopping);
+    await FlashcardDataSeeder.SeedBuiltInDecksAsync(db, app.Lifetime.ApplicationStopping);
 }
 app.UseForwardedHeaders();
 if (!app.Environment.IsDevelopment())

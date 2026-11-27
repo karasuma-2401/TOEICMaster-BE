@@ -13,6 +13,7 @@ public sealed class FakeAuthenticationRepository : IAuthenticationRepository
     public UserSession? ReplacementSession { get; private set; }
     public string? SearchedEmail { get; private set; }
     public string? RevokedTokenHash { get; private set; }
+    public Guid? RevokedFamilyId { get; private set; }
 
     public Task<User?> FindUserByNormalizedEmailAsync(string normalizedEmail,
         CancellationToken cancellationToken)
@@ -36,6 +37,13 @@ public sealed class FakeAuthenticationRepository : IAuthenticationRepository
         return Task.FromResult(ActiveSession);
     }
 
+    public Task<AuthenticationSession?> FindSessionByRefreshTokenHashAsync(string refreshTokenHash,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ActiveSession);
+    }
+
     public Task<bool> TryRotateSessionAsync(Guid currentSessionId, UserSession replacement,
         DateTimeOffset revokedAtUtc, CancellationToken cancellationToken)
     {
@@ -49,6 +57,14 @@ public sealed class FakeAuthenticationRepository : IAuthenticationRepository
     {
         cancellationToken.ThrowIfCancellationRequested();
         RevokedTokenHash = refreshTokenHash;
+        return Task.CompletedTask;
+    }
+
+    public Task RevokeSessionFamilyAsync(Guid familyId, DateTimeOffset revokedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        RevokedFamilyId = familyId;
         return Task.CompletedTask;
     }
 }
@@ -108,4 +124,10 @@ public sealed class FakeExternalLoginRepository : IExternalLoginRepository
         Account = account;
         return Task.FromResult(Resolution);
     }
+}
+
+public sealed class AlwaysValidAccessTokenPrincipalValidator : IAccessTokenPrincipalValidator
+{
+    public Task<bool> IsValidAsync(Guid userId, string? roleClaim, string? securityStampClaim,
+        CancellationToken cancellationToken) => Task.FromResult(true);
 }

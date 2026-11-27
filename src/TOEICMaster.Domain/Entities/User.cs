@@ -18,6 +18,7 @@ public sealed class User
         IsActive = isActive;
         EmailVerifiedAtUtc = emailVerifiedAtUtc;
         CreatedAtUtc = createdAtUtc;
+        SecurityStamp = Guid.NewGuid();
     }
 
     public Guid Id { get; private set; }
@@ -33,8 +34,9 @@ public sealed class User
     public bool IsActive { get; private set; }
     public DateTimeOffset? EmailVerifiedAtUtc { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
+    public Guid SecurityStamp { get; private set; }
 
-    public static User CreateLocal(string displayName, string email, string normalizedEmail, string passwordHash,
+    public static User CreateLocal(string displayName, string email, string normalizedEmail, string? passwordHash,
         DateTimeOffset createdAtUtc) =>
         new(Guid.NewGuid(), displayName, email, normalizedEmail, passwordHash, UserRole.User, false, null, createdAtUtc);
 
@@ -47,18 +49,39 @@ public sealed class User
         new(Guid.NewGuid(), displayName, email, normalizedEmail, passwordHash, role, isActive, emailVerifiedAtUtc,
             createdAtUtc);
 
-    public void PromoteToAdmin() => Role = UserRole.Admin;
-
-    public void ChangeRole(UserRole role) => Role = role;
-
-    public void Lock() => IsActive = false;
-
-    public void Unlock() => IsActive = true;
-
-    public void VerifyEmail(DateTimeOffset verifiedAtUtc)
+    public void PromoteToAdmin()
     {
+        Role = UserRole.Admin;
+        RotateSecurityStamp();
+    }
+
+    public void ChangeRole(UserRole role)
+    {
+        Role = role;
+        RotateSecurityStamp();
+    }
+
+    public void Lock()
+    {
+        IsActive = false;
+        RotateSecurityStamp();
+    }
+
+    public void Unlock()
+    {
+        IsActive = true;
+        RotateSecurityStamp();
+    }
+
+    public void VerifyEmail(DateTimeOffset verifiedAtUtc, string? displayName = null, string? passwordHash = null)
+    {
+        if (!string.IsNullOrWhiteSpace(displayName))
+            DisplayName = displayName;
+        if (passwordHash is not null)
+            PasswordHash = passwordHash;
         EmailVerifiedAtUtc ??= verifiedAtUtc;
         IsActive = true;
+        RotateSecurityStamp();
     }
 
     public void AcceptVerifiedExternalIdentity(DateTimeOffset verifiedAtUtc)
@@ -76,4 +99,6 @@ public sealed class User
     }
 
     public void SetAvatarObjectKey(string? objectKey) => AvatarObjectKey = objectKey;
+
+    public void RotateSecurityStamp() => SecurityStamp = Guid.NewGuid();
 }

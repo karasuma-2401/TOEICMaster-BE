@@ -18,18 +18,32 @@ public sealed class RefreshSessionCommandHandler(
     {
         var nowUtc = timeProvider.GetUtcNow();
         var refreshTokenHash = tokenService.HashRefreshToken(request.RefreshToken);
-        var authenticationSession = await authenticationRepository.FindActiveSessionAsync(refreshTokenHash, nowUtc,
-            cancellationToken);
-        if (authenticationSession is null || !authenticationSession.User.IsActive)
+        var authenticationSession = await authenticationRepository.FindSessionByRefreshTokenHashAsync(
+            refreshTokenHash, cancellationToken);
+        if (authenticationSession is null)
+            throw new InvalidSessionException();
+
+        if (authenticationSession.Session.IsRevoked)
+        {
+            await authenticationRepository.RevokeSessionFamilyAsync(authenticationSession.Session.FamilyId, nowUtc,
+                cancellationToken);
+            throw new InvalidSessionException();
+        }
+
+        if (!authenticationSession.Session.IsActive(nowUtc) || !authenticationSession.User.IsActive)
             throw new InvalidSessionException();
 
         var tokens = tokenService.Rotate(authenticationSession.User, nowUtc,
             authenticationSession.Session.ExpiresAtUtc);
         var replacement = UserSession.Create(authenticationSession.User.Id, tokens.RefreshTokenHash, nowUtc,
-            tokens.RefreshTokenExpiresAtUtc);
+            tokens.RefreshTokenExpiresAtUtc, authenticationSession.Session.FamilyId);
         if (!await authenticationRepository.TryRotateSessionAsync(authenticationSession.Session.Id, replacement,
                 nowUtc, cancellationToken))
+        {
+            await authenticationRepository.RevokeSessionFamilyAsync(authenticationSession.Session.FamilyId, nowUtc,
+                cancellationToken);
             throw new InvalidSessionException();
+        }
 
         return AuthenticationResult.Create(authenticationSession.User, tokens);
     }

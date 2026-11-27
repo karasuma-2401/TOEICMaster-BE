@@ -118,6 +118,28 @@ public sealed class LoginApplicationTests
 
         await Assert.ThrowsAsync<InvalidSessionException>(() => handler.Handle(
             new RefreshSessionCommand("old-token"), CancellationToken.None));
+        Assert.Equal(original.FamilyId, repository.RevokedFamilyId);
+    }
+
+    [Fact]
+    public async Task Replaying_a_revoked_refresh_token_revokes_the_entire_session_family()
+    {
+        var user = User.CreateLocal("Learner", "learner@example.com", "LEARNER@EXAMPLE.COM", "hash", Now);
+        user.VerifyEmail(Now);
+        var revoked = UserSession.Create(user.Id, "old-hash", Now, Now.AddDays(1));
+        typeof(UserSession).GetProperty(nameof(UserSession.RevokedAtUtc))!.SetValue(revoked, Now.AddMinutes(1));
+        var repository = new FakeAuthenticationRepository
+        {
+            ActiveSession = new AuthenticationSession(revoked, user)
+        };
+        var handler = new RefreshSessionCommandHandler(repository, new FakeAuthenticationTokenService(),
+            new FixedTimeProvider(Now.AddMinutes(2)));
+
+        await Assert.ThrowsAsync<InvalidSessionException>(() => handler.Handle(
+            new RefreshSessionCommand("old-token"), CancellationToken.None));
+
+        Assert.Equal(revoked.FamilyId, repository.RevokedFamilyId);
+        Assert.Null(repository.ReplacementSession);
     }
 
     [Fact]

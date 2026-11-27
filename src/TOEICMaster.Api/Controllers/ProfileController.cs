@@ -36,6 +36,7 @@ public sealed class ProfileController(ISender sender) : ControllerBase
     [HttpPut("password")]
     [EnableRateLimiting(AuthRateLimitPolicies.Credentials)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ChangePassword(ChangeProfilePasswordRequest request,
         CancellationToken cancellationToken)
     {
@@ -48,6 +49,7 @@ public sealed class ProfileController(ISender sender) : ControllerBase
     [EnableRateLimiting(AuthRateLimitPolicies.Credentials)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ChangePasswordForFrontend(ChangeProfilePasswordFrontendRequest request,
         CancellationToken cancellationToken)
     {
