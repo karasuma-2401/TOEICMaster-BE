@@ -149,6 +149,30 @@ public sealed class KnowledgeAdminApplicationTests
             KnowledgeContentProcessor.Process(ParseJson("""{"type":"paragraph"}""")));
     }
 
+    [Theory]
+    [InlineData("/\\t/evil.example")]
+    [InlineData("/\\n/evil.example")]
+    [InlineData("/\\r/evil.example")]
+    [InlineData("https://example.com/path\\twith-tab")]
+    public void Content_processor_rejects_control_characters_in_links(string hrefLiteral)
+    {
+        var doc = ParseJson($$"""
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                { "type": "text", "text": "Link", "marks": [{ "type": "link", "attrs": { "href": "{{hrefLiteral}}" } }] }
+              ]
+            }
+          ]
+        }
+        """);
+
+        Assert.Throws<InvalidKnowledgeContentException>(() => KnowledgeContentProcessor.Process(doc));
+    }
+
     [Fact]
     public void Image_signature_validates_png_jpeg_webp_and_rejects_invalid_or_oversized()
     {

@@ -146,6 +146,8 @@ public static partial class KnowledgeContentProcessor
             var href = hrefProp.GetString()?.Trim();
             if (string.IsNullOrEmpty(href))
                 continue;
+            if (href.Any(char.IsControl))
+                throw InvalidContent("Links in articles only accept http, https, mailto, or internal paths.");
 
             var isSafe = href.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
                          href.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
