@@ -118,7 +118,59 @@ public sealed class KnowledgeAdminApplicationTests
 
         Assert.Throws<InvalidKnowledgeContentException>(() => KnowledgeContentProcessor.Process(unsafeLink));
         Assert.Throws<InvalidKnowledgeContentException>(() =>
+            KnowledgeContentProcessor.Process(ParseJson("""
+            {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    { "type": "text", "text": "Redirect", "marks": [{ "type": "link", "attrs": { "href": "//evil.example" } }] }
+                  ]
+                }
+              ]
+            }
+            """)));
+        Assert.Throws<InvalidKnowledgeContentException>(() =>
+            KnowledgeContentProcessor.Process(ParseJson("""
+            {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    { "type": "text", "text": "Backslash", "marks": [{ "type": "link", "attrs": { "href": "/\\evil.example" } }] }
+                  ]
+                }
+              ]
+            }
+            """)));
+        Assert.Throws<InvalidKnowledgeContentException>(() =>
             KnowledgeContentProcessor.Process(ParseJson("""{"type":"paragraph"}""")));
+    }
+
+    [Theory]
+    [InlineData("/\\t/evil.example")]
+    [InlineData("/\\n/evil.example")]
+    [InlineData("/\\r/evil.example")]
+    [InlineData("https://example.com/path\\twith-tab")]
+    public void Content_processor_rejects_control_characters_in_links(string hrefLiteral)
+    {
+        var doc = ParseJson($$"""
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                { "type": "text", "text": "Link", "marks": [{ "type": "link", "attrs": { "href": "{{hrefLiteral}}" } }] }
+              ]
+            }
+          ]
+        }
+        """);
+
+        Assert.Throws<InvalidKnowledgeContentException>(() => KnowledgeContentProcessor.Process(doc));
     }
 
     [Fact]
