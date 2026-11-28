@@ -85,7 +85,7 @@ public sealed class LrExerciseBankItem
         IReadOnlyCollection<LrExerciseBankQuestionInput> questions, Guid actorUserId, DateTimeOffset now)
     {
         ArgumentOutOfRangeException.ThrowIfEqual(actorUserId, Guid.Empty);
-        Validate(part, code, topic, context, questions);
+        Validate(part, code, topic, status, context, audioUrl, imageUrl, questions);
         var item = new LrExerciseBankItem(Guid.NewGuid(), part, code.Trim(), topic.Trim(), difficulty, status,
             TrimOrNull(context), TrimOrNull(audioUrl), TrimOrNull(imageUrl), actorUserId, now);
         item._questions.AddRange(questions.Select((question, index) => LrExerciseBankQuestion.Create(item.Id,
@@ -96,7 +96,21 @@ public sealed class LrExerciseBankItem
     public static LrExerciseItemKind GetKind(LrExercisePart part) => part is LrExercisePart.Part1 or
         LrExercisePart.Part2 or LrExercisePart.Part5 ? LrExerciseItemKind.Single : LrExerciseItemKind.Group;
 
-    private static void Validate(LrExercisePart part, string code, string topic, string? context,
+    public void UpdateMediaAndStatus(string? audioUrl, string? imageUrl, LrExerciseStatus status,
+        Guid actorUserId, DateTimeOffset now)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(actorUserId, Guid.Empty);
+        ValidatePublishedMedia(Part, status, audioUrl, imageUrl);
+        AudioUrl = TrimOrNull(audioUrl);
+        ImageUrl = TrimOrNull(imageUrl);
+        Status = status;
+        UpdatedByUserId = actorUserId;
+        UpdatedAtUtc = now;
+        Version++;
+    }
+
+    private static void Validate(LrExercisePart part, string code, string topic, LrExerciseStatus status,
+        string? context, string? audioUrl, string? imageUrl,
         IReadOnlyCollection<LrExerciseBankQuestionInput> questions)
     {
         if (!Enum.IsDefined(part))
@@ -118,6 +132,18 @@ public sealed class LrExerciseBankItem
             throw new ArgumentException(QuestionCountMessage(part), nameof(questions));
         if (GetKind(part) == LrExerciseItemKind.Group && string.IsNullOrWhiteSpace(context))
             throw new ArgumentException("A grouped item requires shared context.", nameof(context));
+        ValidatePublishedMedia(part, status, audioUrl, imageUrl);
+    }
+
+    private static void ValidatePublishedMedia(LrExercisePart part, LrExerciseStatus status,
+        string? audioUrl, string? imageUrl)
+    {
+        if (status == LrExerciseStatus.Published && part is >= LrExercisePart.Part1 and <= LrExercisePart.Part4 &&
+            string.IsNullOrWhiteSpace(audioUrl))
+            throw new ArgumentException("Published Listening items require audio.", nameof(audioUrl));
+        if (status == LrExerciseStatus.Published && part == LrExercisePart.Part1 &&
+            string.IsNullOrWhiteSpace(imageUrl))
+            throw new ArgumentException("Published Part 1 items require an image.", nameof(imageUrl));
     }
 
     private static string QuestionCountMessage(LrExercisePart part) => part switch

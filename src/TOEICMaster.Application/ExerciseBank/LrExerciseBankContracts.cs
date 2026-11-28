@@ -2,6 +2,9 @@ using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Application.ExerciseBank;
 
+public sealed record LrExerciseMediaUploadDto(string Key);
+public sealed record LrExerciseItemMediaInput(int Version, string Status, string? AudioUrl, string? ImageUrl);
+
 public sealed record LrExerciseQuestionInput(string Code, string Prompt, string OptionA, string OptionB,
     string OptionC, string? OptionD, string CorrectKey, string? Translation, string? Explanation);
 

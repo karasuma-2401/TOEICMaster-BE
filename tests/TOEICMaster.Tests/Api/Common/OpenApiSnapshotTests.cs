@@ -50,6 +50,35 @@ public sealed class OpenApiSnapshotFactory : WebApplicationFactory<Program>
 public sealed class OpenApiSnapshotTests
 {
     [Fact]
+    public async Task Lr_exercise_media_operations_declare_their_response_schemas()
+    {
+        using var factory = new OpenApiSnapshotFactory();
+        using var client = factory.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync("/openapi/v1.json"));
+        var paths = document.RootElement.GetProperty("paths");
+        var upload = paths.GetProperty("/api/v1/admin/lr-exercise-bank/media/{kind}")
+            .GetProperty("post").GetProperty("responses");
+        Assert.Equal("#/components/schemas/LrExerciseMediaUploadDto", upload.GetProperty("200")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema")
+            .GetProperty("$ref").GetString());
+        Assert.Equal("#/components/schemas/ProblemDetails", upload.GetProperty("400")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema")
+            .GetProperty("$ref").GetString());
+
+        var update = paths.GetProperty("/api/v1/admin/lr-exercise-bank/parts/{part}/items/{id}")
+            .GetProperty("patch").GetProperty("responses");
+        foreach (var (status, schema) in new[]
+        {
+            ("400", "ValidationProblemDetails"),
+            ("404", "ProblemDetails"),
+            ("409", "ProblemDetails")
+        })
+            Assert.Equal($"#/components/schemas/{schema}", update.GetProperty(status)
+                .GetProperty("content").GetProperty("application/json").GetProperty("schema")
+                .GetProperty("$ref").GetString());
+    }
+
+    [Fact]
     public async Task Knowledge_responses_and_admin_learner_context_schemas_are_distinct()
     {
         using var factory = new OpenApiSnapshotFactory();

@@ -10,6 +10,49 @@ public sealed record CreateLrExerciseItemCommand(Guid ActorUserId, int Part, LrE
 public sealed record ImportLrExerciseItemsCommand(Guid ActorUserId, int Part, string FileName, byte[] Content)
     : IRequest<LrExerciseImportResultDto>;
 
+public sealed record UpdateLrExerciseItemMediaCommand(Guid ActorUserId, int Part, Guid ItemId,
+    LrExerciseItemMediaInput Input) : IRequest<LrExerciseItemDto?>;
+
+public sealed class UpdateLrExerciseItemMediaCommandValidator : AbstractValidator<UpdateLrExerciseItemMediaCommand>
+{
+    public UpdateLrExerciseItemMediaCommandValidator()
+    {
+        RuleFor(command => command.ActorUserId).NotEmpty();
+        RuleFor(command => command.Part).InclusiveBetween(1, 7);
+        RuleFor(command => command.ItemId).NotEmpty();
+        RuleFor(command => command.Input.Version).GreaterThan(0);
+        RuleFor(command => command.Input.Status).Must(value => value is not null &&
+            new[] { "DRAFT", "PUBLISHED", "ARCHIVED" }.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase));
+        RuleFor(command => command.Input.AudioUrl).MaximumLength(2_000).Must(LrExerciseMediaUrl.IsValid);
+        RuleFor(command => command.Input.ImageUrl).MaximumLength(2_000).Must(LrExerciseMediaUrl.IsValid);
+    }
+}
+
+public sealed class UpdateLrExerciseItemMediaCommandHandler(ILrExerciseBankRepository repository,
+    TimeProvider timeProvider) : IRequestHandler<UpdateLrExerciseItemMediaCommand, LrExerciseItemDto?>
+{
+    public async Task<LrExerciseItemDto?> Handle(UpdateLrExerciseItemMediaCommand request,
+        CancellationToken cancellationToken)
+    {
+        var item = await repository.GetByIdAsync(request.ItemId, cancellationToken);
+        if (item is null || (int)item.Part != request.Part)
+            return null;
+        if (item.Version != request.Input.Version)
+            throw new LrExerciseBankConflictException("Exercise item was updated by another administrator.");
+        try
+        {
+            item.UpdateMediaAndStatus(request.Input.AudioUrl, request.Input.ImageUrl,
+                LrExerciseBankMapping.ParseStatus(request.Input.Status), request.ActorUserId, timeProvider.GetUtcNow());
+        }
+        catch (ArgumentException exception)
+        {
+            throw new InvalidLrExerciseBankItemException(exception.Message);
+        }
+        await repository.SaveChangesAsync(cancellationToken);
+        return item.ToDto();
+    }
+}
+
 public sealed class LrExerciseItemInputValidator : AbstractValidator<LrExerciseItemInput>
 {
     public LrExerciseItemInputValidator()
@@ -21,8 +64,8 @@ public sealed class LrExerciseItemInputValidator : AbstractValidator<LrExerciseI
         RuleFor(input => input.Status).Must(value => value is not null &&
             new[] { "DRAFT", "PUBLISHED", "ARCHIVED" }.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase));
         RuleFor(input => input.Context).MaximumLength(12_000);
-        RuleFor(input => input.AudioUrl).MaximumLength(2_000);
-        RuleFor(input => input.ImageUrl).MaximumLength(2_000);
+        RuleFor(input => input.AudioUrl).MaximumLength(2_000).Must(LrExerciseMediaUrl.IsValid);
+        RuleFor(input => input.ImageUrl).MaximumLength(2_000).Must(LrExerciseMediaUrl.IsValid);
         RuleFor(input => input.Questions).NotEmpty().Must(questions => questions.Count <= 10);
         RuleForEach(input => input.Questions).ChildRules(question =>
         {
@@ -35,6 +78,24 @@ public sealed class LrExerciseItemInputValidator : AbstractValidator<LrExerciseI
             question.RuleFor(value => value.Translation).MaximumLength(4_000);
             question.RuleFor(value => value.Explanation).MaximumLength(4_000);
         });
+    }
+}
+
+internal static class LrExerciseMediaUrl
+{
+    internal static bool IsValid(string? value)
+    {
+        if (value is null || value.Length == 0)
+            return true;
+        if (value.Any(char.IsControl))
+            return false;
+        if (string.IsNullOrWhiteSpace(value) || value.StartsWith("lr-exercise/", StringComparison.Ordinal))
+            return true;
+        if (value.StartsWith("/", StringComparison.Ordinal))
+            return !value.StartsWith("//", StringComparison.Ordinal) &&
+                !value.StartsWith("/\\", StringComparison.Ordinal);
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+            uri.Scheme is "http" or "https" && !string.IsNullOrEmpty(uri.Host);
     }
 }
 
@@ -91,6 +152,14 @@ public sealed class ImportLrExerciseItemsCommandHandler(ILrExerciseBankRepositor
         var inputs = parser.Parse(request.Part, request.FileName, request.Content);
         if (inputs.Count == 0)
             throw new LrExerciseBankImportException("Workbook has no data rows to import.");
+        var itemValidator = new LrExerciseItemInputValidator();
+        for (var index = 0; index < inputs.Count; index++)
+        {
+            var validation = await itemValidator.ValidateAsync(inputs[index], cancellationToken);
+            if (!validation.IsValid)
+                throw new LrExerciseBankImportException(
+                    $"Item {index + 1} ({inputs[index].Code}): {validation.Errors[0].ErrorMessage}");
+        }
         var duplicateCodes = inputs.GroupBy(input => input.Code.Trim(), StringComparer.OrdinalIgnoreCase)
             .Where(group => group.Count() > 1).Select(group => group.Key).ToArray();
         if (duplicateCodes.Length > 0)

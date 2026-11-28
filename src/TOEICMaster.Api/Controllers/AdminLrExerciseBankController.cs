@@ -2,6 +2,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TOEICMaster.Api.Extensions;
+using TOEICMaster.Application.Exams;
+using TOEICMaster.Application.Exams.Commands.UploadExamImage;
 using TOEICMaster.Application.ExerciseBank;
 
 namespace TOEICMaster.Api.Controllers;
@@ -9,8 +11,44 @@ namespace TOEICMaster.Api.Controllers;
 [ApiController]
 [Route("api/v1/admin/lr-exercise-bank")]
 [Authorize(Policy = "AccountAdministration")]
-public sealed class AdminLrExerciseBankController(ISender sender, IWebHostEnvironment environment) : ControllerBase
+public sealed class AdminLrExerciseBankController(ISender sender, IWebHostEnvironment environment,
+    IExamMediaStore mediaStore) : ControllerBase
 {
+    [HttpPost("media/{kind}")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(20 * 1024 * 1024 + 64 * 1024)]
+    [ProducesResponseType<LrExerciseMediaUploadDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<LrExerciseMediaUploadDto>> UploadMedia(string kind, [FromForm] IFormFile? file,
+        CancellationToken cancellationToken)
+    {
+        if (kind is not ("audio" or "image") || file is null || file.Length is <= 0 or > 20 * 1024 * 1024)
+            return this.BadRequestProblem("Invalid media file.");
+        if (kind == "image" && file.Length > UploadExamImageCommandHandler.MaxBytes)
+            return this.BadRequestProblem("Image must be a PNG, JPEG or WebP file up to 5 MB.");
+        await using var stream = new MemoryStream();
+        await file.CopyToAsync(stream, cancellationToken);
+        var bytes = stream.ToArray();
+        string extension;
+        string contentType;
+        if (kind == "image")
+        {
+            var detected = ExamMediaInspector.DetectImage(bytes);
+            if (detected is null)
+                return this.BadRequestProblem("Image must be a PNG, JPEG or WebP file up to 5 MB.");
+            (extension, contentType) = detected.Value;
+        }
+        else
+        {
+            var detected = ExamMediaInspector.DetectAudio(bytes);
+            if (detected is null)
+                return this.BadRequestProblem("Audio must be an MP3 or WAV file up to 20 MB.");
+            (extension, contentType) = detected.Value;
+        }
+        var key = $"lr-exercise/{kind}/{Guid.NewGuid():N}.{extension}";
+        await mediaStore.UploadAsync(key, bytes, contentType, cancellationToken);
+        return Ok(new LrExerciseMediaUploadDto(key));
+    }
     [HttpGet("summary")]
     [ProducesResponseType<LrExerciseBankSummaryDto>(StatusCodes.Status200OK)]
     public async Task<ActionResult<LrExerciseBankSummaryDto>> GetSummary(CancellationToken cancellationToken) =>
@@ -32,6 +70,19 @@ public sealed class AdminLrExerciseBankController(ISender sender, IWebHostEnviro
     {
         var created = await sender.Send(new CreateLrExerciseItemCommand(CurrentUserId(), part, input), cancellationToken);
         return Created($"/api/v1/admin/lr-exercise-bank/parts/{part}/items/{created.Id}", created);
+    }
+
+    [HttpPatch("parts/{part:int}/items/{id:guid}")]
+    [ProducesResponseType<LrExerciseItemDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<LrExerciseItemDto>> UpdateMedia(int part, Guid id,
+        LrExerciseItemMediaInput input, CancellationToken cancellationToken)
+    {
+        var updated = await sender.Send(new UpdateLrExerciseItemMediaCommand(CurrentUserId(), part, id, input),
+            cancellationToken);
+        return updated is null ? NotFound() : Ok(updated);
     }
 
     [HttpPost("parts/{part:int}/imports")]

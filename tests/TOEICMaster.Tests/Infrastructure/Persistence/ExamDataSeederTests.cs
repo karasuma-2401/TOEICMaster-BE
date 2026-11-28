@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using TOEICMaster.Domain.Entities;
 using TOEICMaster.Infrastructure.Persistence;
 using TOEICMaster.Infrastructure.Persistence.Seeders;
 
@@ -34,6 +35,21 @@ public sealed class ExamDataSeederTests
             Assert.Equal(1, await verificationContext.Exams.CountAsync());
             Assert.Equal(1, await verificationContext.ScoreProfiles.CountAsync());
             Assert.Equal(202, await verificationContext.ScoreConversions.CountAsync());
+            var sample = await verificationContext.Exams.Include(exam => exam.Revisions).SingleAsync();
+            Assert.Equal(ExamRevisionStatus.Draft, sample.Revisions.Single().Status);
+
+            // Simulate the previously published sample and verify startup withdraws it safely.
+            var originalRevisionId = sample.Revisions.Single().Id;
+            sample.PublishDraft(originalRevisionId);
+            await verificationContext.SaveChangesAsync();
+            await using var upgradeContext = new ToeicDbContext(options);
+            await ExamDataSeeder.SeedSampleExamAsync(upgradeContext);
+            await using var upgradedContext = new ToeicDbContext(options);
+            var revisions = await upgradedContext.ExamRevisions.OrderBy(revision => revision.VersionNumber).ToListAsync();
+            Assert.Equal(2, revisions.Count);
+            Assert.Equal(originalRevisionId, revisions[0].Id);
+            Assert.Equal(ExamRevisionStatus.Superseded, revisions[0].Status);
+            Assert.Equal(ExamRevisionStatus.Draft, revisions[1].Status);
         }
         finally
         {

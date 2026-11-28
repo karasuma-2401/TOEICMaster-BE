@@ -11,6 +11,8 @@ public sealed class CompleteExamWorkbookTemplateTests
             "toeic-lr-complete-exam-import-template.xlsx");
 
         var workbook = XlsxExamWorkbookReader.Read(File.ReadAllBytes(path));
+        var draft = ImportedExamDraftBuilder.Build(workbook, DateTimeOffset.UtcNow);
+        Assert.Single(draft.Revisions);
 
         Assert.Equal("LR-DEMO-001", workbook.TestCode);
         Assert.Equal(103, workbook.Blocks.Count);

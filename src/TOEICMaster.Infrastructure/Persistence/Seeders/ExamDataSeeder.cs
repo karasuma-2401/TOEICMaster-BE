@@ -33,6 +33,31 @@ public static class ExamDataSeeder
     private static async Task SeedSampleExamCoreAsync(ToeicDbContext db, DateTimeOffset now,
         CancellationToken cancellationToken)
     {
+        var existingSample = await db.Exams
+            .Where(exam => exam.Code == "TOEIC-SAMPLE-01")
+            .Include(exam => exam.Revisions).ThenInclude(revision => revision.Blocks)
+                .ThenInclude(block => block.Questions)
+            .Include(exam => exam.Revisions).ThenInclude(revision => revision.Blocks)
+                .ThenInclude(block => block.ContextBlocks)
+            .AsSplitQuery()
+            .SingleOrDefaultAsync(cancellationToken);
+        if (existingSample is not null)
+        {
+            var published = existingSample.Revisions.SingleOrDefault(revision =>
+                revision.VersionNumber == 1 && revision.Status == ExamRevisionStatus.Published);
+            if (published is not null && !published.Blocks.Any(block =>
+                    block.Part is >= 1 and <= 4 && block.AudioAssetId is not null))
+            {
+                // Preserve the revision used by existing attempts while hiding the incomplete sample.
+                if (existingSample.Revisions.Any(revision => revision.Status == ExamRevisionStatus.Draft))
+                    existingSample.WithdrawPublishedRevision(published.Id);
+                else
+                    existingSample.WithdrawPublishedRevisionToDraft(published.Id, now);
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            return;
+        }
+
         if (await db.Exams.AnyAsync(cancellationToken))
             return;
 
@@ -154,8 +179,6 @@ public static class ExamDataSeeder
             Explanation: "Câu cuối đoạn văn nêu rõ: please use the stairs or the service elevator.",
             ImageAssetId: null
         ));
-
-        exam.PublishDraft(revision.Id);
 
         db.ScoreProfiles.Add(profile);
         db.Exams.Add(exam);

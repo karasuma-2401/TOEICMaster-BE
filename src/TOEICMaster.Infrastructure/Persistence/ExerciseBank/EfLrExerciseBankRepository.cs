@@ -6,6 +6,9 @@ namespace TOEICMaster.Infrastructure.Persistence.ExerciseBank;
 
 public sealed class EfLrExerciseBankRepository(ToeicDbContext context) : ILrExerciseBankRepository
 {
+    public Task<LrExerciseBankItem?> GetByIdAsync(Guid itemId, CancellationToken cancellationToken) =>
+        context.LrExerciseBankItems.Include(item => item.Questions)
+            .FirstOrDefaultAsync(item => item.Id == itemId, cancellationToken);
     public async Task<LrExerciseItemPageDto> GetPageAsync(
         LrExerciseItemFilter filter,
         CancellationToken cancellationToken)
@@ -53,12 +56,7 @@ public sealed class EfLrExerciseBankRepository(ToeicDbContext context) : ILrExer
         CancellationToken cancellationToken)
     {
         var parsedPart = LrExerciseBankMapping.ParsePart(part);
-        var query = context.LrExerciseBankItems
-            .AsNoTracking()
-            .Include(item => item.Questions)
-            .Where(item =>
-                item.Part == parsedPart &&
-                item.Status == LrExerciseStatus.Published);
+        var query = PublishedItems().Where(item => item.Part == parsedPart);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var offset = checked((pageNumber - 1) * pageSize);
@@ -76,14 +74,16 @@ public sealed class EfLrExerciseBankRepository(ToeicDbContext context) : ILrExer
         Guid itemId,
         CancellationToken cancellationToken)
     {
-        return context.LrExerciseBankItems
-            .AsNoTracking()
-            .Include(item => item.Questions)
-            .FirstOrDefaultAsync(
-                item => item.Id == itemId &&
-                        item.Status == LrExerciseStatus.Published,
-                cancellationToken);
+        return PublishedItems().FirstOrDefaultAsync(item => item.Id == itemId, cancellationToken);
     }
+
+    internal IQueryable<LrExerciseBankItem> PublishedItems() => context.LrExerciseBankItems
+        .AsNoTracking()
+        .Include(item => item.Questions)
+        .Where(item => item.Status == LrExerciseStatus.Published &&
+            (item.Part >= LrExercisePart.Part5 ||
+             !string.IsNullOrWhiteSpace(item.AudioUrl) &&
+             (item.Part != LrExercisePart.Part1 || !string.IsNullOrWhiteSpace(item.ImageUrl))));
     public async Task<LrExerciseBankSummaryDto> GetSummaryAsync(CancellationToken cancellationToken)
     {
         var summaries = await context.LrExerciseBankItems.AsNoTracking().GroupBy(item => item.Part)
