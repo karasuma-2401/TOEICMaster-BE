@@ -1,3 +1,4 @@
+using TOEICMaster.Application.Exams;
 using TOEICMaster.Application.ExerciseBank;
 using TOEICMaster.Domain.Entities;
 
@@ -5,6 +6,22 @@ namespace TOEICMaster.Tests.Application.ExerciseBank;
 
 public sealed class LrPracticeApplicationTests
 {
+    [Fact]
+    public async Task Listing_resolves_stored_media_keys_for_public_items()
+    {
+        var item = CreateItem();
+        item.UpdateMediaAndStatus("lr-exercise/audio/example.mp3", "lr-exercise/image/example.png",
+            LrExerciseStatus.Published, Guid.NewGuid(), DateTimeOffset.UtcNow);
+        var handler = new GetLrPracticeItemsQueryHandler(new StubExerciseBankRepository(item),
+            new PresigningMediaStore());
+
+        var page = await handler.Handle(new GetLrPracticeItemsQuery(1, 1, 20), CancellationToken.None);
+
+        var listed = Assert.Single(page.Items);
+        Assert.Equal("https://media.test/lr-exercise/audio/example.mp3", listed.AudioUrl);
+        Assert.Equal("https://media.test/lr-exercise/image/example.png", listed.ImageUrl);
+    }
+
     [Fact]
     public async Task Submit_grades_case_insensitive_keys()
     {
@@ -336,7 +353,7 @@ public sealed class LrPracticeApplicationTests
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken) =>
-            Task.FromResult(((IReadOnlyList<LrExerciseBankItem>)[], 0));
+            Task.FromResult(((IReadOnlyList<LrExerciseBankItem>)(item is null ? [] : [item]), item is null ? 0 : 1));
 
         public Task<LrExerciseBankItem?> GetPublishedByIdAsync(Guid itemId, CancellationToken cancellationToken) =>
             Task.FromResult(item);
@@ -351,6 +368,15 @@ public sealed class LrPracticeApplicationTests
             Task.CompletedTask;
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class PresigningMediaStore : IExamMediaStore
+    {
+        public Task UploadAsync(string objectKey, byte[] content, string contentType,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<string> CreatePresignedGetUrlAsync(string objectKey, TimeSpan lifetime,
+            CancellationToken cancellationToken) => Task.FromResult($"https://media.test/{objectKey}");
     }
 
     private sealed class RecordingAttemptRepository : ILrPracticeAttemptRepository

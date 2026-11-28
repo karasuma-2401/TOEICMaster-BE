@@ -109,13 +109,21 @@ public sealed class LrPracticePostgresApiTests : IClassFixture<LrPracticePostgre
             "https://example.test/photo.png",
             [new LrExerciseBankQuestionInput($"P1-LEGACY-{suffix}-Q1", "Q1", "A", "B", "C", "D", "A", null, null)],
             userA.Id, now);
+        var legacyPart1WithoutImage = LrExerciseBankItem.Create(
+            LrExercisePart.Part1, $"P1-LEGACY-IMAGE-{suffix}", "Legacy photo", LrExerciseDifficulty.Easy,
+            LrExerciseStatus.Published, null, "https://example.test/audio.mp3",
+            "https://example.test/photo.png",
+            [new LrExerciseBankQuestionInput($"P1-LEGACY-IMAGE-{suffix}-Q1", "Q1", "A", "B", "C", "D", "A", null, null)],
+            userA.Id, now);
 
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ToeicDbContext>();
             db.Users.AddRange(userA, userB);
-            db.LrExerciseBankItems.AddRange(publishedPart4, draftPart4, publishedPart5, legacyPart1WithoutAudio);
-            db.Entry(legacyPart1WithoutAudio).Property(item => item.AudioUrl).CurrentValue = null;
+            db.LrExerciseBankItems.AddRange(publishedPart4, draftPart4, publishedPart5,
+                legacyPart1WithoutAudio, legacyPart1WithoutImage);
+            db.Entry(legacyPart1WithoutAudio).Property(item => item.AudioUrl).CurrentValue = "   ";
+            db.Entry(legacyPart1WithoutImage).Property(item => item.ImageUrl).CurrentValue = "   ";
             await db.SaveChangesAsync();
         }
 
@@ -124,8 +132,11 @@ public sealed class LrPracticePostgresApiTests : IClassFixture<LrPracticePostgre
         using var legacyList = await anonClient.GetAsync("/api/v1/lr-practice/parts/1/items");
         var legacyPage = await legacyList.Content.ReadFromJsonAsync<LrPracticeItemPageDto>();
         Assert.DoesNotContain(legacyPage!.Items, item => item.Id == legacyPart1WithoutAudio.Id);
+        Assert.DoesNotContain(legacyPage.Items, item => item.Id == legacyPart1WithoutImage.Id);
         using var legacyDetail = await anonClient.GetAsync($"/api/v1/lr-practice/items/{legacyPart1WithoutAudio.Id}");
         Assert.Equal(HttpStatusCode.NotFound, legacyDetail.StatusCode);
+        using var legacyImageDetail = await anonClient.GetAsync($"/api/v1/lr-practice/items/{legacyPart1WithoutImage.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, legacyImageDetail.StatusCode);
 
         using var listResponse = await anonClient.GetAsync("/api/v1/lr-practice/parts/4/items?pageNumber=1&pageSize=50");
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);

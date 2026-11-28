@@ -71,6 +71,17 @@ public sealed class LrPracticePersistenceTests
     }
 
     [Fact]
+    public void Published_items_query_translates_whitespace_media_filter_to_postgresql()
+    {
+        using var context = CreateContext();
+        var sql = new EfLrExerciseBankRepository(context).PublishedItems().ToQueryString();
+
+        Assert.Contains("btrim", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("AudioUrl", sql);
+        Assert.Contains("ImageUrl", sql);
+    }
+
+    [Fact]
     public async Task Repositories_persist_attempts_and_aggregate_statistics_in_postgresql()
     {
         var configuredConnection = Environment.GetEnvironmentVariable("TOEICMASTER_TEST_POSTGRES")

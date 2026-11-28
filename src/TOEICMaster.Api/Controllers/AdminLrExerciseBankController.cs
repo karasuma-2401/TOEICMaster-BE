@@ -17,11 +17,15 @@ public sealed class AdminLrExerciseBankController(ISender sender, IWebHostEnviro
     [HttpPost("media/{kind}")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(20 * 1024 * 1024 + 64 * 1024)]
+    [ProducesResponseType<LrExerciseMediaUploadDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<LrExerciseMediaUploadDto>> UploadMedia(string kind, [FromForm] IFormFile? file,
         CancellationToken cancellationToken)
     {
         if (kind is not ("audio" or "image") || file is null || file.Length is <= 0 or > 20 * 1024 * 1024)
             return this.BadRequestProblem("Invalid media file.");
+        if (kind == "image" && file.Length > UploadExamImageCommandHandler.MaxBytes)
+            return this.BadRequestProblem("Image must be a PNG, JPEG or WebP file up to 5 MB.");
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream, cancellationToken);
         var bytes = stream.ToArray();
@@ -30,7 +34,7 @@ public sealed class AdminLrExerciseBankController(ISender sender, IWebHostEnviro
         if (kind == "image")
         {
             var detected = ExamMediaInspector.DetectImage(bytes);
-            if (detected is null || bytes.Length > UploadExamImageCommandHandler.MaxBytes)
+            if (detected is null)
                 return this.BadRequestProblem("Image must be a PNG, JPEG or WebP file up to 5 MB.");
             (extension, contentType) = detected.Value;
         }
@@ -70,6 +74,9 @@ public sealed class AdminLrExerciseBankController(ISender sender, IWebHostEnviro
 
     [HttpPatch("parts/{part:int}/items/{id:guid}")]
     [ProducesResponseType<LrExerciseItemDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<LrExerciseItemDto>> UpdateMedia(int part, Guid id,
         LrExerciseItemMediaInput input, CancellationToken cancellationToken)
     {

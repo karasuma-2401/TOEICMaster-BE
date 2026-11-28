@@ -23,8 +23,8 @@ public sealed class UpdateLrExerciseItemMediaCommandValidator : AbstractValidato
         RuleFor(command => command.Input.Version).GreaterThan(0);
         RuleFor(command => command.Input.Status).Must(value => value is not null &&
             new[] { "DRAFT", "PUBLISHED", "ARCHIVED" }.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase));
-        RuleFor(command => command.Input.AudioUrl).MaximumLength(2_000);
-        RuleFor(command => command.Input.ImageUrl).MaximumLength(2_000);
+        RuleFor(command => command.Input.AudioUrl).MaximumLength(2_000).Must(LrExerciseMediaUrl.IsValid);
+        RuleFor(command => command.Input.ImageUrl).MaximumLength(2_000).Must(LrExerciseMediaUrl.IsValid);
     }
 }
 
@@ -64,8 +64,8 @@ public sealed class LrExerciseItemInputValidator : AbstractValidator<LrExerciseI
         RuleFor(input => input.Status).Must(value => value is not null &&
             new[] { "DRAFT", "PUBLISHED", "ARCHIVED" }.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase));
         RuleFor(input => input.Context).MaximumLength(12_000);
-        RuleFor(input => input.AudioUrl).MaximumLength(2_000);
-        RuleFor(input => input.ImageUrl).MaximumLength(2_000);
+        RuleFor(input => input.AudioUrl).MaximumLength(2_000).Must(LrExerciseMediaUrl.IsValid);
+        RuleFor(input => input.ImageUrl).MaximumLength(2_000).Must(LrExerciseMediaUrl.IsValid);
         RuleFor(input => input.Questions).NotEmpty().Must(questions => questions.Count <= 10);
         RuleForEach(input => input.Questions).ChildRules(question =>
         {
@@ -78,6 +78,24 @@ public sealed class LrExerciseItemInputValidator : AbstractValidator<LrExerciseI
             question.RuleFor(value => value.Translation).MaximumLength(4_000);
             question.RuleFor(value => value.Explanation).MaximumLength(4_000);
         });
+    }
+}
+
+internal static class LrExerciseMediaUrl
+{
+    internal static bool IsValid(string? value)
+    {
+        if (value is null || value.Length == 0)
+            return true;
+        if (value.Any(char.IsControl))
+            return false;
+        if (string.IsNullOrWhiteSpace(value) || value.StartsWith("lr-exercise/", StringComparison.Ordinal))
+            return true;
+        if (value.StartsWith("/", StringComparison.Ordinal))
+            return !value.StartsWith("//", StringComparison.Ordinal) &&
+                !value.StartsWith("/\\", StringComparison.Ordinal);
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+            uri.Scheme is "http" or "https" && !string.IsNullOrEmpty(uri.Host);
     }
 }
 

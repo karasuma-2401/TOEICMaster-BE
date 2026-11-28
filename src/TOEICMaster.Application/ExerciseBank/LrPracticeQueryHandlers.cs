@@ -5,7 +5,7 @@ using TOEICMaster.Domain.Entities;
 namespace TOEICMaster.Application.ExerciseBank;
 
 public sealed class GetLrPracticeItemsQueryHandler(
-    ILrExerciseBankRepository repository
+    ILrExerciseBankRepository repository, IExamMediaStore mediaStore
 ) : IRequestHandler<GetLrPracticeItemsQuery, LrPracticeItemPageDto>
 {
     public async Task<LrPracticeItemPageDto> Handle(
@@ -27,7 +27,7 @@ public sealed class GetLrPracticeItemsQueryHandler(
             pageSize,
             cancellationToken);
 
-        var result = items.Select(item => new LrPracticeItemDto(
+        var result = await Task.WhenAll(items.Select(async item => new LrPracticeItemDto(
             item.Id,
             (int)item.Part,
             item.Kind.ToString(),
@@ -35,10 +35,10 @@ public sealed class GetLrPracticeItemsQueryHandler(
             item.Topic,
             item.Difficulty.ToString(),
             item.Context,
-            item.AudioUrl,
-            item.ImageUrl,
+            await LrPracticeMediaResolver.ResolveAsync(item.AudioUrl, mediaStore, cancellationToken),
+            await LrPracticeMediaResolver.ResolveAsync(item.ImageUrl, mediaStore, cancellationToken),
             item.Questions.Count
-        )).ToList();
+        )));
 
         return new LrPracticeItemPageDto(
             result,
@@ -87,13 +87,16 @@ public sealed class GetLrPracticeItemDetailQueryHandler(
             item.Topic,
             item.Difficulty.ToString(),
             item.Context,
-            await ResolveMediaAsync(item.AudioUrl, mediaStore, cancellationToken),
-            await ResolveMediaAsync(item.ImageUrl, mediaStore, cancellationToken),
+            await LrPracticeMediaResolver.ResolveAsync(item.AudioUrl, mediaStore, cancellationToken),
+            await LrPracticeMediaResolver.ResolveAsync(item.ImageUrl, mediaStore, cancellationToken),
             questions
         );
     }
+}
 
-    private static Task<string?> ResolveMediaAsync(string? value, IExamMediaStore store,
+internal static class LrPracticeMediaResolver
+{
+    internal static Task<string?> ResolveAsync(string? value, IExamMediaStore store,
         CancellationToken cancellationToken) =>
         value?.StartsWith("lr-exercise/", StringComparison.Ordinal) == true
             ? ResolveStoredMediaAsync(value, store, cancellationToken)
