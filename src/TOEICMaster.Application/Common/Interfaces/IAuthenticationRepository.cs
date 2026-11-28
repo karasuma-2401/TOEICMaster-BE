@@ -8,9 +8,13 @@ public interface IAuthenticationRepository
     Task AddSessionAsync(UserSession session, CancellationToken cancellationToken);
     Task<AuthenticationSession?> FindActiveSessionAsync(string refreshTokenHash, DateTimeOffset nowUtc,
         CancellationToken cancellationToken);
+    Task<AuthenticationSession?> FindSessionByRefreshTokenHashAsync(string refreshTokenHash,
+        CancellationToken cancellationToken);
     Task<bool> TryRotateSessionAsync(Guid currentSessionId, UserSession replacement, DateTimeOffset revokedAtUtc,
         CancellationToken cancellationToken);
     Task RevokeSessionAsync(string refreshTokenHash, DateTimeOffset revokedAtUtc,
+        CancellationToken cancellationToken);
+    Task RevokeSessionFamilyAsync(Guid familyId, DateTimeOffset revokedAtUtc,
         CancellationToken cancellationToken);
 }
 

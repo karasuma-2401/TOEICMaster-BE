@@ -12,17 +12,16 @@ public sealed class PasswordResetApplicationTests
     private static readonly DateTimeOffset Now = new(2026, 10, 15, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task Request_normalizes_email_and_sends_code_for_eligible_local_account()
+    public async Task Request_normalizes_email_and_queues_code_for_eligible_local_account()
     {
         var repository = new FakePasswordResetRepository();
-        var mail = new RecordingMailSender();
         var handler = new RequestPasswordResetCommandHandler(repository,
-            new FakeEmailVerificationCodeService(), mail, new FixedTimeProvider(Now));
+            new FakeEmailVerificationCodeService(), new FixedTimeProvider(Now));
 
         await handler.Handle(new RequestPasswordResetCommand(" Learner@Example.com "), CancellationToken.None);
 
         Assert.Equal("hash:LEARNER@EXAMPLE.COM:123456", repository.IssuedCodeHash);
-        var message = Assert.Single(mail.Messages);
+        var message = Assert.Single(repository.QueuedMessages);
         Assert.Equal("learner@example.com", message.To);
         Assert.Contains("123456", message.TextBody);
         Assert.Contains("password reset", message.Subject, StringComparison.OrdinalIgnoreCase);
@@ -32,27 +31,25 @@ public sealed class PasswordResetApplicationTests
     public async Task Request_does_not_reveal_missing_or_ineligible_accounts()
     {
         var repository = new FakePasswordResetRepository { HasEligibleAccount = false };
-        var mail = new RecordingMailSender();
         var handler = new RequestPasswordResetCommandHandler(repository,
-            new FakeEmailVerificationCodeService(), mail, new FixedTimeProvider(Now));
+            new FakeEmailVerificationCodeService(), new FixedTimeProvider(Now));
 
         await handler.Handle(new RequestPasswordResetCommand("missing@example.com"), CancellationToken.None);
 
-        Assert.Empty(mail.Messages);
+        Assert.Empty(repository.QueuedMessages);
         Assert.Null(repository.IssuedCodeHash);
     }
 
     [Fact]
-    public async Task Request_during_cooldown_returns_success_without_sending_again()
+    public async Task Request_during_cooldown_returns_success_without_queuing_again()
     {
         var repository = new FakePasswordResetRepository { ReplaceSucceeds = false };
-        var mail = new RecordingMailSender();
         var handler = new RequestPasswordResetCommandHandler(repository,
-            new FakeEmailVerificationCodeService(), mail, new FixedTimeProvider(Now));
+            new FakeEmailVerificationCodeService(), new FixedTimeProvider(Now));
 
         await handler.Handle(new RequestPasswordResetCommand("learner@example.com"), CancellationToken.None);
 
-        Assert.Empty(mail.Messages);
+        Assert.Empty(repository.QueuedMessages);
     }
 
     [Fact]

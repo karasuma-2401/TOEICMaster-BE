@@ -1,5 +1,6 @@
 using TOEICMaster.Application.Common.Interfaces;
 using TOEICMaster.Application.Common.Security;
+using TOEICMaster.Application.Email;
 using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Tests.TestDoubles;
@@ -14,9 +15,12 @@ public sealed class FakeUserRegistrationRepository : IUserRegistrationRepository
     public User? AddedUser { get; private set; }
     public EmailVerificationChallenge? AddedChallenge { get; private set; }
     public string? ReplacementCodeHash { get; private set; }
+    public string? ReplacementDisplayName { get; private set; }
+    public string? ReplacementPasswordHash { get; private set; }
     public string? VerifiedCodeHash { get; private set; }
     public string? VerifiedEmail { get; private set; }
     public bool CooldownReleased { get; private set; }
+    public List<MailMessage> QueuedMessages { get; } = [];
 
     public Task<RegistrationAccount?> FindByNormalizedEmailAsync(string normalizedEmail,
         CancellationToken cancellationToken)
@@ -32,20 +36,38 @@ public sealed class FakeUserRegistrationRepository : IUserRegistrationRepository
         return Task.FromResult(account);
     }
 
-    public Task<bool> TryAddAsync(User user, EmailVerificationChallenge challenge,
+    public Task<bool> TryAddAsync(User user, EmailVerificationChallenge challenge, MailMessage? outboxMessage,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         AddedUser = user;
         AddedChallenge = challenge;
+        if (AddSucceeds && outboxMessage is not null)
+            QueuedMessages.Add(outboxMessage);
         return Task.FromResult(AddSucceeds);
     }
 
-    public Task<bool> TryReplaceVerificationAsync(Guid userId, string codeHash, DateTimeOffset sentAtUtc,
-        DateTimeOffset expiresAtUtc, TimeSpan cooldown, CancellationToken cancellationToken)
+    public Task<bool> TryReplacePendingRegistrationAsync(Guid userId, string codeHash, string pendingDisplayName,
+        string pendingPasswordHash, DateTimeOffset sentAtUtc, DateTimeOffset expiresAtUtc,
+        MailMessage? outboxMessage, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         ReplacementCodeHash = codeHash;
+        ReplacementDisplayName = pendingDisplayName;
+        ReplacementPasswordHash = pendingPasswordHash;
+        if (ReplaceSucceeds && outboxMessage is not null)
+            QueuedMessages.Add(outboxMessage);
+        return Task.FromResult(ReplaceSucceeds);
+    }
+
+    public Task<bool> TryReplaceVerificationAsync(Guid userId, string codeHash, DateTimeOffset sentAtUtc,
+        DateTimeOffset expiresAtUtc, TimeSpan cooldown, MailMessage? outboxMessage,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ReplacementCodeHash = codeHash;
+        if (ReplaceSucceeds && outboxMessage is not null)
+            QueuedMessages.Add(outboxMessage);
         return Task.FromResult(ReplaceSucceeds);
     }
 

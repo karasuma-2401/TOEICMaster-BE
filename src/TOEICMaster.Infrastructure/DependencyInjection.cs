@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -111,11 +112,23 @@ public static class DependencyInjection
         });
         services.AddOptions<SmtpOptions>().Bind(configuration.GetSection(SmtpOptions.SectionName))
             .ValidateDataAnnotations()
+            .Validate(options => options.UseDevelopmentSink || !string.IsNullOrWhiteSpace(options.Host),
+                "SMTP host is required unless the development mail sink is enabled.")
+            .Validate(options => options.UseDevelopmentSink ||
+                                 (!string.IsNullOrWhiteSpace(options.FromAddress) &&
+                                  new EmailAddressAttribute().IsValid(options.FromAddress)),
+                "A valid SMTP from-address is required unless the development mail sink is enabled.")
             .Validate(options => Enum.IsDefined(options.Security), "Invalid SMTP security mode.")
             .Validate(options => string.IsNullOrEmpty(options.Username) == string.IsNullOrEmpty(options.Password),
                 "Configure both SMTP username and password, or neither.")
             .ValidateOnStart();
-        services.AddTransient<IMailSender, SmtpMailSender>();
+        services.AddTransient<SmtpMailSender>();
+        services.AddTransient<DevelopmentMailSink>();
+        services.AddTransient<IMailSender>(provider => provider.GetRequiredService<IOptions<SmtpOptions>>().Value.UseDevelopmentSink
+            ? provider.GetRequiredService<DevelopmentMailSink>()
+            : provider.GetRequiredService<SmtpMailSender>());
+        services.AddScoped<IEmailOutboxProcessor, EmailOutboxProcessor>();
+        services.AddHostedService<EmailOutboxWorker>();
         services.AddOptions<JwtOptions>().Bind(configuration.GetSection(JwtOptions.SectionName))
             .ValidateDataAnnotations()
             .Validate(options => options.RememberMeRefreshTokenDays >= options.RefreshTokenDays,
@@ -149,11 +162,31 @@ public static class DependencyInjection
                     NameClaimType = JwtRegisteredClaimNames.Name,
                     RoleClaimType = ClaimTypes.Role
                 };
+                bearerOptions.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        var subject = context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Sub);
+                        var role = context.Principal?.FindFirstValue(ClaimTypes.Role);
+                        var securityStamp = context.Principal?.FindFirstValue(SecurityClaimTypes.SecurityStamp);
+                        if (!Guid.TryParse(subject, out var userId))
+                        {
+                            context.Fail("Access token subject is missing or invalid.");
+                            return;
+                        }
+
+                        var validator = context.HttpContext.RequestServices
+                            .GetRequiredService<IAccessTokenPrincipalValidator>();
+                        if (!await validator.IsValidAsync(userId, role, securityStamp, context.HttpContext.RequestAborted))
+                            context.Fail("Access token is no longer valid.");
+                    }
+                };
             });
         services.AddAuthorization();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IAuthenticationTokenService, JwtAuthenticationTokenService>();
+        services.AddScoped<IAccessTokenPrincipalValidator, EfAccessTokenPrincipalValidator>();
         services.AddScoped<IAdminBootstrapSeeder, AdminBootstrapSeeder>();
         services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
         services.AddSingleton<IEmailVerificationCodeService, EmailVerificationCodeService>();

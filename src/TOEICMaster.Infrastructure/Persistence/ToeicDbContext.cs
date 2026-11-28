@@ -12,6 +12,7 @@ public sealed class ToeicDbContext(DbContextOptions<ToeicDbContext> options) : D
     public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();
     public DbSet<EmailVerificationChallenge> EmailVerificationChallenges => Set<EmailVerificationChallenge>();
     public DbSet<PasswordResetChallenge> PasswordResetChallenges => Set<PasswordResetChallenge>();
+    public DbSet<EmailOutboxMessage> EmailOutboxMessages => Set<EmailOutboxMessage>();
     public DbSet<WritingExercise> WritingExercises => Set<WritingExercise>();
     public DbSet<WritingMediaAsset> WritingMediaAssets => Set<WritingMediaAsset>();
     public DbSet<WritingTest> WritingTests => Set<WritingTest>();

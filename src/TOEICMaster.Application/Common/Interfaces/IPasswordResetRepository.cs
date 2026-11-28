@@ -1,4 +1,4 @@
-using TOEICMaster.Domain.Entities;
+using TOEICMaster.Application.Email;
 
 namespace TOEICMaster.Application.Common.Interfaces;
 
@@ -9,6 +9,10 @@ public interface IPasswordResetRepository
 
     Task<bool> TryReplaceChallengeAsync(Guid userId, string codeHash, DateTimeOffset sentAtUtc,
         DateTimeOffset expiresAtUtc, TimeSpan cooldown, CancellationToken cancellationToken);
+
+    Task<bool> TryReplaceChallengeWithEmailAsync(Guid userId, string codeHash, DateTimeOffset sentAtUtc,
+        DateTimeOffset expiresAtUtc, TimeSpan cooldown, MailMessage outboxMessage,
+        CancellationToken cancellationToken);
 
     Task ReleaseChallengeCooldownAsync(Guid userId, DateTimeOffset sentAtUtc, TimeSpan cooldown,
         CancellationToken cancellationToken);

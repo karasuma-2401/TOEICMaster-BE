@@ -97,6 +97,7 @@ public sealed class SpeakingAttemptsController(ISender sender) : ControllerBase
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<SpeakingAttemptDto>> GrantEvaluationConsent(Guid attemptId,
         GrantSpeakingEvaluationConsentInput input, CancellationToken cancellationToken) =>
         Ok(await sender.Send(new GrantSpeakingEvaluationConsentCommand(CurrentOwner(), attemptId, input),
@@ -110,6 +111,7 @@ public sealed class SpeakingAttemptsController(ISender sender) : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status413PayloadTooLarge)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<SpeakingAttemptDto>> UploadRecording(Guid attemptId, int position,
         IFormFile? file, [FromForm] int? durationSeconds, CancellationToken cancellationToken)
     {

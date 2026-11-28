@@ -26,6 +26,14 @@ public sealed class EfAuthenticationRepository(ToeicDbContext dbContext) : IAuth
                 (session, user) => new AuthenticationSession(session, user))
             .SingleOrDefaultAsync(cancellationToken);
 
+    public Task<AuthenticationSession?> FindSessionByRefreshTokenHashAsync(string refreshTokenHash,
+        CancellationToken cancellationToken) =>
+        dbContext.UserSessions.AsNoTracking()
+            .Where(session => session.RefreshTokenHash == refreshTokenHash)
+            .Join(dbContext.Users.AsNoTracking(), session => session.UserId, user => user.Id,
+                (session, user) => new AuthenticationSession(session, user))
+            .SingleOrDefaultAsync(cancellationToken);
+
     public async Task<bool> TryRotateSessionAsync(Guid currentSessionId, UserSession replacement,
         DateTimeOffset revokedAtUtc, CancellationToken cancellationToken)
     {
@@ -58,6 +66,15 @@ public sealed class EfAuthenticationRepository(ToeicDbContext dbContext) : IAuth
     {
         await dbContext.UserSessions
             .Where(session => session.RefreshTokenHash == refreshTokenHash && session.RevokedAtUtc == null)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(session => session.RevokedAtUtc, revokedAtUtc),
+                cancellationToken);
+    }
+
+    public async Task RevokeSessionFamilyAsync(Guid familyId, DateTimeOffset revokedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.UserSessions
+            .Where(session => session.FamilyId == familyId && session.RevokedAtUtc == null)
             .ExecuteUpdateAsync(setters => setters.SetProperty(session => session.RevokedAtUtc, revokedAtUtc),
                 cancellationToken);
     }
