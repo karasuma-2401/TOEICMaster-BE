@@ -2422,38 +2422,13 @@
         ],
         "requestBody": {
           "content": {
-            "application/x-www-form-urlencoded": {
+            "multipart/form-data": {
               "schema": {
                 "type": "object",
                 "properties": {
-                  "ContentType": {
-                    "type": "string"
-                  },
-                  "ContentDisposition": {
-                    "type": "string"
-                  },
-                  "Headers": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "Length": {
-                    "pattern": "^-?(?:0|[1-9]\\d*)$",
-                    "type": [
-                      "integer",
-                      "string"
-                    ],
-                    "format": "int64"
-                  },
-                  "Name": {
-                    "type": "string"
-                  },
-                  "FileName": {
-                    "type": "string"
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
                   }
                 }
               }
