@@ -1,5 +1,5 @@
-using MediatR;
 using System.Buffers.Binary;
+using MediatR;
 using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Application.Exams.Commands.UploadExamImage;

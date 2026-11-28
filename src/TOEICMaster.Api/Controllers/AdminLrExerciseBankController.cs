@@ -2,9 +2,9 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TOEICMaster.Api.Extensions;
-using TOEICMaster.Application.ExerciseBank;
 using TOEICMaster.Application.Exams;
 using TOEICMaster.Application.Exams.Commands.UploadExamImage;
+using TOEICMaster.Application.ExerciseBank;
 
 namespace TOEICMaster.Api.Controllers;
 

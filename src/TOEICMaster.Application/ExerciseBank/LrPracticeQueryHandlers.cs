@@ -1,6 +1,6 @@
 using MediatR;
-using TOEICMaster.Domain.Entities;
 using TOEICMaster.Application.Exams;
+using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Application.ExerciseBank;
 
