@@ -126,7 +126,7 @@ public sealed class LrPracticeApplicationTests
             LrExerciseDifficulty.Easy,
             LrExerciseStatus.Published,
             null,
-            null,
+            "https://example.test/audio.mp3",
             null,
             [new LrExerciseBankQuestionInput(
                 "P2-001-Q1",
@@ -164,7 +164,7 @@ public sealed class LrPracticeApplicationTests
             LrExerciseDifficulty.Medium,
             LrExerciseStatus.Published,
             "M: Where is the report? W: On your desk.",
-            null,
+            "https://example.test/audio.mp3",
             null,
             [
                 new LrExerciseBankQuestionInput("P3-001-Q1", "Q1", "A1", "B1", "C1", "D1", "A", "T1", "E1"),
@@ -309,8 +309,8 @@ public sealed class LrPracticeApplicationTests
         LrExerciseDifficulty.Easy,
         LrExerciseStatus.Published,
         null,
-        null,
-        null,
+        "https://example.test/audio.mp3",
+        "https://example.test/image.png",
         [new LrExerciseBankQuestionInput(
             "P1-001-Q1",
             "What is shown?",
@@ -326,6 +326,8 @@ public sealed class LrPracticeApplicationTests
 
     private sealed class StubExerciseBankRepository(LrExerciseBankItem? item) : ILrExerciseBankRepository
     {
+        public Task<LrExerciseBankItem?> GetByIdAsync(Guid itemId, CancellationToken cancellationToken) =>
+            Task.FromResult(itemId == item?.Id ? item : null);
         public Task<LrExerciseItemPageDto> GetPageAsync(LrExerciseItemFilter filter, CancellationToken cancellationToken) =>
             Task.FromResult(new LrExerciseItemPageDto([], filter.PageNumber, filter.PageSize, 0));
 

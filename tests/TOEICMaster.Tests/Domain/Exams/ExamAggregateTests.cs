@@ -38,4 +38,19 @@ public sealed class ExamAggregateTests
         Assert.Equal(200, nextDraft.Blocks.Sum(block => block.Questions.Count));
         Assert.NotSame(published.Blocks.First(), nextDraft.Blocks.First());
     }
+
+    [Fact]
+    public void Withdrawing_published_revision_keeps_an_existing_admin_draft()
+    {
+        var exam = Exam.Create("LR-2026-001", "Practice test 1", Guid.NewGuid(), DateTimeOffset.UtcNow);
+        var published = Assert.Single(exam.Revisions);
+        published.Publish();
+        var adminDraft = exam.CreateDraftRevision(published.Id, DateTimeOffset.UtcNow);
+
+        exam.WithdrawPublishedRevision(published.Id);
+
+        Assert.Equal(2, exam.Revisions.Count);
+        Assert.Equal(ExamRevisionStatus.Superseded, published.Status);
+        Assert.Equal(ExamRevisionStatus.Draft, adminDraft.Status);
+    }
 }

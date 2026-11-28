@@ -5,6 +5,7 @@ namespace TOEICMaster.Application.ExerciseBank;
 
 public interface ILrExerciseBankRepository
 {
+    Task<LrExerciseBankItem?> GetByIdAsync(Guid itemId, CancellationToken cancellationToken);
     Task<LrExerciseItemPageDto> GetPageAsync(
         LrExerciseItemFilter filter,
         CancellationToken cancellationToken);

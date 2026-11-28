@@ -51,8 +51,8 @@ public sealed class LrPracticeApiFactory : ApiFactory
         LrExerciseDifficulty.Easy,
         LrExerciseStatus.Published,
         null,
-        null,
-        null,
+        "https://example.test/audio.mp3",
+        "https://example.test/image.png",
         [new LrExerciseBankQuestionInput(
             "P1-API-001-Q1",
             "What is shown?",
@@ -300,6 +300,8 @@ public sealed class LrPracticeApiTests : IClassFixture<LrPracticeApiFactory>
 
 internal sealed class InMemoryLrPracticeExerciseBankRepository(LrExerciseBankItem item) : ILrExerciseBankRepository
 {
+    public Task<LrExerciseBankItem?> GetByIdAsync(Guid itemId, CancellationToken cancellationToken) =>
+        Task.FromResult(itemId == item.Id ? item : null);
     public Task<LrExerciseItemPageDto> GetPageAsync(LrExerciseItemFilter filter, CancellationToken cancellationToken) =>
         Task.FromResult(new LrExerciseItemPageDto([], filter.PageNumber, filter.PageSize, 0));
 

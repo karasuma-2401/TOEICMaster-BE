@@ -252,6 +252,8 @@ public sealed class MediatorPipelineTests
 
     private sealed class EmptyLrExerciseBankRepository : ILrExerciseBankRepository
     {
+        public Task<LrExerciseBankItem?> GetByIdAsync(Guid itemId, CancellationToken cancellationToken) =>
+            Task.FromResult<LrExerciseBankItem?>(null);
         public Task<LrExerciseItemPageDto> GetPageAsync(LrExerciseItemFilter filter, CancellationToken cancellationToken) =>
             Task.FromResult(new LrExerciseItemPageDto([], filter.PageNumber, filter.PageSize, 0));
 

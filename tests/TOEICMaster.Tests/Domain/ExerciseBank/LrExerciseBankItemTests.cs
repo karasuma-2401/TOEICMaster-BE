@@ -5,6 +5,38 @@ namespace TOEICMaster.Tests.Domain.ExerciseBank;
 public sealed class LrExerciseBankItemTests
 {
     [Fact]
+    public void Published_part_one_requires_audio_and_image_but_draft_can_be_incomplete()
+    {
+        var questions = new[] { new LrExerciseBankQuestionInput("P1-Q1", "What is shown?", "A", "B", "C", "D", "A", null, null) };
+        LrExerciseBankItem.Create(LrExercisePart.Part1, "P1-DRAFT", "Office", LrExerciseDifficulty.Easy,
+            LrExerciseStatus.Draft, null, null, null, questions, Guid.NewGuid(), DateTimeOffset.UtcNow);
+        Assert.Throws<ArgumentException>(() => LrExerciseBankItem.Create(LrExercisePart.Part1, "P1-PUBLISHED",
+            "Office", LrExerciseDifficulty.Easy, LrExerciseStatus.Published, null, null, null, questions,
+            Guid.NewGuid(), DateTimeOffset.UtcNow));
+        Assert.Throws<ArgumentException>(() => LrExerciseBankItem.Create(LrExercisePart.Part1, "P1-PUBLISHED",
+            "Office", LrExerciseDifficulty.Easy, LrExerciseStatus.Published, null, "audio.mp3", null, questions,
+            Guid.NewGuid(), DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public void Draft_can_attach_media_and_publish_with_a_new_version()
+    {
+        var owner = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var questions = new[] { new LrExerciseBankQuestionInput("P1-Q2", "What is shown?", "A", "B", "C", "D", "A", null, null) };
+        var item = LrExerciseBankItem.Create(LrExercisePart.Part1, "P1-DRAFT-2", "Office",
+            LrExerciseDifficulty.Easy, LrExerciseStatus.Draft, null, null, null, questions, owner, now);
+        Assert.Throws<ArgumentException>(() => item.UpdateMediaAndStatus("audio.mp3", null,
+            LrExerciseStatus.Published, owner, now.AddMinutes(1)));
+        Assert.Equal(LrExerciseStatus.Draft, item.Status);
+        Assert.Equal(1, item.Version);
+        item.UpdateMediaAndStatus("audio.mp3", "image.png", LrExerciseStatus.Published, owner,
+            now.AddMinutes(1));
+        Assert.Equal(LrExerciseStatus.Published, item.Status);
+        Assert.Equal(2, item.Version);
+        Assert.Equal(now.AddMinutes(1), item.UpdatedAtUtc);
+    }
+    [Fact]
     public void Grouped_part_creates_one_item_with_its_child_questions()
     {
         var now = new DateTimeOffset(2026, 10, 29, 0, 0, 0, TimeSpan.Zero);

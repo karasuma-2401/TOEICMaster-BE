@@ -6,6 +6,9 @@ namespace TOEICMaster.Infrastructure.Persistence.ExerciseBank;
 
 public sealed class EfLrExerciseBankRepository(ToeicDbContext context) : ILrExerciseBankRepository
 {
+    public Task<LrExerciseBankItem?> GetByIdAsync(Guid itemId, CancellationToken cancellationToken) =>
+        context.LrExerciseBankItems.Include(item => item.Questions)
+            .FirstOrDefaultAsync(item => item.Id == itemId, cancellationToken);
     public async Task<LrExerciseItemPageDto> GetPageAsync(
         LrExerciseItemFilter filter,
         CancellationToken cancellationToken)
@@ -58,7 +61,9 @@ public sealed class EfLrExerciseBankRepository(ToeicDbContext context) : ILrExer
             .Include(item => item.Questions)
             .Where(item =>
                 item.Part == parsedPart &&
-                item.Status == LrExerciseStatus.Published);
+                item.Status == LrExerciseStatus.Published &&
+                (item.Part >= LrExercisePart.Part5 ||
+                 item.AudioUrl != null && (item.Part != LrExercisePart.Part1 || item.ImageUrl != null)));
 
         var totalCount = await query.CountAsync(cancellationToken);
         var offset = checked((pageNumber - 1) * pageSize);
@@ -81,7 +86,9 @@ public sealed class EfLrExerciseBankRepository(ToeicDbContext context) : ILrExer
             .Include(item => item.Questions)
             .FirstOrDefaultAsync(
                 item => item.Id == itemId &&
-                        item.Status == LrExerciseStatus.Published,
+                        item.Status == LrExerciseStatus.Published &&
+                        (item.Part >= LrExercisePart.Part5 ||
+                         item.AudioUrl != null && (item.Part != LrExercisePart.Part1 || item.ImageUrl != null)),
                 cancellationToken);
     }
     public async Task<LrExerciseBankSummaryDto> GetSummaryAsync(CancellationToken cancellationToken)

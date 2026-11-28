@@ -99,7 +99,7 @@ public sealed class LrPracticePersistenceTests
                 LrExerciseDifficulty.Medium,
                 LrExerciseStatus.Published,
                 "M: Ready? W: Yes.",
-                null,
+                "https://example.test/audio.mp3",
                 null,
                 [
                     new LrExerciseBankQuestionInput("P3-PG-001-Q1", "Q1", "A1", "B1", "C1", "D1", "A", "T1", "E1"),

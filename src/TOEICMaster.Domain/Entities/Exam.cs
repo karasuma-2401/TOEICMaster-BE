@@ -71,6 +71,22 @@ public sealed class Exam
         return draft;
     }
 
+    public ExamRevision WithdrawPublishedRevisionToDraft(Guid revisionId, DateTimeOffset createdAtUtc)
+    {
+        var draft = CreateDraftRevision(revisionId, createdAtUtc);
+        WithdrawPublishedRevision(revisionId);
+        return draft;
+    }
+
+    public void WithdrawPublishedRevision(Guid revisionId)
+    {
+        var published = _revisions.SingleOrDefault(revision => revision.Id == revisionId)
+            ?? throw new InvalidOperationException("The revision does not belong to this exam.");
+        if (published.Status != ExamRevisionStatus.Published)
+            throw new ExamRevisionStateConflictException("Only a published revision can be withdrawn.");
+        published.Supersede();
+    }
+
     public void PublishDraft(Guid revisionId)
     {
         var draft = _revisions.SingleOrDefault(revision => revision.Id == revisionId)

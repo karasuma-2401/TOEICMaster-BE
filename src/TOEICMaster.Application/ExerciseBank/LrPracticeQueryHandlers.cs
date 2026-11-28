@@ -1,5 +1,6 @@
 using MediatR;
 using TOEICMaster.Domain.Entities;
+using TOEICMaster.Application.Exams;
 
 namespace TOEICMaster.Application.ExerciseBank;
 
@@ -50,7 +51,7 @@ public sealed class GetLrPracticeItemsQueryHandler(
 }
 
 public sealed class GetLrPracticeItemDetailQueryHandler(
-    ILrExerciseBankRepository repository
+    ILrExerciseBankRepository repository, IExamMediaStore mediaStore
 ) : IRequestHandler<GetLrPracticeItemDetailQuery, LrPracticeDetailDto?>
 {
     public async Task<LrPracticeDetailDto?> Handle(
@@ -86,9 +87,19 @@ public sealed class GetLrPracticeItemDetailQueryHandler(
             item.Topic,
             item.Difficulty.ToString(),
             item.Context,
-            item.AudioUrl,
-            item.ImageUrl,
+            await ResolveMediaAsync(item.AudioUrl, mediaStore, cancellationToken),
+            await ResolveMediaAsync(item.ImageUrl, mediaStore, cancellationToken),
             questions
         );
     }
+
+    private static Task<string?> ResolveMediaAsync(string? value, IExamMediaStore store,
+        CancellationToken cancellationToken) =>
+        value?.StartsWith("lr-exercise/", StringComparison.Ordinal) == true
+            ? ResolveStoredMediaAsync(value, store, cancellationToken)
+            : Task.FromResult(value);
+
+    private static async Task<string?> ResolveStoredMediaAsync(string key, IExamMediaStore store,
+        CancellationToken cancellationToken) =>
+        await store.CreatePresignedGetUrlAsync(key, TimeSpan.FromHours(2), cancellationToken);
 }

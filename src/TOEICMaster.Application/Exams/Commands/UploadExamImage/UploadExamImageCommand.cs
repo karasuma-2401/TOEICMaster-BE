@@ -1,4 +1,5 @@
 using MediatR;
+using System.Buffers.Binary;
 using TOEICMaster.Domain.Entities;
 
 namespace TOEICMaster.Application.Exams.Commands.UploadExamImage;
@@ -37,6 +38,42 @@ public sealed class UploadExamImageCommandHandler(IExamRepository repository, IE
 
 public static class ExamMediaInspector
 {
+    public static (string Extension, string ContentType)? DetectAudio(byte[] bytes)
+    {
+        if (bytes.Length >= 44 && bytes.AsSpan(0, 4).SequenceEqual("RIFF"u8) &&
+            bytes.AsSpan(8, 4).SequenceEqual("WAVE"u8) &&
+            BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(4, 4)) <= bytes.Length - 8)
+        {
+            var hasFormat = false;
+            var hasData = false;
+            for (var offset = 12; offset + 8 <= bytes.Length;)
+            {
+                var size = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset + 4, 4));
+                if (size > bytes.Length - offset - 8) return null;
+                if (bytes.AsSpan(offset, 4).SequenceEqual("fmt "u8) && size >= 16)
+                    hasFormat = BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(offset + 8, 2)) is 1 or 3 &&
+                        BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(offset + 10, 2)) > 0 &&
+                        BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset + 12, 4)) > 0;
+                if (bytes.AsSpan(offset, 4).SequenceEqual("data"u8) && size > 0) hasData = true;
+                offset += 8 + (int)size + (int)(size & 1);
+            }
+            if (hasFormat && hasData) return ("wav", "audio/wav");
+        }
+
+        var start = 0;
+        if (bytes.Length >= 10 && bytes.AsSpan().StartsWith("ID3"u8))
+        {
+            if (((bytes[6] | bytes[7] | bytes[8] | bytes[9]) & 0x80) != 0) return null;
+            start = 10 + (bytes[6] << 21) + (bytes[7] << 14) + (bytes[8] << 7) + bytes[9];
+            if ((bytes[5] & 0x10) != 0) start += 10;
+        }
+        if (start + 128 <= bytes.Length && bytes[start] == 0xff && (bytes[start + 1] & 0xe0) == 0xe0 &&
+            ((bytes[start + 1] >> 3) & 3) != 1 && ((bytes[start + 1] >> 1) & 3) != 0 &&
+            ((bytes[start + 2] >> 4) & 15) is > 0 and < 15 && ((bytes[start + 2] >> 2) & 3) != 3)
+            return ("mp3", "audio/mpeg");
+        return null;
+    }
+
     public static bool MatchesClaimedContentType(string claimedContentType, string detectedContentType) =>
         string.Equals(claimedContentType, detectedContentType, StringComparison.OrdinalIgnoreCase);
 

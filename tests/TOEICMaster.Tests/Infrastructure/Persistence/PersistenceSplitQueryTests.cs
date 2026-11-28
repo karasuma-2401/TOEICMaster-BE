@@ -33,6 +33,8 @@ public sealed class PersistenceSplitQueryTests
             var examRepo = new EfExamRepository(db);
             var exam = await db.Exams.FirstAsync();
             var published = exam.Revisions.First();
+            exam.PublishDraft(published.Id);
+            await db.SaveChangesAsync();
 
             var readExam = await examRepo.FindExamAsync(exam.Id, CancellationToken.None);
             Assert.NotNull(readExam);
